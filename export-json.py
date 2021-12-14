@@ -5,9 +5,8 @@ import json
 import sys
 from pybatfish.client.session import Session
 from pybatfish.datamodel import *
-from pybatfish.datamodel.answer import *
+from pybatfish.datamodel.answer import TableAnswer
 from pybatfish.datamodel.flow import *
-from pandas.io.json import to_json
 
 
 def initialize_session(snapshot_dir: str):
@@ -22,25 +21,29 @@ def initialize_session(snapshot_dir: str):
     return bf
 
 
-def get_node_properties(session: Session):
+def get_node_properties(session: Session) -> TableAnswer:
     """
     Return the properties of the network nodes.
     """
     return session.q.nodeProperties().answer()
 
 
-def get_layer3_edges(session: Session):
+def get_layer3_edges(session: Session) -> TableAnswer:
     """
     Return the layer 3 edges of the network.
     """
     return session.q.layer3Edges().answer()
 
 
-def get_named_structures(session: Session):
+def get_named_structures(session: Session) -> TableAnswer:
     """
     Return the named structures of the network.
     """
     return session.q.namedStructures().answer()
+
+
+def collect_rows(answer: TableAnswer) -> list:
+    return [a["rows"] for a in answer["answerElements"]]
 
 
 if __name__ == "__main__":
@@ -50,5 +53,5 @@ if __name__ == "__main__":
         "policy": get_node_properties,
         "declarations": get_named_structures,
     }
-    output = json.dumps({k: v(bf) for k, v in info.items()})
+    output = json.dumps({k: collect_rows(v(bf)) for k, v in info.items()})
     print(output)
