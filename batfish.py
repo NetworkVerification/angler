@@ -7,7 +7,7 @@ from pybatfish.client.session import Session
 from pybatfish.datamodel.answer import TableAnswer
 
 
-class Structure(dict):
+class Structure:
     def __init__(self, node: str, ty: str, name: str, val):
         # val is an AST that also needs to be parsed
         self.node = node
@@ -22,7 +22,7 @@ class Structure(dict):
         """
         structure_type = structure["Structure_Type"]
         node = structure["Node"]["name"]
-        name = structure["name"]
+        name = structure["Structure_Name"]
         val = structure["Structure_Definition"]["value"]
         return Structure(node, structure_type, name, val)
 
@@ -81,4 +81,4 @@ if __name__ == "__main__":
         "declarations": get_named_structures,
     }
     output = {k: collect_rows(v(bf)) for k, v in info.items()}
-    print(json.dumps(output))
+    print(json.dumps(output, indent=2))
