@@ -4,9 +4,36 @@
 import json
 import sys
 from pybatfish.client.session import Session
-from pybatfish.datamodel import *
 from pybatfish.datamodel.answer import TableAnswer
-from pybatfish.datamodel.flow import *
+
+
+class Structure(dict):
+    def __init__(self, node: str, ty: str, name: str, val):
+        # val is an AST that also needs to be parsed
+        self.node = node
+        self.ty = ty
+        self.name = name
+        self.val = val
+
+    @staticmethod
+    def from_dict(structure):
+        """
+        Return the relevant parts of a structure.
+        """
+        structure_type = structure["Structure_Type"]
+        node = structure["Node"]["name"]
+        name = structure["name"]
+        val = structure["Structure_Definition"]["value"]
+        return Structure(node, structure_type, name, val)
+
+    def __str__(self):
+        return f"""{{
+            "name": "{self.name}",
+            "node": "{self.node}",
+            "type": "{self.ty}",
+            "value": {self.val}
+        }}
+        """
 
 
 def initialize_session(snapshot_dir: str):
@@ -53,5 +80,5 @@ if __name__ == "__main__":
         "policy": get_node_properties,
         "declarations": get_named_structures,
     }
-    output = json.dumps({k: collect_rows(v(bf)) for k, v in info.items()})
-    print(output)
+    output = {k: collect_rows(v(bf)) for k, v in info.items()}
+    print(json.dumps(output))
