@@ -6,7 +6,7 @@ import sys
 from pybatfish.client.session import Session
 from pybatfish.datamodel.answer import TableAnswer
 
-from jsonable import Serializable
+from serialize import Serializable
 
 
 @Serializable(id="id", name="name")
