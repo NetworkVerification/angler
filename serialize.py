@@ -22,28 +22,60 @@ class Serializable:
         # store that this class has a property where these specific fields are serialized
         cls._jsonFields = self.fields
         # construct a function from class to dict
-        def toDict(self) -> dict:
+        def to_dict(self) -> dict:
             d = {}
             for (field, fieldname) in self.__class__._jsonFields.items():
                 v = self.__getattribute__(field)
                 if isinstance(v, list):
                     d[fieldname] = [
-                        e.toDict() if hasattr(e.__class__, "_jsonFields") else e
+                        e.to_dict() if hasattr(e.__class__, "_jsonFields") else e
                         for e in v
                     ]
                 else:
                     d[fieldname] = (
-                        v.toDict() if hasattr(v.__class__, "_jsonFields") else v
+                        v.to_dict() if hasattr(v.__class__, "_jsonFields") else v
                     )
             return d
 
-        cls.toDict = toDict
+        cls.to_dict = to_dict
 
         # construct a function from dict to class
         @classmethod
-        def fromDict(cls, d):
-            return cls(**d)
+        def from_dict(cls, d):
+            instance = cls(**d)
+            return instance
 
-        cls.fromDict = fromDict
+        cls.from_dict = from_dict
 
         return cls
+
+
+def Serialize(**fields):
+    """
+    Return an anonymous class that implements a dictionary
+    transformation `to_dict`, where each given field is accessed
+    and encoded in the dictionary as the given field name.
+    :param fields: a sequence of key-value pairs, where the keys are
+    fields and the values are the desired field names.
+    """
+
+    class Inner:
+        def __init__(self):
+            self._jsonFields = fields
+
+        def to_dict(self) -> dict:
+            d = {}
+            for field in fields:
+                v = getattr(self, field)
+                if isinstance(v, list):
+                    d[fields[field]] = [
+                        e.to_dict() if hasattr(e.__class__, "_jsonFields") else e
+                        for e in v
+                    ]
+                else:
+                    d[fields[field]] = (
+                        v.to_dict() if hasattr(v.__class__, "_jsonFields") else v
+                    )
+            return d
+
+    return Inner

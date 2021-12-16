@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from enum import Enum
+from typing import List
 
 
 class ExprType(Enum):
@@ -17,7 +18,7 @@ class ExprType(Enum):
     LONGEXPR = "longExpr"
 
 
-class Node:
+class ASTNode:
     """
     A node of the AST.
     """
@@ -30,11 +31,11 @@ class Node:
         self.children = list(children)
 
 
-class Expression(Node):
+class Expression(ASTNode):
     ...
 
 
-class Statement(Node):
+class Statement(ASTNode):
     ...
 
 
@@ -43,7 +44,7 @@ class BooleanExpr(Expression):
 
 
 class Conjunction(BooleanExpr):
-    def __init__(self, *exprs: list[BooleanExpr]):
+    def __init__(self, *exprs: List[BooleanExpr]):
         self.children = exprs
 
 
@@ -52,7 +53,7 @@ class Not(BooleanExpr):
         self.children = [expr]
 
 
-class NodeVisitor:
+class ASTNodeVisitor:
     @staticmethod
-    def visit(node: Node):
+    def visit(node: ASTNode):
         pass

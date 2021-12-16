@@ -6,13 +6,14 @@ import sys
 from pybatfish.client.session import Session
 from pybatfish.datamodel.answer import TableAnswer
 
-from serialize import Serializable
+from serialize import Serializable, Serialize
 
 
-@Serializable(id="id", name="name")
-class Node:
-    def __init__(self, id, name):
-        self.id = id
+# @Serializable(nodeid="id", name="name")
+class Node(Serialize(nodeid="id", name="name")):
+    def __init__(self, nodeid, name):
+        super().__init__()
+        self.nodeid = nodeid
         self.name = name
 
 
@@ -37,15 +38,7 @@ class Structure:
         return Structure(node, structure_type, name, val)
 
     def __str__(self):
-        return json.dumps(self.toDict())
-
-
-class Statement:
-    ...
-
-
-class Line:
-    ...
+        return json.dumps(self.to_dict())
 
 
 def initialize_session(snapshot_dir: str):
