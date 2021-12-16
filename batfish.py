@@ -6,7 +6,17 @@ import sys
 from pybatfish.client.session import Session
 from pybatfish.datamodel.answer import TableAnswer
 
+from jsonable import Serializable
 
+
+@Serializable(id="id", name="name")
+class Node:
+    def __init__(self, id, name):
+        self.id = id
+        self.name = name
+
+
+@Serializable(node="node", ty="type", name="name", val="value")
 class Structure:
     def __init__(self, node: str, ty: str, name: str, val):
         # val is an AST that also needs to be parsed
@@ -27,13 +37,15 @@ class Structure:
         return Structure(node, structure_type, name, val)
 
     def __str__(self):
-        return f"""{{
-            "name": "{self.name}",
-            "node": "{self.node}",
-            "type": "{self.ty}",
-            "value": {self.val}
-        }}
-        """
+        return json.dumps(self.toDict())
+
+
+class Statement:
+    ...
+
+
+class Line:
+    ...
 
 
 def initialize_session(snapshot_dir: str):
@@ -73,6 +85,15 @@ def collect_rows(answer: TableAnswer) -> list:
     return [a["rows"] for a in answer["answerElements"]]
 
 
+def load_json(json_path: str) -> dict:
+    """
+    Load a JSON file.
+    Has three parts: topology, policy and declarations.
+    """
+    with open(json_path) as fp:
+        return json.load(fp)
+
+
 if __name__ == "__main__":
     bf = initialize_session(sys.argv[1])
     info = {
@@ -81,4 +102,4 @@ if __name__ == "__main__":
         "declarations": get_named_structures,
     }
     output = {k: collect_rows(v(bf)) for k, v in info.items()}
-    print(json.dumps(output, indent=2))
+    print(json.dumps(output, sort_keys=True, indent=2))
