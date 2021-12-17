@@ -3,13 +3,13 @@
 #
 import json
 import sys
+from typing import Any
 from pybatfish.client.session import Session
 from pybatfish.datamodel.answer import TableAnswer
 
-from serialize import Serializable, Serialize
+from serialize import Serialize
 
 
-# @Serializable(nodeid="id", name="name")
 class Node(Serialize(nodeid="id", name="name")):
     def __init__(self, nodeid, name):
         super().__init__()
@@ -17,25 +17,31 @@ class Node(Serialize(nodeid="id", name="name")):
         self.name = name
 
 
-@Serializable(node="node", ty="type", name="name", val="value")
-class Structure:
-    def __init__(self, node: str, ty: str, name: str, val):
+class Structure(
+    Serialize(
+        node=("Node", Node),
+        ty=("Structure_Type", str),
+        name=("Structure_Name", str),
+        definition=("Structure_Definition", dict),
+    )
+):
+    def __init__(self, node: Node, ty: str, name: str, definition):
         # val is an AST that also needs to be parsed
         self.node = node
         self.ty = ty
         self.name = name
-        self.val = val
+        self.definition = definition
 
-    @staticmethod
-    def from_dict(structure):
-        """
-        Return the relevant parts of a structure.
-        """
-        structure_type = structure["Structure_Type"]
-        node = structure["Node"]["name"]
-        name = structure["Structure_Name"]
-        val = structure["Structure_Definition"]["value"]
-        return Structure(node, structure_type, name, val)
+    # @staticmethod
+    # def from_dict(structure):
+    #     """
+    #     Return the relevant parts of a structure.
+    #     """
+    #     structure_type = structure["Structure_Type"]
+    #     node = structure["Node"]
+    #     name = structure["Structure_Name"]
+    #     val = structure["Structure_Definition"]
+    #     return Structure(node, structure_type, name, val)
 
     def __str__(self):
         return json.dumps(self.to_dict())
@@ -74,11 +80,14 @@ def get_named_structures(session: Session) -> TableAnswer:
     return session.q.namedStructures().answer()
 
 
-def collect_rows(answer: TableAnswer) -> list:
-    return [a["rows"] for a in answer["answerElements"]]
+def collect_rows(answer: TableAnswer) -> list[dict[str, Any]]:
+    """
+    Return the rows of the answers in the given TableAnswer.
+    """
+    return [row for a in answer["answerElements"] for row in a["rows"]]
 
 
-def load_json(json_path: str) -> dict:
+def load_json(json_path: str) -> dict[str, Any]:
     """
     Load a JSON file.
     Has three parts: topology, policy and declarations.
