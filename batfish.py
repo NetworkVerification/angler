@@ -7,45 +7,6 @@ from typing import Any
 from pybatfish.client.session import Session
 from pybatfish.datamodel.answer import TableAnswer
 
-from serialize import Serialize
-
-
-class Node(Serialize(nodeid="id", name="name")):
-    def __init__(self, nodeid, name):
-        super().__init__()
-        self.nodeid = nodeid
-        self.name = name
-
-
-class Structure(
-    Serialize(
-        node=("Node", Node),
-        ty=("Structure_Type", str),
-        name=("Structure_Name", str),
-        definition=("Structure_Definition", dict),
-    )
-):
-    def __init__(self, node: Node, ty: str, name: str, definition):
-        # val is an AST that also needs to be parsed
-        self.node = node
-        self.ty = ty
-        self.name = name
-        self.definition = definition
-
-    # @staticmethod
-    # def from_dict(structure):
-    #     """
-    #     Return the relevant parts of a structure.
-    #     """
-    #     structure_type = structure["Structure_Type"]
-    #     node = structure["Node"]
-    #     name = structure["Structure_Name"]
-    #     val = structure["Structure_Definition"]
-    #     return Structure(node, structure_type, name, val)
-
-    def __str__(self):
-        return json.dumps(self.to_dict())
-
 
 def initialize_session(snapshot_dir: str):
     """
