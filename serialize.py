@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 
-from typing import Optional
+from typing import Optional, cast
 
 
 def Serialize(**fields: str | tuple[str, type]):
@@ -23,6 +23,20 @@ def Serialize(**fields: str | tuple[str, type]):
     :param fields: a sequence of key-value pairs, where the keys are
     fields and the values are the desired field names, optionally also
     including a type or class.
+
+    >>> class A(Serialize(foo="f",bar="b")):
+    ...     def __init__(self, foo, bar, quux=10):
+    ...         super().__init__()
+    ...         self.foo = foo
+    ...         self.bar = bar
+    ...         self.quux = quux
+    >>> a = A.from_dict({"f": 1, "b": 2, "c": 3})
+    >>> a.foo
+    1
+    >>> a.bar
+    2
+    >>> a.to_dict()
+    {'f': 1, 'b': 2}
     """
 
     class Inner:
@@ -59,17 +73,22 @@ def Serialize(**fields: str | tuple[str, type]):
             kwargs = {}
             for field in fields:
                 fieldty: Optional[type] = None
-                if isinstance(fields[field], str):
-                    fieldname = fields[field]
+                if isinstance(fields[field], tuple):
+                    # NOTE: have to explicitly cast to assuage the type checker
+                    fieldname, fieldty = cast(tuple[str, type], fields[field])
                 else:
-                    fieldname = fields[field][0]
-                    # FIXME: why can't we convince the typechecker that this is a type?
-                    fieldty = fields[field][1]
+                    fieldname = fields[field]
                 v = d[fieldname]
-                # TODO: if the fieldty is not None and has a from_dict method, call that
-                # TODO: if it is just not None but callable, call it on v
-                # if the internal field also has a from_dict implementation, recursively convert it
-                kwargs[field] = v
+                # if the fieldty is not None and has a from_dict method, call that
+                # if it is just not None but callable, call it on v
+                # otherwise, just return v
+                kwargs[field] = (
+                    v.from_dict()
+                    if fieldty and hasattr(fieldty, "from_dict")
+                    else fieldty(v)
+                    if fieldty and callable(fieldty)
+                    else v
+                )
             instance = cls(**kwargs)
             return instance
 
