@@ -4,6 +4,7 @@
 from typing import (
     Any,
     Protocol,
+    NoReturn,
     cast,
     get_args,
     get_origin,
@@ -19,7 +20,7 @@ class Serializable(Protocol):
         ...
 
     @classmethod
-    def from_dict(cls, d) -> "Serializable":
+    def from_dict(cls, d: dict) -> "Serializable":
         ...
 
 
@@ -72,8 +73,11 @@ def Serialize(**fields: str | tuple[str, type]):
     """
 
     class Inner:
-        def __init__(self):
-            self._jsonFields = fields
+        def __init__(self, *args, **kwargs):
+            ...
+            # raise TypeError(
+            #     "Serialize Inner constructor should not be instantiated directly."
+            # )
 
         def to_dict(self) -> dict:
             """
@@ -149,7 +153,7 @@ def Serialize(**fields: str | tuple[str, type]):
                         )
                         for e in v
                     ]
-                if get_origin(fieldty) is dict or isinstance(fieldty, dict):
+                elif get_origin(fieldty) is dict or isinstance(fieldty, dict):
                     if not isinstance(v, dict):
                         raise TypeError(
                             f"given value '{v}' does not match type '{fieldty}'"

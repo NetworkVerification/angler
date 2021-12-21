@@ -2,10 +2,13 @@
 # Export Batfish JSON snapshots
 #
 import json
+import os
 import sys
 from typing import Any
 from pybatfish.client.session import Session
 from pybatfish.datamodel.answer import TableAnswer
+
+from aast import BatfishJson, StructureType
 
 
 def initialize_session(snapshot_dir: str):
@@ -58,11 +61,22 @@ def load_json(json_path: str) -> dict[str, Any]:
 
 
 if __name__ == "__main__":
-    bf = initialize_session(sys.argv[1])
-    info = {
-        "topology": get_layer3_edges,
-        "policy": get_node_properties,
-        "declarations": get_named_structures,
-    }
-    output = {k: collect_rows(v(bf)) for k, v in info.items()}
-    print(json.dumps(output, sort_keys=True, indent=2))
+    arg = sys.argv[1]
+    if os.path.isdir(arg):
+        bf = initialize_session(arg)
+        info = {
+            "topology": get_layer3_edges,
+            "policy": get_node_properties,
+            "declarations": get_named_structures,
+        }
+        output = {k: collect_rows(v(bf)) for k, v in info.items()}
+        bf_ast = BatfishJson.from_dict(output)
+        print(json.dumps(output, sort_keys=True, indent=2))
+    elif os.path.isfile(arg):
+        output = load_json(arg)
+        bf_ast = BatfishJson.from_dict(output)
+        for decl in bf_ast.declarations:
+            if decl.ty is StructureType.ROUTING_POLICY:
+                print(decl.definition["value"])
+    else:
+        raise ValueError("Invalid argument provided.")

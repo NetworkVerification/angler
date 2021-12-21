@@ -14,10 +14,30 @@ we want to fail to decode the file and return an error immediately.
 :author: Tim Alberdingk Thijm <tthijm@cs.princeton.edu>
 """
 from enum import Enum
-from typing import Any
+from typing import Any, Union
 from serialize import Serialize
 from ipaddress import IPv4Address, IPv4Interface
 from dataclasses import dataclass
+
+
+class Action(Enum):
+    PERMIT = "PERMIT"
+    DENY = "DENY"
+
+
+@dataclass
+class ASTNode:
+    ...
+
+
+@dataclass
+class Expression(ASTNode):
+    ...
+
+
+@dataclass
+class Statement(ASTNode, Serialize()):
+    ...
 
 
 @dataclass
@@ -55,12 +75,65 @@ class Edge(
     remote_ips: list[IPv4Address]
 
 
+@dataclass
+class RouteFilter(
+    Serialize(
+        action=("action", Action),
+        ip_wildcard=("ipWildcard", IPv4Interface),
+        length_range="lengthRange",
+    )
+):
+    action: Action
+    ip_wildcard: IPv4Interface
+    # TODO: parse string into a range
+    length_range: str
+
+
+@dataclass
+class RoutingPolicy(Serialize(name="name", statements=("statements", list[Statement]))):
+    name: str
+    statements: list[Statement]
+
+
+@dataclass
+class BgpProcess(Serialize(neighbors=("neighbors", dict[IPv4Address, dict]))):
+    neighbors: dict[IPv4Address, dict]
+
+
+@dataclass
+class Vrf(
+    Serialize(
+        name="name", process=("bgpProcess", BgpProcess), resolution="resolutionPolicy"
+    )
+):
+    name: str
+    process: BgpProcess
+    resolution: str
+
+
+Structure_Def = Union[Vrf, RouteFilter, RoutingPolicy]
+
+
 class StructureType(Enum):
-    IP_ACCESS_LIST = "IP_Access_List"
-    ROUTING_POLICY = "Routing_Policy"
-    ROUTE_FILTER_LIST = "Route_Filter_List"
-    VRF = "VRF"
     COMMS_MATCH = "Community_Set_Match_Expr"
+    IP_ACCESS_LIST = "IP_Access_List"
+    ROUTE_FILTER_LIST = "Route_Filter_List"
+    ROUTING_POLICY = "Routing_Policy"
+    VRF = "VRF"
+
+    def enum_class(self) -> type:
+        if self is StructureType.COMMS_MATCH:
+            raise NotImplementedError()
+        elif self is StructureType.IP_ACCESS_LIST:
+            raise NotImplementedError()
+        elif self is StructureType.ROUTE_FILTER_LIST:
+            return list[RouteFilter]
+        elif self is StructureType.ROUTING_POLICY:
+            return RoutingPolicy
+        elif self is StructureType.VRF:
+            return Vrf
+        else:
+            raise ValueError(f"received invalid StructureType '{self}'")
 
 
 @dataclass
@@ -72,15 +145,21 @@ class Structure(
         definition=("Structure_Definition", dict),
     )
 ):
+    """
+    A named structure in Batfish.
+    The definition portion holds a different object depending on the structure type.
+    TODO: Unfortunately, the deserialization procedure can't yet use one field to
+    determine which structure definition we happen to be looking at.
+    Because of this, definition needs to be parsed in a second pass.
+    """
+
     node: Node
     ty: StructureType
     name: str
+    # TODO: technically, this will be an object with a Structure_Def value,
+    # but it's non-obvious how the serializer should figure out which choice of type
+    # to use here, and it may not make sense to try them all.
     definition: dict
-
-
-class Action(Enum):
-    PERMIT = "PERMIT"
-    DENY = "DENY"
 
 
 @dataclass
@@ -91,6 +170,7 @@ class AclLine(
         action=("action", Action),
         match_cond="matchCondition",
         name="name",
+        # these two are probably also skippable
         trace_elem="traceElement",
         vendor_id="vendorStructureId",
     )
@@ -119,8 +199,16 @@ class Acl(
 
 
 @dataclass
-class BgpProcess(Serialize(neighbors=("neighbors", dict[IPv4Address, dict]))):
-    neighbors: dict[IPv4Address, dict]
+class BatfishJson(
+    Serialize(
+        topology=("topology", list[Edge]),
+        policy="policy",
+        declarations=("declarations", list[Structure]),
+    )
+):
+    topology: list[Edge]
+    policy: dict
+    declarations: list[Structure]
 
 
 class ExprType(Enum):
@@ -138,16 +226,10 @@ class ExprType(Enum):
     LONGEXPR = "longExpr"
 
 
-class ASTNode:
-    ...
-
-
-class Expression(ASTNode):
-    ...
-
-
-class Statement(ASTNode):
-    ...
+class StaticStatementType(Enum):
+    TRUE = "ReturnTrue"
+    FALSE = "ReturnFalse"
+    LOCAL_DEF = "ReturnLocalDefaultAction"
 
 
 class BooleanExpr(Expression):
@@ -165,25 +247,37 @@ class Not(BooleanExpr):
 
 
 @dataclass
-class RouteFilter:
-    action: Action
-    ip_wildcard: IPv4Interface
-    # TODO: parse string into a range
-    length_range: str
+class TraceableStatement(
+    Statement,
+    Serialize(inner=("innerStatements", list[Statement]), trace_elem="traceElement"),
+):
+    inner: list[Statement]
+    trace_elem: dict
 
 
 @dataclass
-class IfStatement(Statement):
+class IfStatement(
+    Statement,
+    Serialize(
+        guard="guard",
+        true_stmts=("trueStatements", list[Statement]),
+        false_stmts=("falseStatements", list[Statement]),
+        comment="comment",
+    ),
+):
     guard: dict
-    trueStatements: list[Statement]
-    falseStatements: list[Statement]
+    true_stmts: list[Statement]
+    false_stmts: list[Statement]
     comment: str
 
 
 @dataclass
-class RoutingPolicy(Serialize(name="name", statements=("statements", list[Statement]))):
-    name: str
-    statements: list[Statement]
+class SetLocalPreference(Statement, Serialize(lp="localPreference")):
+    lp: dict
+
+
+class StaticStatement(Statement, Serialize(ty=("type", StaticStatementType))):
+    ty: StaticStatementType
 
 
 class ASTNodeVisitor:
