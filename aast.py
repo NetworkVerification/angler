@@ -1,23 +1,40 @@
 #!/usr/bin/env python3
+"""
+Functionality for parsing Batfish's JSON representation back into an AST.
+All classes here are essentially just organized data: the code is written
+(perhaps not very Pythonically) to allow us to decode an entire JSON file
+directly into a nested hierarchy of Python dataclasses.
+Once those are arranged, we can then write code to access the dataclasses
+and return the relevant components.
+The main benefit of using these dataclasses rather than simply parsing the
+JSON directly is that the static classes expect certain data: if the JSON
+output is malformed or our implementation no longer aligns with Batfish,
+we want to fail to decode the file and return an error immediately.
+
+:author: Tim Alberdingk Thijm <tthijm@cs.princeton.edu>
+"""
 from enum import Enum
+from typing import Any
 from serialize import Serialize
 from ipaddress import IPv4Address, IPv4Interface
+from dataclasses import dataclass
 
 
+@dataclass
 class Node(Serialize(nodeid="id", name="name")):
-    def __init__(self, nodeid, name):
-        super().__init__()
-        self.nodeid = nodeid
-        self.name = name
+    """A node in the network."""
+
+    nodeid: str
+    name: str
 
 
+@dataclass
 class Interface(Serialize(host="hostname", iface="interface")):
-    def __init__(self, host: str, iface: str):
-        super().__init__()
-        self.host = host
-        self.iface = iface
+    host: str
+    iface: str
 
 
+@dataclass
 class Edge(
     Serialize(
         iface=("Interface", Interface),
@@ -32,34 +49,33 @@ class Edge(
     The second remote interface is the target.
     """
 
-    def __init__(
-        self,
-        iface: Interface,
-        ips: list[IPv4Address],
-        remote_iface: Interface,
-        remote_ips: list[IPv4Address],
-    ):
-        super().__init__()
-        self.iface = iface
-        self.ips = ips
-        self.remote_iface = remote_iface
-        self.remote_ips = remote_ips
+    iface: Interface
+    ips: list[IPv4Address]
+    remote_iface: Interface
+    remote_ips: list[IPv4Address]
 
 
+class StructureType(Enum):
+    IP_ACCESS_LIST = "IP_Access_List"
+    ROUTING_POLICY = "Routing_Policy"
+    ROUTE_FILTER_LIST = "Route_Filter_List"
+    VRF = "VRF"
+    COMMS_MATCH = "Community_Set_Match_Expr"
+
+
+@dataclass
 class Structure(
     Serialize(
         node=("Node", Node),
-        ty=("Structure_Type", str),
+        ty=("Structure_Type", StructureType),
         name=("Structure_Name", str),
         definition=("Structure_Definition", dict),
     )
 ):
-    def __init__(self, node: Node, ty: str, name: str, definition):
-        # val is an AST that also needs to be parsed
-        self.node = node
-        self.ty = ty
-        self.name = name
-        self.definition = definition
+    node: Node
+    ty: StructureType
+    name: str
+    definition: dict
 
 
 class Action(Enum):
@@ -67,6 +83,7 @@ class Action(Enum):
     DENY = "DENY"
 
 
+@dataclass
 class AclLine(
     Serialize(
         # cls may not be necessary?
@@ -78,15 +95,15 @@ class AclLine(
         vendor_id="vendorStructureId",
     )
 ):
-    def __init__(self, cls, action, match_cond, name, trace_elem, vendor_id):
-        self.cls = cls
-        self.action = action
-        self.match_cond = match_cond
-        self.name = name
-        self.trace_elem = trace_elem
-        self.vendor_id = vendor_id
+    cls: str
+    action: Action
+    match_cond: Any
+    name: str
+    trace_elem: dict
+    vendor_id: dict
 
 
+@dataclass
 class Acl(
     Serialize(
         name="name",
@@ -95,16 +112,15 @@ class Acl(
         lines=("lines", list[AclLine]),
     )
 ):
-    def __init__(self, name: str, srcname: str, srctype: str, lines: list[AclLine]):
-        self.name = name
-        self.srcname = srcname
-        self.srctype = srctype
-        self.lines = lines
+    name: str
+    srcname: str
+    srctype: str
+    lines: list[AclLine]
 
 
+@dataclass
 class BgpProcess(Serialize(neighbors=("neighbors", dict[IPv4Address, dict]))):
-    def __init__(self, neighbors: dict[IPv4Address, dict]):
-        self.neighbors = neighbors
+    neighbors: dict[IPv4Address, dict]
 
 
 class ExprType(Enum):
@@ -146,6 +162,28 @@ class Conjunction(BooleanExpr):
 class Not(BooleanExpr):
     def __init__(self, expr: BooleanExpr):
         self.children = [expr]
+
+
+@dataclass
+class RouteFilter:
+    action: Action
+    ip_wildcard: IPv4Interface
+    # TODO: parse string into a range
+    length_range: str
+
+
+@dataclass
+class IfStatement(Statement):
+    guard: dict
+    trueStatements: list[Statement]
+    falseStatements: list[Statement]
+    comment: str
+
+
+@dataclass
+class RoutingPolicy(Serialize(name="name", statements=("statements", list[Statement]))):
+    name: str
+    statements: list[Statement]
 
 
 class ASTNodeVisitor:
