@@ -4,7 +4,6 @@
 from typing import (
     Any,
     Protocol,
-    NoReturn,
     cast,
     get_args,
     get_origin,
@@ -73,11 +72,10 @@ def Serialize(**fields: str | tuple[str, type]):
     """
 
     class Inner:
-        def __init__(self, *args, **kwargs):
+        def __init__(self, **_):
+            # Match an arbitrary number of arguments so that dataclasses
+            # that are subclasses of Inner don't get broken.
             ...
-            # raise TypeError(
-            #     "Serialize Inner constructor should not be instantiated directly."
-            # )
 
         def to_dict(self) -> dict:
             """
@@ -135,13 +133,24 @@ def Serialize(**fields: str | tuple[str, type]):
                 else:
                     fieldname = fields[field]
                 v = d[fieldname]
-                # if not recurse and fieldty and not isinstance(v, fieldty):
-                #     raise TypeError(
-                #         f"given dict value '{v}' does not match type '{fieldty}'"
-                #     )
                 type_args = get_args(fieldty)
-                # TODO: implement for tuples?
-                if get_origin(fieldty) is list or isinstance(fieldty, list):
+                if get_origin(fieldty) is tuple or isinstance(fieldty, tuple):
+                    if not isinstance(v, tuple):
+                        raise TypeError(
+                            f"given value '{v}' does not match type '{fieldty}'"
+                        )
+                    # for tuples, zip the arguments
+                    if not type_args:
+                        type_args = [Any] * len(v)
+                    typed_vals = zip(v, type_args)
+                    # now process them in sequence
+                    kwargs[field] = tuple(
+                        [
+                            Inner._from_dict_aux(e, ty_arg, recurse)
+                            for (e, ty_arg) in typed_vals
+                        ]
+                    )
+                elif get_origin(fieldty) is list or isinstance(fieldty, list):
                     if not isinstance(v, list):
                         raise TypeError(
                             f"given value '{v}' does not match type '{fieldty}'"
