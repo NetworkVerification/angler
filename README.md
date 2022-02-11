@@ -16,6 +16,17 @@ which can be parsed by other tools.
 
 ## how to use
 
+### installation
+
+you can get all the necessary dependencies via the provided `requirements.txt` file.
+
+``` sh
+# ... set up your virtualenv ...
+pip install -r requirements.txt
+```
+
+### running
+
 ``` sh
 # start the batfish service (e.g. with a container manager of your choice)
 docker start batfish
