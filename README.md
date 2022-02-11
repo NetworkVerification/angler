@@ -14,6 +14,17 @@ it then simplifies this information using a series of transformations to output
 a condensed JSON representation of the network control plane,
 which can be parsed by other tools.
 
+## how to use
+
+``` sh
+# start the batfish service (e.g. with a container manager of your choice)
+docker start batfish
+# then dump an example network config to JSON
+python batfish.py examples/BDD1 > bdd.json
+# inspect at your leisure, or convert the JSON to the internal angler IR
+python batfish.py bdd.json
+```
+
 ## to-dos
 
 - [ ] ensure that all relevant batfish information is exported for general examples

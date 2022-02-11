@@ -15,12 +15,14 @@ we want to fail to decode the file and return an error immediately.
 """
 from enum import Enum
 from typing import Any, Union
-from serialize import Serialize
 from ipaddress import IPv4Address, IPv4Interface
 from dataclasses import dataclass
+from serialize import Serialize
 
 
 class Action(Enum):
+    """An action to perform on routes."""
+
     PERMIT = "PERMIT"
     DENY = "DENY"
 
