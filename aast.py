@@ -33,12 +33,23 @@ class ASTNode:
 
 
 @dataclass
-class Expression(ASTNode):
+class Expression(ASTNode, Serialize()):
+    """
+    The base class for expressions.
+    TODO: We need a way to narrow these appropriately during deserialization.
+    In most cases, there is a "class" key in the dict which specifies which type
+    of expression is given, which will be a subclass of Expression.
+    """
+
     ...
 
 
 @dataclass
 class Statement(ASTNode, Serialize()):
+    """
+    The base class for statements.
+    """
+
     ...
 
 
@@ -92,9 +103,23 @@ class RouteFilter(
 
 
 @dataclass
-class RoutingPolicy(Serialize(name="name", statements=("statements", list[Statement]))):
+class RoutingPolicy(Serialize(name="name", statements=("statements", list[dict]))):
     name: str
-    statements: list[Statement]
+    # FIXME: need to figure out which kind of statement it is
+    statements: list[dict]
+
+
+@dataclass
+class BgpActivePeerConfig(
+    Serialize(
+        default_metric=("defaultMetric", int),
+        local_as=("localAs", int),
+        local_ip=("localIp", IPv4Address),
+    )
+):
+    default_metric: int
+    local_as: int
+    local_ip: IPv4Address
 
 
 @dataclass
@@ -167,8 +192,6 @@ class Structure(
 @dataclass
 class AclLine(
     Serialize(
-        # cls may not be necessary?
-        cls="class",
         action=("action", Action),
         match_cond="matchCondition",
         name="name",
@@ -177,7 +200,6 @@ class AclLine(
         vendor_id="vendorStructureId",
     )
 ):
-    cls: str
     action: Action
     match_cond: Any
     name: str
@@ -278,11 +300,65 @@ class SetLocalPreference(Statement, Serialize(lp="localPreference")):
     lp: dict
 
 
+@dataclass
+class MatchCommunities(
+    Serialize(comm_set="communitySetExpr", comm_match="communitySetMatchExpr")
+):
+    # the set of communities to match
+    comm_set: dict
+    # the set to match against
+    comm_match: dict
+
+
+@dataclass
+class SetCommunities(Serialize(comm_set="communitySetExpr")):
+    comm_set: dict
+
+
+@dataclass
+class CommunitySetUnion(Expression, Serialize(exprs=("exprs", list[dict]))):
+    exprs: list[dict]
+
+
+@dataclass
+class CommunitySetDifference(
+    Expression, Serialize(initial=("initial", dict), remove=("removalCriterion", dict))
+):
+    initial: dict
+    remove: dict
+
+
+@dataclass
+class LiteralCommunitySet(Expression, Serialize(comm_set=("communitySet", list[str]))):
+    # TODO: parse the community set
+    comm_set: list[str]
+
+
+@dataclass
+class PrependAsPath(Statement, Serialize(expr=("expr", dict))):
+    # convert dict to appropriate expr (LiteralAsList?)
+    expr: dict
+
+
+@dataclass
+class ExplicitAs(Expression, Serialize(asnum=("as", int))):
+    asnum: int
+
+
+@dataclass
+class LiteralAsList(Expression, Serialize(ases=("list", list[ExplicitAs]))):
+    ases: list[ExplicitAs]
+
+
+@dataclass
 class StaticStatement(Statement, Serialize(ty=("type", StaticStatementType))):
     ty: StaticStatementType
 
 
-class ASTNodeVisitor:
-    @staticmethod
-    def visit(node: ASTNode):
-        pass
+class Metric(dict):
+    ...
+
+
+@dataclass
+class SetMetric(Statement, Serialize(metric=("metric", Metric))):
+    metric: Metric

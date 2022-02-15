@@ -8,7 +8,7 @@ from typing import Any
 from pybatfish.client.session import Session
 from pybatfish.datamodel.answer import TableAnswer
 
-from aast import BatfishJson, StructureType
+from aast import BatfishJson, RoutingPolicy, StructureType
 
 
 def initialize_session(snapshot_dir: str):
@@ -77,6 +77,6 @@ if __name__ == "__main__":
         bf_ast = BatfishJson.from_dict(output)
         for decl in bf_ast.declarations:
             if decl.ty is StructureType.ROUTING_POLICY:
-                print(decl.definition["value"])
+                print(RoutingPolicy.from_dict(decl.definition["value"]))
     else:
         raise ValueError("Invalid argument provided.")

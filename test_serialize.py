@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from serialize import Serialize
+from serialize import Serialize, Serialize2
 from dataclasses import dataclass
 
 
@@ -16,6 +16,20 @@ class A(Serialize()):
 @dataclass
 class B(A, Serialize(c="c")):
     c: int
+
+
+@Serialize2(x="x")
+class E:
+    def __init__(self, x):
+        super().__init__()
+        self.x = x
+
+
+@Serialize2(x="x", y="y")
+class F(E):
+    def __init__(self, x, y):
+        super().__init__(x)
+        self.y = y
 
 
 def test_empty_fields():
@@ -35,8 +49,14 @@ def test_from_dict_tuple():
     assert p.coords == coords
 
 
-def test_from_dict_subclass():
+def test_from_dict_subclass_dataclass():
     d = {"c": 2}
     b = B.from_dict(d)
     # FIXME: does B's argument get consumed?
     assert b.c == d["c"]
+
+
+def test_from_dict_subclass_explicit():
+    d = {"x": 0, "y": True}
+    f = F.from_dict(d)
+    assert f.x == d["x"] and f.y == d["y"]
