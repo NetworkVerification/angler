@@ -8,7 +8,7 @@ from typing import Any
 from pybatfish.client.session import Session
 from pybatfish.datamodel.answer import TableAnswer
 
-from aast import BatfishJson, RoutingPolicy, StructureType
+from bat_ast import BatfishJson, RoutingPolicy, StructureType
 
 
 def initialize_session(snapshot_dir: str):

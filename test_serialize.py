@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 
 @dataclass
-class Point3D(Serialize(coords=("coords", tuple[int, int, int]))):
+class Point3D(SerializeMixin, coords=("coords", tuple[int, int, int])):
     coords: tuple[int, int, int]
 
 
@@ -24,9 +24,10 @@ class E(SerializeMixin, x="x"):
 
 
 class F(E, SerializeMixin, x="x", y="y"):
-    def __init__(self, x, y):
+    def __init__(self, x, y, z=5):
         self.x = x
         self.y = y
+        self.z = z
 
 
 def test_empty_fields():
@@ -48,14 +49,11 @@ def test_from_dict_tuple():
 
 def test_from_dict_subclass_dataclass():
     d = {"c": 2}
-    # try:
     b = B.from_dict(d)
     assert b.c == 2
-    # except TypeError as e:
-    #     assert str(e) == "B.__init__() missing 1 required positional argument: 'c'"
 
 
 def test_from_dict_subclass_explicit():
     d = {"x": 0, "y": True}
     f = F.from_dict(d)
-    assert f.x == d["x"] and f.y == d["y"]
+    assert f.x == d["x"] and f.y == d["y"] and f.z == 5
