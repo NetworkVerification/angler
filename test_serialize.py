@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from serialize import Serialize
+from serialize import *
 from dataclasses import dataclass
 
 
@@ -9,22 +9,21 @@ class Point3D(Serialize(coords=("coords", tuple[int, int, int]))):
 
 
 @dataclass
-class A(Serialize()):
+class A(SerializeMixin):
     ...
 
 
 @dataclass
-class B(Serialize(c="c"), A):
+class B(A, SerializeMixin, c="c"):
     c: int
 
 
-class E(Serialize(x="x")):
+class E(SerializeMixin, x="x"):
     def __init__(self, x):
         self.x = x
 
 
-# pyright: reportMethodOrdering=false
-class F(Serialize(x="x", y="y"), E):
+class F(E, SerializeMixin, x="x", y="y"):
     def __init__(self, x, y):
         self.x = x
         self.y = y
