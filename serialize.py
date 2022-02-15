@@ -188,7 +188,12 @@ def Serialize(**fields: str | tuple[str, type]):
     return Inner
 
 
-class Serialize3:
+class SerializeDecorator:
+    """
+    Alternate design for Serialize as a class decorator.
+    TODO need to properly configure this so that it works as an alternative to Serialize.
+    """
+
     def __init__(self, **fields: str | tuple[str, type]):
         self.fields = fields
 
