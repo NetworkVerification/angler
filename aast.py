@@ -33,7 +33,7 @@ class ASTNode:
 
 
 @dataclass
-class Expression(ASTNode, Serialize()):
+class Expression(Serialize(), ASTNode):
     """
     The base class for expressions.
     TODO: We need a way to narrow these appropriately during deserialization.
@@ -45,7 +45,7 @@ class Expression(ASTNode, Serialize()):
 
 
 @dataclass
-class Statement(ASTNode, Serialize()):
+class Statement(Serialize(), ASTNode):
     """
     The base class for statements.
     """
@@ -316,42 +316,42 @@ class SetCommunities(Serialize(comm_set="communitySetExpr")):
 
 
 @dataclass
-class CommunitySetUnion(Expression, Serialize(exprs=("exprs", list[dict]))):
+class CommunitySetUnion(Serialize(exprs=("exprs", list[dict])), Expression):
     exprs: list[dict]
 
 
 @dataclass
 class CommunitySetDifference(
-    Expression, Serialize(initial=("initial", dict), remove=("removalCriterion", dict))
+    Serialize(initial=("initial", dict), remove=("removalCriterion", dict)), Expression
 ):
     initial: dict
     remove: dict
 
 
 @dataclass
-class LiteralCommunitySet(Expression, Serialize(comm_set=("communitySet", list[str]))):
+class LiteralCommunitySet(Serialize(comm_set=("communitySet", list[str])), Expression):
     # TODO: parse the community set
     comm_set: list[str]
 
 
 @dataclass
-class PrependAsPath(Statement, Serialize(expr=("expr", dict))):
+class PrependAsPath(Serialize(expr=("expr", dict)), Statement):
     # convert dict to appropriate expr (LiteralAsList?)
     expr: dict
 
 
 @dataclass
-class ExplicitAs(Expression, Serialize(asnum=("as", int))):
+class ExplicitAs(Serialize(asnum=("as", int)), Expression):
     asnum: int
 
 
 @dataclass
-class LiteralAsList(Expression, Serialize(ases=("list", list[ExplicitAs]))):
+class LiteralAsList(Serialize(ases=("list", list[ExplicitAs])), Expression):
     ases: list[ExplicitAs]
 
 
 @dataclass
-class StaticStatement(Statement, Serialize(ty=("type", StaticStatementType))):
+class StaticStatement(Serialize(ty=("type", StaticStatementType)), Statement):
     ty: StaticStatementType
 
 
@@ -360,5 +360,5 @@ class Metric(dict):
 
 
 @dataclass
-class SetMetric(Statement, Serialize(metric=("metric", Metric))):
+class SetMetric(Serialize(metric=("metric", Metric)), Statement):
     metric: Metric

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from serialize import Serialize, Serialize2
+from serialize import Serialize
 from dataclasses import dataclass
 
 
@@ -14,21 +14,19 @@ class A(Serialize()):
 
 
 @dataclass
-class B(A, Serialize(c="c")):
+class B(Serialize(c="c"), A):
     c: int
 
 
-@Serialize2(x="x")
-class E:
+class E(Serialize(x="x")):
     def __init__(self, x):
-        super().__init__()
         self.x = x
 
 
-@Serialize2(x="x", y="y")
-class F(E):
+# pyright: reportMethodOrdering=false
+class F(Serialize(x="x", y="y"), E):
     def __init__(self, x, y):
-        super().__init__(x)
+        self.x = x
         self.y = y
 
 
@@ -51,9 +49,11 @@ def test_from_dict_tuple():
 
 def test_from_dict_subclass_dataclass():
     d = {"c": 2}
+    # try:
     b = B.from_dict(d)
-    # FIXME: does B's argument get consumed?
-    assert b.c == d["c"]
+    assert b.c == 2
+    # except TypeError as e:
+    #     assert str(e) == "B.__init__() missing 1 required positional argument: 'c'"
 
 
 def test_from_dict_subclass_explicit():
