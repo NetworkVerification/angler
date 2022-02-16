@@ -17,7 +17,7 @@ from enum import Enum
 from typing import Any, Union
 from ipaddress import IPv4Address, IPv4Interface
 from dataclasses import dataclass
-from serialize import Serialize
+from serialize import Serialize, SerializeMixin
 
 
 class Action(Enum):
@@ -33,7 +33,7 @@ class ASTNode:
 
 
 @dataclass
-class Expression(Serialize(), ASTNode):
+class Expression(ASTNode, SerializeMixin):
     """
     The base class for expressions.
     TODO: We need a way to narrow these appropriately during deserialization.
@@ -45,7 +45,7 @@ class Expression(Serialize(), ASTNode):
 
 
 @dataclass
-class Statement(Serialize(), ASTNode):
+class Statement(ASTNode, SerializeMixin):
     """
     The base class for statements.
     """
@@ -54,27 +54,26 @@ class Statement(Serialize(), ASTNode):
 
 
 @dataclass
-class Node(Serialize(nodeid="id", name="name")):
+class Node(SerializeMixin, nodeid="id", nodename="name"):
     """A node in the network."""
 
     nodeid: str
-    name: str
+    nodename: str
 
 
 @dataclass
-class Interface(Serialize(host="hostname", iface="interface")):
+class Interface(SerializeMixin, host="hostname", iface="interface"):
     host: str
     iface: str
 
 
 @dataclass
 class Edge(
-    Serialize(
-        iface=("Interface", Interface),
-        ips=("IPs", list[IPv4Address]),
-        remote_iface=("Remote_Interface", Interface),
-        remote_ips=("Remote_IPs", list[IPv4Address]),
-    )
+    SerializeMixin,
+    iface=("Interface", Interface),
+    ips=("IPs", list[IPv4Address]),
+    remote_iface=("Remote_Interface", Interface),
+    remote_ips=("Remote_IPs", list[IPv4Address]),
 ):
     """
     A representation of a directed edge between two interfaces.
@@ -90,11 +89,10 @@ class Edge(
 
 @dataclass
 class RouteFilter(
-    Serialize(
-        action=("action", Action),
-        ip_wildcard=("ipWildcard", IPv4Interface),
-        length_range="lengthRange",
-    )
+    SerializeMixin,
+    action=("action", Action),
+    ip_wildcard=("ipWildcard", IPv4Interface),
+    length_range="lengthRange",
 ):
     action: Action
     ip_wildcard: IPv4Interface
@@ -103,19 +101,20 @@ class RouteFilter(
 
 
 @dataclass
-class RoutingPolicy(Serialize(name="name", statements=("statements", list[dict]))):
-    name: str
+class RoutingPolicy(
+    SerializeMixin, policyname="name", statements=("statements", list[dict])
+):
+    policyname: str
     # FIXME: need to figure out which kind of statement it is
     statements: list[dict]
 
 
 @dataclass
 class BgpActivePeerConfig(
-    Serialize(
-        default_metric=("defaultMetric", int),
-        local_as=("localAs", int),
-        local_ip=("localIp", IPv4Address),
-    )
+    SerializeMixin,
+    default_metric=("defaultMetric", int),
+    local_as=("localAs", int),
+    local_ip=("localIp", IPv4Address),
 ):
     default_metric: int
     local_as: int
@@ -123,17 +122,18 @@ class BgpActivePeerConfig(
 
 
 @dataclass
-class BgpProcess(Serialize(neighbors=("neighbors", dict[IPv4Address, dict]))):
+class BgpProcess(SerializeMixin, neighbors=("neighbors", dict[IPv4Address, dict])):
     neighbors: dict[IPv4Address, dict]
 
 
 @dataclass
 class Vrf(
-    Serialize(
-        name="name", process=("bgpProcess", BgpProcess), resolution="resolutionPolicy"
-    )
+    SerializeMixin,
+    vrfname="name",
+    process=("bgpProcess", BgpProcess),
+    resolution="resolutionPolicy",
 ):
-    name: str
+    vrfname: str
     process: BgpProcess
     resolution: str
 
@@ -165,12 +165,11 @@ class StructureType(Enum):
 
 @dataclass
 class Structure(
-    Serialize(
-        node=("Node", Node),
-        ty=("Structure_Type", StructureType),
-        name=("Structure_Name", str),
-        definition=("Structure_Definition", dict),
-    )
+    SerializeMixin,
+    node=("Node", Node),
+    ty=("Structure_Type", StructureType),
+    struct_name=("Structure_Name", str),
+    definition=("Structure_Definition", dict),
 ):
     """
     A named structure in Batfish.
@@ -182,7 +181,7 @@ class Structure(
 
     node: Node
     ty: StructureType
-    name: str
+    struct_name: str
     # TODO: technically, this will be an object with a Structure_Def value,
     # but it's non-obvious how the serializer should figure out which choice of type
     # to use here, and it may not make sense to try them all.
@@ -191,32 +190,30 @@ class Structure(
 
 @dataclass
 class AclLine(
-    Serialize(
-        action=("action", Action),
-        match_cond="matchCondition",
-        name="name",
-        # these two are probably also skippable
-        trace_elem="traceElement",
-        vendor_id="vendorStructureId",
-    )
+    SerializeMixin,
+    action=("action", Action),
+    match_cond="matchCondition",
+    _name="name",
+    # these two are probably also skippable
+    trace_elem="traceElement",
+    vendor_id="vendorStructureId",
 ):
     action: Action
     match_cond: Any
-    name: str
+    _name: str
     trace_elem: dict
     vendor_id: dict
 
 
 @dataclass
 class Acl(
-    Serialize(
-        name="name",
-        srcname="sourceName",
-        srctype="sourceType",
-        lines=("lines", list[AclLine]),
-    )
+    SerializeMixin,
+    _name="name",
+    srcname="sourceName",
+    srctype="sourceType",
+    lines=("lines", list[AclLine]),
 ):
-    name: str
+    _name: str
     srcname: str
     srctype: str
     lines: list[AclLine]
@@ -224,11 +221,10 @@ class Acl(
 
 @dataclass
 class BatfishJson(
-    Serialize(
-        topology=("topology", list[Edge]),
-        policy="policy",
-        declarations=("declarations", list[Structure]),
-    )
+    SerializeMixin,
+    topology=("topology", list[Edge]),
+    policy="policy",
+    declarations=("declarations", list[Structure]),
 ):
     topology: list[Edge]
     policy: dict
@@ -273,7 +269,9 @@ class Not(BooleanExpr):
 @dataclass
 class TraceableStatement(
     Statement,
-    Serialize(inner=("innerStatements", list[Statement]), trace_elem="traceElement"),
+    SerializeMixin,
+    inner=("innerStatements", list[Statement]),
+    trace_elem="traceElement",
 ):
     inner: list[Statement]
     trace_elem: dict
@@ -282,12 +280,11 @@ class TraceableStatement(
 @dataclass
 class IfStatement(
     Statement,
-    Serialize(
-        guard="guard",
-        true_stmts=("trueStatements", list[Statement]),
-        false_stmts=("falseStatements", list[Statement]),
-        comment="comment",
-    ),
+    SerializeMixin,
+    guard="guard",
+    true_stmts=("trueStatements", list[Statement]),
+    false_stmts=("falseStatements", list[Statement]),
+    comment="comment",
 ):
     guard: dict
     true_stmts: list[Statement]
@@ -296,13 +293,13 @@ class IfStatement(
 
 
 @dataclass
-class SetLocalPreference(Statement, Serialize(lp="localPreference")):
+class SetLocalPreference(Statement, SerializeMixin, lp="localPreference"):
     lp: dict
 
 
 @dataclass
 class MatchCommunities(
-    Serialize(comm_set="communitySetExpr", comm_match="communitySetMatchExpr")
+    SerializeMixin, comm_set="communitySetExpr", comm_match="communitySetMatchExpr"
 ):
     # the set of communities to match
     comm_set: dict
@@ -311,47 +308,52 @@ class MatchCommunities(
 
 
 @dataclass
-class SetCommunities(Serialize(comm_set="communitySetExpr")):
+class SetCommunities(SerializeMixin, comm_set="communitySetExpr"):
     comm_set: dict
 
 
 @dataclass
-class CommunitySetUnion(Serialize(exprs=("exprs", list[dict])), Expression):
+class CommunitySetUnion(Expression, SerializeMixin, exprs=("exprs", list[dict])):
     exprs: list[dict]
 
 
 @dataclass
 class CommunitySetDifference(
-    Serialize(initial=("initial", dict), remove=("removalCriterion", dict)), Expression
+    Expression,
+    SerializeMixin,
+    initial=("initial", dict),
+    remove=("removalCriterion", dict),
 ):
     initial: dict
     remove: dict
 
 
 @dataclass
-class LiteralCommunitySet(Serialize(comm_set=("communitySet", list[str])), Expression):
+class LiteralCommunitySet(
+    Expression, SerializeMixin, comm_set=("communitySet", list[str])
+):
     # TODO: parse the community set
     comm_set: list[str]
 
 
 @dataclass
-class PrependAsPath(Serialize(expr=("expr", dict)), Statement):
+class PrependAsPath(Statement, SerializeMixin, expr=("expr", dict)):
     # convert dict to appropriate expr (LiteralAsList?)
     expr: dict
 
 
 @dataclass
-class ExplicitAs(Serialize(asnum=("as", int)), Expression):
+class ExplicitAs(SerializeMixin, asnum=("as", int)):
     asnum: int
 
 
 @dataclass
-class LiteralAsList(Serialize(ases=("list", list[ExplicitAs])), Expression):
+class LiteralAsList(SerializeMixin, ases=("list", list[ExplicitAs])):
     ases: list[ExplicitAs]
 
 
 @dataclass
-class StaticStatement(Serialize(ty=("type", StaticStatementType)), Statement):
+class StaticStatement(Statement, SerializeMixin, ty=("type", StaticStatementType)):
     ty: StaticStatementType
 
 
@@ -360,5 +362,5 @@ class Metric(dict):
 
 
 @dataclass
-class SetMetric(Serialize(metric=("metric", Metric)), Statement):
+class SetMetric(Statement, SerializeMixin, metric=("metric", Metric)):
     metric: Metric
