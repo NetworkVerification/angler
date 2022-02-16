@@ -367,7 +367,7 @@ class Vrf(
     resolution="resolutionPolicy",
 ):
     vrfname: str
-    # bgp: BgpProcess
+    bgp: BgpProcess
     ospf: dict
     resolution: str
 
