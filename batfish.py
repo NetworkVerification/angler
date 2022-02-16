@@ -60,23 +60,35 @@ def load_json(json_path: str) -> dict[str, Any]:
         return json.load(fp)
 
 
+USAGE = f"""
+{os.path.basename(__file__)} : wrapper around pybatfish to extract ast components
+
+Usage: {os.path.basename(__file__)} [-h] [dir|file]
+
+-h      Print usage
+dir     A snapshot directory to provide to pybatfish
+file    A JSON file to parse the AST of
+"""
+
 if __name__ == "__main__":
-    arg = sys.argv[1]
-    if os.path.isdir(arg):
-        bf = initialize_session(arg)
-        info = {
-            "topology": get_layer3_edges,
-            "policy": get_node_properties,
-            "declarations": get_named_structures,
-        }
-        output = {k: collect_rows(v(bf)) for k, v in info.items()}
-        bf_ast = BatfishJson.from_dict(output)
-        print(json.dumps(output, sort_keys=True, indent=2))
-    elif os.path.isfile(arg):
-        output = load_json(arg)
-        bf_ast = BatfishJson.from_dict(output)
-        for decl in bf_ast.declarations:
-            if decl.ty is StructureType.ROUTING_POLICY:
-                print(RoutingPolicy.from_dict(decl.definition["value"]))
-    else:
-        raise ValueError("Invalid argument provided.")
+    match sys.argv[1:]:
+        case ["-h" | "--help" | "-?"]:
+            print(USAGE)
+        case [p] if os.path.isdir(p):
+            bf = initialize_session(p)
+            info = {
+                "topology": get_layer3_edges,
+                "policy": get_node_properties,
+                "declarations": get_named_structures,
+            }
+            output = {k: collect_rows(v(bf)) for k, v in info.items()}
+            bf_ast = BatfishJson.from_dict(output)
+            print(json.dumps(output, sort_keys=True, indent=2))
+        case [p] if os.path.isfile(p):
+            output = load_json(p)
+            bf_ast = BatfishJson.from_dict(output)
+            for decl in bf_ast.declarations:
+                if decl.ty is StructureType.ROUTING_POLICY:
+                    print(decl.definition.value)
+        case _:
+            print(USAGE)

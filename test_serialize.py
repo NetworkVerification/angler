@@ -4,26 +4,26 @@ from dataclasses import dataclass
 
 
 @dataclass
-class Point3D(SerializeMixin, coords=("coords", tuple[int, int, int])):
+class Point3D(Serialize, coords=("coords", tuple[int, int, int])):
     coords: tuple[int, int, int]
 
 
 @dataclass
-class A(SerializeMixin):
+class A(Serialize):
     ...
 
 
 @dataclass
-class B(A, SerializeMixin, c="c"):
+class B(A, Serialize, c="c"):
     c: int
 
 
-class E(SerializeMixin, x="x"):
+class E(Serialize, x="x"):
     def __init__(self, x):
         self.x = x
 
 
-class F(E, SerializeMixin, x="x", y="y"):
+class F(E, Serialize, x="x", y="y"):
     def __init__(self, x, y, z=5):
         self.x = x
         self.y = y
