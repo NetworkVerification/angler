@@ -87,8 +87,10 @@ if __name__ == "__main__":
         case [p] if os.path.isfile(p):
             output = load_json(p)
             bf_ast = BatfishJson.from_dict(output)
-            for decl in bf_ast.declarations:
-                if decl.ty is StructureType.ROUTING_POLICY:
-                    print(decl.definition.value)
+            pr = lambda x: print(type(x))
+            bf_ast.visit(pr)
+            # for decl in bf_ast.declarations:
+            #     if decl.ty is StructureType.ROUTING_POLICY:
+            #         print(decl.definition.value)
         case _:
             print(USAGE)

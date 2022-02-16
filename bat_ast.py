@@ -14,9 +14,9 @@ we want to fail to decode the file and return an error immediately.
 :author: Tim Alberdingk Thijm <tthijm@cs.princeton.edu>
 """
 from enum import Enum
-from typing import Any, Union
+from typing import Any, Callable, Union
 from ipaddress import IPv4Address, IPv4Interface
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from serialize import Serializable, Serialize
 
 
@@ -28,8 +28,10 @@ def parse_bf_clsname(qualified: str) -> str:
     _, last = qualified.rsplit(sep=".", maxsplit=1)
     # if a $ is found, name will contain the string following it
     # if $ is not found, name will contain the original string
-    _, _, name = last.partition("$")
-    return name
+    try:
+        return last[last.rindex("$") + 1 :]
+    except ValueError:
+        return last
 
 
 class Action(Enum):
@@ -70,10 +72,12 @@ class ExprType(Enum):
 
 
 class StatementType(Enum):
-    IF = "IfStatement"
+    IF = "If"
     PREPEND_AS = "PrependAsPath"
+    SET_COMMS = "SetCommunities"
     SET_LP = "SetLocalPreference"
     SET_METRIC = "SetMetric"
+    STATIC = "StaticStatement"
     TRACEABLE = "TraceableStatement"
 
     def enum_class(self) -> type:
@@ -82,10 +86,14 @@ class StatementType(Enum):
                 return IfStatement
             case StatementType.PREPEND_AS:
                 return PrependAsPath
+            case StatementType.SET_COMMS:
+                return SetCommunities
             case StatementType.SET_LP:
                 return SetLocalPreference
             case StatementType.SET_METRIC:
                 return SetMetric
+            case StatementType.STATIC:
+                return StaticStatement
             case StatementType.TRACEABLE:
                 return TraceableStatement
             case _:
@@ -94,7 +102,10 @@ class StatementType(Enum):
 
 @dataclass
 class ASTNode:
-    ...
+    def visit(self, f: Callable) -> None:
+        f(self)
+        for field in fields(self):
+            f(field)
 
 
 @dataclass
@@ -126,11 +137,9 @@ class Statement(
     The base class for statements.
     """
 
-    ...
-
 
 @dataclass
-class Node(Serialize, nodeid="id", nodename="name"):
+class Node(ASTNode, Serialize, nodeid="id", nodename="name"):
     """A node in the network."""
 
     nodeid: str
@@ -138,13 +147,14 @@ class Node(Serialize, nodeid="id", nodename="name"):
 
 
 @dataclass
-class Interface(Serialize, host="hostname", iface="interface"):
+class Interface(ASTNode, Serialize, host="hostname", iface="interface"):
     host: str
     iface: str
 
 
 @dataclass
 class Edge(
+    ASTNode,
     Serialize,
     iface=("Interface", Interface),
     ips=("IPs", list[IPv4Address]),
@@ -299,6 +309,7 @@ class SetMetric(Statement, Serialize, metric=("metric", Metric)):
 
 @dataclass
 class RouteFilter(
+    ASTNode,
     Serialize,
     action=("action", Action),
     ip_wildcard=("ipWildcard", IPv4Interface),
@@ -312,15 +323,25 @@ class RouteFilter(
 
 @dataclass
 class RoutingPolicy(
-    Serialize, policyname="name", statements=("statements", list[dict])
+    ASTNode, Serialize, policyname="name", statements=("statements", list[Statement])
 ):
     policyname: str
-    # FIXME: need to figure out which kind of statement it is
-    statements: list[Statement]
+    statements: list[Statement | dict]
+
+    # def __post_init__(self):
+    #     for stmt in self.statements:
+    #         try:
+    #             if isinstance(stmt, dict):
+    #                 cls = StatementType(parse_bf_clsname(stmt["class"])).enum_class()
+    #                 if isinstance(cls, Serializable):
+    #                     stmt = cls.from_dict(stmt)
+    #         except (ValueError, KeyError):
+    #             continue
 
 
 @dataclass
 class BgpActivePeerConfig(
+    ASTNode,
     Serialize,
     default_metric=("defaultMetric", int),
     local_as=("localAs", int),
@@ -332,24 +353,28 @@ class BgpActivePeerConfig(
 
 
 @dataclass
-class BgpProcess(Serialize, neighbors=("neighbors", dict[IPv4Address, dict])):
+class BgpProcess(ASTNode, Serialize, neighbors=("neighbors", dict[IPv4Address, dict])):
     neighbors: dict[IPv4Address, dict]
 
 
 @dataclass
 class Vrf(
+    ASTNode,
     Serialize,
     vrfname="name",
-    process=("bgpProcess", BgpProcess),
+    bgp=("bgpProcess", BgpProcess),
+    ospf=("ospfProcesses", dict),
     resolution="resolutionPolicy",
 ):
     vrfname: str
-    process: BgpProcess
+    # bgp: BgpProcess
+    ospf: dict
     resolution: str
 
 
 @dataclass
 class AclLine(
+    ASTNode,
     Serialize,
     action=("action", Action),
     match_cond="matchCondition",
@@ -367,6 +392,7 @@ class AclLine(
 
 @dataclass
 class Acl(
+    ASTNode,
     Serialize,
     _name="name",
     srcname="sourceName",
@@ -383,7 +409,7 @@ StructureValue = Union[Vrf, RouteFilter, RoutingPolicy, Acl]
 
 
 @dataclass
-class StructureDef(Serialize, value=("value", dict)):
+class StructureDef(ASTNode, Serialize, value=("value", dict)):
     """
     A structure definition of some particular value, based on the
     StructureType of the enclosing Structure.
@@ -421,6 +447,7 @@ class StructureType(Enum):
 
 @dataclass
 class Structure(
+    ASTNode,
     Serialize,
     node=("Node", Node),
     ty=("Structure_Type", StructureType),
@@ -448,6 +475,7 @@ class Structure(
 
 @dataclass
 class BatfishJson(
+    ASTNode,
     Serialize,
     topology=("topology", list[Edge]),
     policy="policy",

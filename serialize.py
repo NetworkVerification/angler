@@ -5,6 +5,7 @@ from typing import (
     Any,
     Optional,
     Protocol,
+    Type,
     cast,
     get_args,
     get_origin,
@@ -15,6 +16,8 @@ from typing import (
 @runtime_checkable
 class Serializable(Protocol):
     """A protocol for checking that a type implements to_dict and from_dict."""
+
+    fields: dict[str, str | tuple[str, type]]
 
     def to_dict(self) -> dict:
         ...
@@ -71,7 +74,7 @@ class Serialize(Serializable):
     True
     """
 
-    delegate: Optional[tuple[str, Callable[[str], type]]]
+    delegate: Optional[tuple[str, Callable[[str], Type]]]
     fields: dict[str, str | tuple[str, type]]
 
     def __init__(self, delegate=None, **fields):
@@ -81,7 +84,7 @@ class Serialize(Serializable):
     def __init_subclass__(
         cls,
         /,
-        delegate: Optional[tuple[str, Callable[[str], type]]] = None,
+        delegate: Optional[tuple[str, Callable[[str], Type]]] = None,
         **fields: str | tuple[str, type],
     ) -> None:
         """
@@ -120,8 +123,8 @@ class Serialize(Serializable):
 
     @staticmethod
     def _from_dict_aux(v: Any, fieldty: type, recurse: bool):
-        # exit immediately if the field type is any
-        if fieldty is Any:
+        # exit immediately if the field type is any or v is None
+        if not v or fieldty is Any:
             return v
         # if the fieldty is not None and has a from_dict method, call that
         if recurse and isinstance(fieldty, Serializable):
@@ -144,20 +147,24 @@ class Serialize(Serializable):
         type is marked as also implementing from_dict will be recursively transformed.
         Raise a KeyError if the dictionary is missing an expected field.
         """
+        # if a delegate is assigned, delegate to it
+        if cls.delegate:
+            cls = cls.delegate[1](d[cls.delegate[0]])
+            print(cls)
         kwargs = {}
         for field in cls.fields:
             fieldty = Any
             if isinstance(cls.fields[field], tuple):
                 # NOTE: have to explicitly cast to assuage the type checker
-                fieldname, fieldty = cast(tuple[str, type], cls.fields[field])
+                fieldname, fieldty = cast(tuple, cls.fields[field])
             else:
                 fieldname = cls.fields[field]
-            try:
-                v = d[fieldname]
-            except KeyError:
-                raise KeyError(
-                    f"expected a field '{fieldname}' (corresponding to {cls.__name__}.{field}) in '{d}'"
-                )
+            v = d.get(fieldname)
+            # except KeyError as e:
+            #         e.args = (
+            #             f"expected a field '{fieldname}' (corresponding to {cls.__name__}.{field}) in '{d}'",
+            #         )
+            #         raise e
             type_args = get_args(fieldty)
             if get_origin(fieldty) is tuple or isinstance(fieldty, tuple):
                 if not isinstance(v, tuple):
@@ -203,9 +210,5 @@ class Serialize(Serializable):
                 }
             else:
                 kwargs[field] = Serialize._from_dict_aux(v, fieldty, recurse)
-        # if a delegate is assigned, call it on the keyword arguments
-        if cls.delegate:
-            instance = cls.delegate[1](cls.delegate[0])(**kwargs)
-        else:
-            instance = cls(**kwargs)
+        instance = cls(**kwargs)
         return instance
