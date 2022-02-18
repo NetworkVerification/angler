@@ -14,10 +14,11 @@ we want to fail to decode the file and return an error immediately.
 :author: Tim Alberdingk Thijm <tthijm@cs.princeton.edu>
 """
 from enum import Enum
-from typing import Any, Callable, Union
+from typing import Any, Callable, Optional, Union
 from ipaddress import IPv4Address, IPv4Interface
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 from serialize import Serializable, Serialize
+from collections.abc import Iterable
 
 
 def parse_bf_clsname(qualified: str) -> str:
@@ -44,29 +45,64 @@ class Action(Enum):
 class ExprType(Enum):
     """A type of expression."""
 
-    MATCHIPV4 = "matchIpv4"
-    CONJUNCTION = "conjuncts"
-    DISJUNCTION = "disjuncts"
-    NOT = "not"
-    MATCHPROTOCOL = "matchProtocol"
-    MATCHPREFIXSET = "matchPrefixSet"
-    CALLEXPR = "callExpr"
-    WITHENVIRONMENTEXPR = "withEnvironmentExpr"
-    MATCHCOMMUNITYSET = "matchCommunitySet"
-    ASEXPR = "asExpr"
-    COMMUNITYSETEXPR = "communitySetExpr"
-    LONGEXPR = "longExpr"
+    # MATCHIPV4 = "matchIpv4"
+    # CONJUNCTION = "conjuncts"
+    # DISJUNCTION = "disjuncts"
+    # NOT = "not"
+    # MATCHPROTOCOL = "matchProtocol"
+    MATCHPREFIXSET = "MatchPrefixSet"
+    MATCHCOMMUNITIES = "MatchCommunities"
+    # CALLEXPR = "callExpr"
+    # WITHENVIRONMENTEXPR = "withEnvironmentExpr"
+    # ASEXPR = "asExpr"
+    # COMMUNITYSETEXPR = "communitySetExpr"
+    COMMUNITYSETUNION = "CommunitySetUnion"
+    COMMUNITYSETDIFFERENCE = "CommunitySetDifference"
+    # TODO(tim): what's the difference between the following two?
+    COMMUNITYSMEREFERENCE = "CommunitySetMatchExprReference"
+    COMMUNITYMATCHEXPRREFERENCE = "CommunityMatchExprReference"
+    COMMUNITYIS = "CommunityIs"
+    LITERALLONG = "LiteralLong"
+    LITERALASLIST = "LiteralAsList"
+    LITERALCOMMUNITYSET = "LiteralCommunitySet"
+    DESTINATION = "DestinationNetwork"  # variable
+    INPUTCOMMUNITIES = "InputCommunities"  # variable
+    NAMEDPREFIXSET = "NamedPrefixSet"
 
     def enum_class(self) -> type:
         match self:
-            case ExprType.CONJUNCTION:
-                return Conjunction
-            case ExprType.DISJUNCTION:
-                return Disjunction
-            case ExprType.NOT:
-                return Not
-            case ExprType.MATCHCOMMUNITYSET:
+            # case ExprType.CONJUNCTION:
+            #     return Conjunction
+            # case ExprType.DISJUNCTION:
+            #     return Disjunction
+            # case ExprType.NOT:
+            #     return Not
+            case ExprType.MATCHCOMMUNITIES:
                 return MatchCommunities
+            case ExprType.INPUTCOMMUNITIES:
+                return InputCommunities
+            case ExprType.COMMUNITYSETUNION:
+                return CommunitySetUnion
+            case ExprType.COMMUNITYSETDIFFERENCE:
+                return CommunitySetDifference
+            case ExprType.COMMUNITYSMEREFERENCE:
+                return CommunitySetMatchExprReference
+            case ExprType.COMMUNITYMATCHEXPRREFERENCE:
+                return CommunityMatchExprReference
+            case ExprType.COMMUNITYIS:
+                return CommunityIs
+            case ExprType.MATCHPREFIXSET:
+                return MatchPrefixSet
+            case ExprType.NAMEDPREFIXSET:
+                return NamedPrefixSet
+            case ExprType.DESTINATION:
+                return DestinationNetwork
+            case ExprType.LITERALCOMMUNITYSET:
+                return LiteralCommunitySet
+            case ExprType.LITERALLONG:
+                return LiteralLong
+            case ExprType.LITERALASLIST:
+                return LiteralAsList
             case _:
                 raise NotImplementedError(f"{self} conversion not yet implemented.")
 
@@ -101,11 +137,16 @@ class StatementType(Enum):
 
 
 @dataclass
-class ASTNode:
+class ASTNode(Serialize):
     def visit(self, f: Callable) -> None:
         f(self)
-        for field in fields(self):
-            f(field)
+        for field in self.fields:
+            if isinstance(field, Iterable):
+                for ff in field:
+                    if isinstance(ff, ASTNode):
+                        ff.visit(f)
+            else:
+                field.visit(f)
 
 
 @dataclass
@@ -116,9 +157,6 @@ class Expression(
 ):
     """
     The base class for expressions.
-    TODO: We need a way to narrow these appropriately during deserialization.
-    In most cases, there is a "class" key in the dict which specifies which type
-    of expression is given, which will be a subclass of Expression.
     """
 
     ...
@@ -136,6 +174,38 @@ class Statement(
     """
     The base class for statements.
     """
+
+    ...
+
+
+@dataclass
+class Var(Expression, Serialize):
+    """A class representing a Batfish variable."""
+
+
+@dataclass
+class DestinationNetwork(Var):
+    ...
+
+
+@dataclass
+class InputCommunities(Var):
+    ...
+
+
+@dataclass
+class NamedPrefixSet(Var, Serialize, _name="name"):
+    _name: str
+
+
+@dataclass
+class CommunitySetMatchExprReference(Var, Serialize, _name="name"):
+    _name: str
+
+
+@dataclass
+class CommunityMatchExprReference(Var, Serialize, _name="name"):
+    _name: str
 
 
 @dataclass
@@ -213,25 +283,30 @@ class TraceableStatement(
 class IfStatement(
     Statement,
     Serialize,
-    guard="guard",
+    guard=("guard", Expression),
     true_stmts=("trueStatements", list[Statement]),
     false_stmts=("falseStatements", list[Statement]),
     comment="comment",
 ):
-    guard: dict
+    guard: Expression
     true_stmts: list[Statement]
     false_stmts: list[Statement]
     comment: str
 
 
 @dataclass
-class SetLocalPreference(Statement, Serialize, lp="localPreference"):
-    lp: dict
+class LiteralLong(Expression, Serialize, value=("value", int)):
+    value: int
 
 
 @dataclass
-class CommunitySetMatchExpr(Expression, Serialize, expr="expr"):
-    expr: dict
+class SetLocalPreference(Statement, Serialize, lp=("localPreference", Expression)):
+    lp: Expression
+
+
+@dataclass
+class CommunitySetMatchExpr(Expression, Serialize, expr=("expr", Expression)):
+    expr: Expression
 
 
 @dataclass
@@ -242,33 +317,36 @@ class CommunityIs(Expression, Serialize, community="community"):
 
 @dataclass
 class MatchCommunities(
-    Serialize, comm_set="communitySetExpr", comm_match="communitySetMatchExpr"
+    Expression,
+    Serialize,
+    comm_set=("communitySetExpr", Expression),
+    comm_match=("communitySetMatchExpr", Expression),
 ):
     # the set of communities to match
-    comm_set: dict
+    comm_set: Expression
     # the set to match against
-    comm_match: dict
+    comm_match: Expression
 
 
 @dataclass
-class SetCommunities(Serialize, comm_set="communitySetExpr"):
-    comm_set: dict
+class SetCommunities(Statement, Serialize, comm_set=("communitySetExpr", Expression)):
+    comm_set: Expression
 
 
 @dataclass
-class CommunitySetUnion(Expression, Serialize, exprs=("exprs", list[dict])):
-    exprs: list[dict]
+class CommunitySetUnion(Expression, Serialize, exprs=("exprs", list[Expression])):
+    exprs: list[Expression]
 
 
 @dataclass
 class CommunitySetDifference(
     Expression,
     Serialize,
-    initial=("initial", dict),
-    remove=("removalCriterion", dict),
+    initial=("initial", Expression),
+    remove=("removalCriterion", Expression),
 ):
-    initial: dict
-    remove: dict
+    initial: Expression
+    remove: Expression
 
 
 @dataclass
@@ -278,18 +356,29 @@ class LiteralCommunitySet(Expression, Serialize, comm_set=("communitySet", list[
 
 
 @dataclass
-class PrependAsPath(Statement, Serialize, expr=("expr", dict)):
-    # convert dict to appropriate expr (LiteralAsList?)
-    expr: dict
+class MatchPrefixSet(
+    Expression,
+    Serialize,
+    prefix=("prefix", Expression),
+    prefix_set=("prefixSet", Expression),
+):
+    prefix: Expression
+    prefix_set: Expression
 
 
 @dataclass
-class ExplicitAs(Serialize, asnum=("as", int)):
+class PrependAsPath(Statement, Serialize, expr=("expr", Expression)):
+    # convert dict to appropriate expr (LiteralAsList?)
+    expr: Expression
+
+
+@dataclass
+class ExplicitAs(ASTNode, Serialize, asnum=("as", int)):
     asnum: int
 
 
 @dataclass
-class LiteralAsList(Serialize, ases=("list", list[ExplicitAs])):
+class LiteralAsList(Expression, Serialize, ases=("list", list[ExplicitAs])):
     ases: list[ExplicitAs]
 
 
@@ -326,17 +415,7 @@ class RoutingPolicy(
     ASTNode, Serialize, policyname="name", statements=("statements", list[Statement])
 ):
     policyname: str
-    statements: list[Statement | dict]
-
-    # def __post_init__(self):
-    #     for stmt in self.statements:
-    #         try:
-    #             if isinstance(stmt, dict):
-    #                 cls = StatementType(parse_bf_clsname(stmt["class"])).enum_class()
-    #                 if isinstance(cls, Serializable):
-    #                     stmt = cls.from_dict(stmt)
-    #         except (ValueError, KeyError):
-    #             continue
+    statements: list[Statement]
 
 
 @dataclass
@@ -367,9 +446,9 @@ class Vrf(
     resolution="resolutionPolicy",
 ):
     vrfname: str
-    bgp: BgpProcess
-    ospf: dict
     resolution: str
+    bgp: Optional[BgpProcess] = None
+    ospf: Optional[dict] = None
 
 
 @dataclass
@@ -436,6 +515,7 @@ class StructureType(Enum):
             case StructureType.ROUTE_FILTER_LIST:
                 return list[RouteFilter]
             case StructureType.ROUTE6_FILTER_LIST:
+                # TODO
                 return dict
             case StructureType.ROUTING_POLICY:
                 return RoutingPolicy

@@ -8,7 +8,7 @@ from typing import Any
 from pybatfish.client.session import Session
 from pybatfish.datamodel.answer import TableAnswer
 
-from bat_ast import BatfishJson, RoutingPolicy, StructureType
+from bat_ast import BatfishJson
 
 
 def initialize_session(snapshot_dir: str):
@@ -74,7 +74,7 @@ if __name__ == "__main__":
     match sys.argv[1:]:
         case ["-h" | "--help" | "-?"]:
             print(USAGE)
-        case [p] if os.path.isdir(p):
+        case [p, *tl] if os.path.isdir(p):
             bf = initialize_session(p)
             info = {
                 "topology": get_layer3_edges,
@@ -83,14 +83,18 @@ if __name__ == "__main__":
             }
             output = {k: collect_rows(v(bf)) for k, v in info.items()}
             bf_ast = BatfishJson.from_dict(output)
-            print(json.dumps(output, sort_keys=True, indent=2))
+            if len(tl) == 0:
+                out_path = os.path.basename(p) + ".json"
+            else:
+                out_path = tl[0]
+            with open(out_path, "w") as jsonout:
+                json_text = json.dumps(output, sort_keys=True, indent=2)
+                jsonout.write(json_text)
         case [p] if os.path.isfile(p):
             output = load_json(p)
             bf_ast = BatfishJson.from_dict(output)
-            pr = lambda x: print(type(x))
+            pr = lambda x: print(x.fields)
             bf_ast.visit(pr)
-            # for decl in bf_ast.declarations:
-            #     if decl.ty is StructureType.ROUTING_POLICY:
-            #         print(decl.definition.value)
+            # print(bf_ast.declarations)
         case _:
             print(USAGE)

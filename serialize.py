@@ -13,6 +13,19 @@ from typing import (
 )
 
 
+class Field:
+    """A field to serialize/deserialize from JSON."""
+
+    json_name: str
+    ty: type
+    default: Any
+
+    def __init__(self, name: str, ty: type = Any, default: Any = None):
+        self.json_name = name
+        self.ty = ty
+        self.default = default
+
+
 @runtime_checkable
 class Serializable(Protocol):
     """A protocol for checking that a type implements to_dict and from_dict."""
@@ -75,11 +88,11 @@ class Serialize(Serializable):
     """
 
     delegate: Optional[tuple[str, Callable[[str], Type]]]
-    fields: dict[str, str | tuple[str, type]]
+    fields: dict[str, str | tuple[str, type]] = {}
 
     def __init__(self, delegate=None, **fields):
         self.delegate = delegate
-        self.fields = fields
+        self.fields = fields or {}
 
     def __init_subclass__(
         cls,
@@ -96,7 +109,7 @@ class Serialize(Serializable):
         or a tuple containing a field name string and a type.
         """
         cls.delegate = delegate
-        cls.fields = fields
+        cls.fields = fields or {}
 
     def to_dict(self) -> dict:
         """
@@ -149,22 +162,24 @@ class Serialize(Serializable):
         """
         # if a delegate is assigned, delegate to it
         if cls.delegate:
+            # oldcls = cls
             cls = cls.delegate[1](d[cls.delegate[0]])
-            print(cls)
+            # print(f"Delegated {oldcls} to {cls}")
         kwargs = {}
         for field in cls.fields:
-            fieldty = Any
+            fieldty: type = Any
             if isinstance(cls.fields[field], tuple):
                 # NOTE: have to explicitly cast to assuage the type checker
                 fieldname, fieldty = cast(tuple, cls.fields[field])
             else:
                 fieldname = cls.fields[field]
-            v = d.get(fieldname)
-            # except KeyError as e:
-            #         e.args = (
-            #             f"expected a field '{fieldname}' (corresponding to {cls.__name__}.{field}) in '{d}'",
-            #         )
-            #         raise e
+            try:
+                v = d.get(fieldname)
+            except KeyError as e:
+                e.args = (
+                    f"expected a field '{fieldname}' (corresponding to {cls.__name__}.{field}) in '{d}'",
+                )
+                raise e
             type_args = get_args(fieldty)
             if get_origin(fieldty) is tuple or isinstance(fieldty, tuple):
                 if not isinstance(v, tuple):
