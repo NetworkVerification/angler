@@ -1,0 +1,114 @@
+#!/usr/bin/env python3
+"""
+Statements in the Batfish AST.
+"""
+from enum import Enum
+from dataclasses import dataclass
+from serialize import Serialize
+import bast.base as ast
+import bast.btypes as types
+import bast.expression as expr
+import bast.boolexprs as bools
+import bast.communities as comms
+
+
+class StatementType(ast.Variant):
+    IF = "If"
+    PREPEND_AS = "PrependAsPath"
+    SET_COMMS = "SetCommunities"
+    SET_LP = "SetLocalPreference"
+    SET_METRIC = "SetMetric"
+    STATIC = "StaticStatement"
+    TRACEABLE = "TraceableStatement"
+
+    def as_class(self) -> type:
+        match self:
+            case StatementType.IF:
+                return IfStatement
+            case StatementType.PREPEND_AS:
+                return PrependAsPath
+            case StatementType.SET_COMMS:
+                return SetCommunities
+            case StatementType.SET_LP:
+                return SetLocalPreference
+            case StatementType.SET_METRIC:
+                return SetMetric
+            case StatementType.STATIC:
+                return StaticStatement
+            case StatementType.TRACEABLE:
+                return TraceableStatement
+            case _:
+                raise NotImplementedError(f"{self} conversion not yet implemented.")
+
+
+class StaticStatementType(Enum):
+    TRUE = "ReturnTrue"
+    FALSE = "ReturnFalse"
+    LOCAL_DEF = "ReturnLocalDefaultAction"
+
+
+@dataclass
+class Statement(
+    ast.ASTNode,
+    Serialize,
+    delegate=("class", StatementType.parse_class),
+):
+    """
+    The base class for statements.
+    """
+
+    ...
+
+
+@dataclass
+class StaticStatement(Statement, Serialize, ty=("type", StaticStatementType)):
+    ty: StaticStatementType
+
+
+@dataclass
+class TraceableStatement(
+    Statement,
+    Serialize,
+    inner=("innerStatements", list[Statement]),
+    trace_elem="traceElement",
+):
+    inner: list[Statement]
+    trace_elem: dict
+
+
+@dataclass
+class IfStatement(
+    Statement,
+    Serialize,
+    guard=("guard", bools.BooleanExpr),
+    true_stmts=("trueStatements", list[Statement]),
+    false_stmts=("falseStatements", list[Statement]),
+    comment="comment",
+):
+    guard: bools.BooleanExpr
+    true_stmts: list[Statement]
+    false_stmts: list[Statement]
+    comment: str
+
+
+@dataclass
+class SetLocalPreference(Statement, Serialize, lp=("localPreference", expr.Expression)):
+    lp: expr.Expression
+
+
+@dataclass
+class SetCommunities(
+    Statement, Serialize, comm_set=("communitySetExpr", comms.CommunityExpr)
+):
+    comm_set: comms.CommunityExpr
+
+
+@dataclass
+class PrependAsPath(Statement, Serialize, expr=("expr", expr.Expression)):
+    # convert dict to appropriate expr (LiteralAsList?)
+    expr: expr.Expression
+
+
+@dataclass
+class SetMetric(Statement, Serialize, metric=("metric", types.Metric)):
+    metric: types.Metric
