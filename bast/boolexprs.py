@@ -19,11 +19,13 @@ class BooleanExprType(ast.Variant):
     CONJUNCTION = "Conjunction"
     DISJUNCTION = "Disjunction"
     NOT = "Not"
-    MATCHPROTOCOL = "MatchProtocol"
-    MATCHPREFIXSET = "MatchPrefixSet"
-    MATCHCOMMUNITIES = "MatchCommunities"
-    COMMUNITYMATCHREGEX = "CommunityMatchRegex"
-    COMMUNITYIS = "CommunityIs"
+    MATCH_PROTOCOL = "MatchProtocol"
+    MATCH_IPV6 = "MatchIpv6"
+    MATCH_IPV4 = "MatchIpv4"
+    MATCH_PREFIXES = "MatchPrefixSet"
+    MATCH_COMMUNITIES = "MatchCommunities"
+    COMMUNITY_MATCH_REGEX = "CommunityMatchRegex"
+    COMMUNITY_IS = "CommunityIs"
 
     def as_class(self) -> type:
         match self:
@@ -35,13 +37,13 @@ class BooleanExprType(ast.Variant):
                 return Disjunction
             case BooleanExprType.NOT:
                 return Not
-            case BooleanExprType.MATCHCOMMUNITIES:
+            case BooleanExprType.MATCH_COMMUNITIES:
                 return MatchCommunities
-            case BooleanExprType.COMMUNITYIS:
+            case BooleanExprType.COMMUNITY_IS:
                 return CommunityIs
-            case BooleanExprType.COMMUNITYMATCHREGEX:
+            case BooleanExprType.COMMUNITY_MATCH_REGEX:
                 return CommunityMatchRegex
-            case BooleanExprType.MATCHPREFIXSET:
+            case BooleanExprType.MATCH_PREFIXES:
                 return MatchPrefixSet
             case _:
                 raise NotImplementedError(f"{self} conversion not implemented.")

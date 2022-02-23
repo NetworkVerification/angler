@@ -46,6 +46,7 @@ class StaticStatementType(Enum):
     FALSE = "ReturnFalse"
     LOCAL_DEF = "ReturnLocalDefaultAction"
     EXIT_ACCEPT = "ExitAccept"
+    EXIT_REJECT = "ExitReject"
     RETURN = "Return"
 
 
@@ -83,12 +84,13 @@ class IfStatement(
     Statement,
     Serialize,
     guard=Field("guard", bools.BooleanExpr),
-    true_stmts=Field("trueStatements", list[Statement]),
+    true_stmts=Field("trueStatements", list[Statement], []),
     false_stmts=Field("falseStatements", list[Statement], []),
     comment="comment",
 ):
     """
     An if statement allowing branching control flow.
+    The true and false statements can be left empty.
     """
 
     comment: str
