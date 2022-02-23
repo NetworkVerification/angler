@@ -16,7 +16,7 @@ we want to fail to decode the file and return an error immediately.
 from enum import Enum
 from typing import Any, Callable, Optional, Union
 from ipaddress import IPv4Address, IPv4Interface
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, is_dataclass
 from serialize import Serializable, Serialize
 from collections.abc import Iterable
 
@@ -139,14 +139,16 @@ class StatementType(Enum):
 @dataclass
 class ASTNode(Serialize):
     def visit(self, f: Callable) -> None:
-        f(self)
-        for field in self.fields:
-            if isinstance(field, Iterable):
-                for ff in field:
-                    if isinstance(ff, ASTNode):
-                        ff.visit(f)
-            else:
-                field.visit(f)
+        # recursively descend through the fields of the ASTNodes
+        if is_dataclass(self):
+            f(self)
+            for field in fields(self):
+                field_node = getattr(self, field.name)
+                if isinstance(field_node, Iterable):
+                    for field_elem in [e for e in field_node if isinstance(e, ASTNode)]:
+                        field_elem.visit(f)
+                elif isinstance(field_node, ASTNode):
+                    field_node.visit(f)
 
 
 @dataclass

@@ -93,7 +93,7 @@ if __name__ == "__main__":
         case [p] if os.path.isfile(p):
             output = load_json(p)
             bf_ast = BatfishJson.from_dict(output)
-            pr = lambda x: print(x.fields)
+            pr = lambda x: print(type(x))
             bf_ast.visit(pr)
             # print(bf_ast.declarations)
         case _:
