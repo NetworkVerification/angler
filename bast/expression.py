@@ -5,7 +5,7 @@ General expressions in the Batfish AST.
 from dataclasses import dataclass
 import bast.base as ast
 import bast.btypes as types
-from serialize import Serialize
+from serialize import Serialize, Field
 
 
 class ExprType(ast.Variant):
@@ -64,10 +64,10 @@ class NamedPrefixSet(Var, Serialize, _name="name"):
 
 
 @dataclass
-class LiteralLong(Expression, Serialize, value=("value", int)):
+class LiteralLong(Expression, Serialize, value=Field("value", int)):
     value: int
 
 
 @dataclass
-class LiteralAsList(Expression, Serialize, ases=("list", list[types.ExplicitAs])):
+class LiteralAsList(Expression, Serialize, ases=Field("list", list[types.ExplicitAs])):
     ases: list[types.ExplicitAs]

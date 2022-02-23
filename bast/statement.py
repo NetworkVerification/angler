@@ -4,7 +4,7 @@ Statements in the Batfish AST.
 """
 from enum import Enum
 from dataclasses import dataclass
-from serialize import Serialize
+from serialize import Serialize, Field
 import bast.base as ast
 import bast.btypes as types
 import bast.expression as expr
@@ -45,6 +45,8 @@ class StaticStatementType(Enum):
     TRUE = "ReturnTrue"
     FALSE = "ReturnFalse"
     LOCAL_DEF = "ReturnLocalDefaultAction"
+    EXIT_ACCEPT = "ExitAccept"
+    RETURN = "Return"
 
 
 @dataclass
@@ -61,7 +63,7 @@ class Statement(
 
 
 @dataclass
-class StaticStatement(Statement, Serialize, ty=("type", StaticStatementType)):
+class StaticStatement(Statement, Serialize, ty=Field("type", StaticStatementType)):
     ty: StaticStatementType
 
 
@@ -69,8 +71,8 @@ class StaticStatement(Statement, Serialize, ty=("type", StaticStatementType)):
 class TraceableStatement(
     Statement,
     Serialize,
-    inner=("innerStatements", list[Statement]),
-    trace_elem="traceElement",
+    inner=Field("innerStatements", list[Statement]),
+    trace_elem=Field("traceElement"),
 ):
     inner: list[Statement]
     trace_elem: dict
@@ -80,35 +82,41 @@ class TraceableStatement(
 class IfStatement(
     Statement,
     Serialize,
-    guard=("guard", bools.BooleanExpr),
-    true_stmts=("trueStatements", list[Statement]),
-    false_stmts=("falseStatements", list[Statement]),
+    guard=Field("guard", bools.BooleanExpr),
+    true_stmts=Field("trueStatements", list[Statement]),
+    false_stmts=Field("falseStatements", list[Statement], []),
     comment="comment",
 ):
+    """
+    An if statement allowing branching control flow.
+    """
+
+    comment: str
     guard: bools.BooleanExpr
     true_stmts: list[Statement]
     false_stmts: list[Statement]
-    comment: str
 
 
 @dataclass
-class SetLocalPreference(Statement, Serialize, lp=("localPreference", expr.Expression)):
+class SetLocalPreference(
+    Statement, Serialize, lp=Field("localPreference", expr.Expression)
+):
     lp: expr.Expression
 
 
 @dataclass
 class SetCommunities(
-    Statement, Serialize, comm_set=("communitySetExpr", comms.CommunityExpr)
+    Statement, Serialize, comm_set=Field("communitySetExpr", comms.CommunityExpr)
 ):
     comm_set: comms.CommunityExpr
 
 
 @dataclass
-class PrependAsPath(Statement, Serialize, expr=("expr", expr.Expression)):
+class PrependAsPath(Statement, Serialize, expr=Field("expr", expr.Expression)):
     # convert dict to appropriate expr (LiteralAsList?)
     expr: expr.Expression
 
 
 @dataclass
-class SetMetric(Statement, Serialize, metric=("metric", types.Metric)):
+class SetMetric(Statement, Serialize, metric=Field("metric", types.Metric)):
     metric: types.Metric

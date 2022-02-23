@@ -4,7 +4,7 @@ Boolean expressions in the Batfish AST.
 """
 from dataclasses import dataclass
 from enum import Enum
-from serialize import Serialize
+from serialize import Serialize, Field
 import bast.base as ast
 import bast.expression as expr
 import bast.communities as comms
@@ -15,6 +15,7 @@ class StaticBooleanExprType(Enum):
 
 
 class BooleanExprType(ast.Variant):
+    STATIC = "StaticBooleanExpr"
     CONJUNCTION = "Conjunction"
     DISJUNCTION = "Disjunction"
     NOT = "Not"
@@ -26,6 +27,8 @@ class BooleanExprType(ast.Variant):
 
     def as_class(self) -> type:
         match self:
+            case BooleanExprType.STATIC:
+                return StaticBooleanExpr
             case BooleanExprType.CONJUNCTION:
                 return Conjunction
             case BooleanExprType.DISJUNCTION:
@@ -53,22 +56,28 @@ class BooleanExpr(
 
 
 @dataclass
-class StaticBooleanExpr(BooleanExpr, Serialize, ty=("type", StaticBooleanExprType)):
+class StaticBooleanExpr(
+    BooleanExpr, Serialize, ty=Field("type", StaticBooleanExprType)
+):
     ty: StaticBooleanExprType
 
 
 @dataclass
-class Conjunction(BooleanExpr, Serialize, conjuncts=("conjuncts", list[BooleanExpr])):
+class Conjunction(
+    BooleanExpr, Serialize, conjuncts=Field("conjuncts", list[BooleanExpr])
+):
     conjuncts: list[BooleanExpr]
 
 
 @dataclass
-class Disjunction(BooleanExpr, Serialize, disjuncts=("disjuncts", list[BooleanExpr])):
+class Disjunction(
+    BooleanExpr, Serialize, disjuncts=Field("disjuncts", list[BooleanExpr])
+):
     disjuncts: list[BooleanExpr]
 
 
 @dataclass
-class Not(BooleanExpr, Serialize, expr=("expr", BooleanExpr)):
+class Not(BooleanExpr, Serialize, expr=Field("expr", BooleanExpr)):
     expr: BooleanExpr
 
 
@@ -91,8 +100,8 @@ class CommunityMatchRegex(
 class MatchCommunities(
     BooleanExpr,
     Serialize,
-    comm_set=("communitySetExpr", expr.Expression),
-    comm_match=("communitySetMatchExpr", expr.Expression),
+    comm_set=Field("communitySetExpr", expr.Expression),
+    comm_match=Field("communitySetMatchExpr", expr.Expression),
 ):
     # the set of communities to match
     comm_set: expr.Expression
@@ -104,8 +113,8 @@ class MatchCommunities(
 class MatchPrefixSet(
     BooleanExpr,
     Serialize,
-    prefix=("prefix", expr.Expression),
-    prefix_set=("prefixSet", expr.Expression),
+    prefix=Field("prefix", expr.Expression),
+    prefix_set=Field("prefixSet", expr.Expression),
 ):
     prefix: expr.Expression
     prefix_set: expr.Expression

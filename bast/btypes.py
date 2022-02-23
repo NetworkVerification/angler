@@ -3,7 +3,7 @@
 Other Batfish AST types.
 """
 from dataclasses import dataclass
-from serialize import Serialize
+from serialize import Serialize, Field
 from ipaddress import IPv4Address
 import bast.base as ast
 
@@ -26,10 +26,10 @@ class Interface(ast.ASTNode, Serialize, host="hostname", iface="interface"):
 class Edge(
     ast.ASTNode,
     Serialize,
-    iface=("Interface", Interface),
-    ips=("IPs", list[IPv4Address]),
-    remote_iface=("Remote_Interface", Interface),
-    remote_ips=("Remote_IPs", list[IPv4Address]),
+    iface=Field("Interface", Interface),
+    ips=Field("IPs", list[IPv4Address]),
+    remote_iface=Field("Remote_Interface", Interface),
+    remote_ips=Field("Remote_IPs", list[IPv4Address]),
 ):
     """
     A representation of a directed edge between two interfaces.
@@ -44,7 +44,7 @@ class Edge(
 
 
 @dataclass
-class ExplicitAs(ast.ASTNode, Serialize, asnum=("as", int)):
+class ExplicitAs(ast.ASTNode, Serialize, asnum=Field("as", int)):
     asnum: int
 
 

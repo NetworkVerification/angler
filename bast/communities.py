@@ -3,7 +3,7 @@
 BGP communities in the Batfish AST.
 """
 from dataclasses import dataclass
-from serialize import Serialize
+from serialize import Serialize, Field
 import bast.base as ast
 import bast.expression as expr
 
@@ -74,33 +74,35 @@ class CommunityExpr(expr.Expression, Serialize):
 
 @dataclass
 class CommunitySetUnion(
-    expr.Expression, Serialize, exprs=("exprs", list[expr.Expression])
+    CommunityExpr, Serialize, exprs=Field("exprs", list[CommunityExpr])
 ):
-    exprs: list[expr.Expression]
+    exprs: list[CommunityExpr]
 
 
 @dataclass
-class CommunitySetMatchExpr(expr.Expression, Serialize, expr=("expr", expr.Expression)):
-    expr: expr.Expression
+class CommunitySetMatchExpr(
+    CommunityExpr, Serialize, expr=Field("expr", CommunityExpr)
+):
+    expr: CommunityExpr
 
 
 @dataclass
 class CommunitySetDifference(
     expr.Expression,
     Serialize,
-    initial=("initial", expr.Expression),
-    remove=("removalCriterion", expr.Expression),
+    initial=Field("initial", CommunityExpr),
+    remove=Field("removalCriterion", CommunityExpr),
 ):
-    initial: expr.Expression
-    remove: expr.Expression
+    initial: CommunityExpr
+    remove: CommunityExpr
 
 
 @dataclass
 class LiteralCommunitySet(
-    expr.Expression, Serialize, comm_set=("communitySet", list[str])
+    expr.Expression, Serialize, comms=Field("communitySet", list[str])
 ):
     # TODO: parse the community set
-    comm_set: list[str]
+    comms: list[str]
 
 
 @dataclass

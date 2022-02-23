@@ -4,7 +4,7 @@ The top-level JSON AST obtained from Batfish.
 """
 from dataclasses import dataclass
 from typing import Any
-from serialize import Serialize
+from serialize import Serialize, Field
 import bast.base as ast
 import bast.btypes as types
 import bast.structure as struct
@@ -34,9 +34,9 @@ def query_session(session: session.Session) -> dict:
 class BatfishJson(
     ast.ASTNode,
     Serialize,
-    topology=("topology", list[types.Edge]),
+    topology=Field("topology", list[types.Edge]),
     policy="policy",
-    declarations=("declarations", list[struct.Structure]),
+    declarations=Field("declarations", list[struct.Structure]),
 ):
     topology: list[types.Edge]
     policy: dict

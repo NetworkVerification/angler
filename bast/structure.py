@@ -4,7 +4,7 @@ Structure definitions in the Batfish AST.
 """
 from dataclasses import dataclass
 from typing import Union
-from serialize import Serialize, Serializable
+from serialize import Serialize, Serializable, Field
 import bast.base as ast
 import bast.statement as stmt
 import bast.communities as comms
@@ -16,7 +16,7 @@ class RoutingPolicy(
     ast.ASTNode,
     Serialize,
     policyname="name",
-    statements=("statements", list[stmt.Statement]),
+    statements=Field("statements", list[stmt.Statement]),
 ):
     policyname: str
     statements: list[stmt.Statement]
@@ -26,7 +26,7 @@ StructureValue = Union[ast.Vrf, ast.RouteFilter, RoutingPolicy, ast.Acl]
 
 
 @dataclass
-class StructureDef(ast.ASTNode, Serialize, value=("value", dict)):
+class StructureDef(ast.ASTNode, Serialize, value=Field("value", dict)):
     """
     A structure definition of some particular value, based on the
     StructureType of the enclosing Structure.
@@ -67,10 +67,10 @@ class StructureType(ast.Variant):
 class Structure(
     ast.ASTNode,
     Serialize,
-    node=("Node", types.Node),
-    ty=("Structure_Type", StructureType),
-    struct_name=("Structure_Name", str),
-    definition=("Structure_Definition", StructureDef),
+    node=Field("Node", types.Node),
+    ty=Field("Structure_Type", StructureType),
+    struct_name=Field("Structure_Name", str),
+    definition=Field("Structure_Definition", StructureDef),
 ):
     """
     A named structure in Batfish.

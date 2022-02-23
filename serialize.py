@@ -6,7 +6,6 @@ from typing import (
     Optional,
     Protocol,
     Type,
-    cast,
     get_args,
     get_origin,
     runtime_checkable,
@@ -30,7 +29,7 @@ class Field:
 class Serializable(Protocol):
     """A protocol for checking that a type implements to_dict and from_dict."""
 
-    fields: dict[str, str | tuple[str, type]]
+    fields: dict[str, Field]
 
     def to_dict(self) -> dict:
         ...
@@ -59,7 +58,7 @@ class Serialize(Serializable):
     encoding/decoding;
     if not, we attempt to call the given type/class on the field.
 
-    >>> class A(Serialize, foo="f",bar="b"):
+    >>> class A(Serialize, foo=Field("f"), bar=Field("b")):
     ...     def __init__(self, foo, bar, quux=10):
     ...         super().__init__()
     ...         self.foo = foo
@@ -75,7 +74,7 @@ class Serialize(Serializable):
     'hello'
     >>> a.to_dict()
     {'f': 1, 'b': 'hello'}
-    >>> class B(Serialize, baz=("baz", list[A]), spam=("spam", str)):
+    >>> class B(Serialize, baz=Field("baz", list[A]), spam=Field("spam", str)):
     ...     def __init__(self, baz: list[A], spam):
     ...         super().__init__()
     ...         self.baz = baz
@@ -88,17 +87,19 @@ class Serialize(Serializable):
     """
 
     delegate: Optional[tuple[str, Callable[[str], Type]]]
-    fields: dict[str, str | tuple[str, type]] = {}
+    fields: dict[str, Field] = {}
 
-    def __init__(self, delegate=None, **fields):
+    def __init__(self, delegate=None, **fields: str | Field):
         self.delegate = delegate
-        self.fields = fields or {}
+        self.fields = {
+            k: (Field(f) if isinstance(f, str) else f) for k, f in fields.items()
+        } or {}
 
     def __init_subclass__(
         cls,
         /,
         delegate: Optional[tuple[str, Callable[[str], Type]]] = None,
-        **fields: str | tuple[str, type],
+        **fields: str | Field,
     ) -> None:
         """
         Construct a subclass using the keyword arguments.
@@ -109,7 +110,9 @@ class Serialize(Serializable):
         or a tuple containing a field name string and a type.
         """
         cls.delegate = delegate
-        cls.fields = fields or {}
+        cls.fields = {
+            k: (Field(f) if isinstance(f, str) else f) for k, f in fields.items()
+        } or {}
 
     def to_dict(self) -> dict:
         """
@@ -121,10 +124,7 @@ class Serialize(Serializable):
             # will raise an AttributeError if the field is not present
             v = getattr(self, field)
             # NOTE: we don't use the field type when encoding to a dictionary
-            if isinstance(fields[field], tuple):
-                fieldname, _ = fields[field]
-            else:
-                fieldname = fields[field]
+            fieldname = fields[field].json_name
             # if the internal field also has a to_dict implementation, recursively convert it
             if isinstance(v, list):
                 d[fieldname] = [
@@ -167,14 +167,10 @@ class Serialize(Serializable):
             # print(f"Delegated {oldcls} to {cls}")
         kwargs = {}
         for field in cls.fields:
-            fieldty: type = Any
-            if isinstance(cls.fields[field], tuple):
-                # NOTE: have to explicitly cast to assuage the type checker
-                fieldname, fieldty = cast(tuple, cls.fields[field])
-            else:
-                fieldname = cls.fields[field]
+            fieldty = cls.fields[field].ty
+            fieldname = cls.fields[field].json_name
             try:
-                v = d.get(fieldname)
+                v = d.get(fieldname, cls.fields[field].default)
             except KeyError as e:
                 e.args = (
                     f"expected a field '{fieldname}' (corresponding to {cls.__name__}.{field}) in '{d}'",
@@ -184,7 +180,7 @@ class Serialize(Serializable):
             if get_origin(fieldty) is tuple or isinstance(fieldty, tuple):
                 if not isinstance(v, tuple):
                     raise TypeError(
-                        f"given value '{v}' does not match type '{fieldty}'"
+                        f"given value '{v}' for field '{field}' does not match type '{fieldty}'"
                     )
                 # for tuples, zip the arguments
                 if not type_args:
@@ -200,7 +196,7 @@ class Serialize(Serializable):
             elif get_origin(fieldty) is list or isinstance(fieldty, list):
                 if not isinstance(v, list):
                     raise TypeError(
-                        f"given value '{v}' does not match type '{fieldty}'"
+                        f"given value '{v}' for field '{field}' does not match type '{fieldty}'"
                     )
                 # for lists, unwrap the first type argument (if given), otherwise use Any
                 kwargs[field] = [
@@ -212,7 +208,7 @@ class Serialize(Serializable):
             elif get_origin(fieldty) is dict or isinstance(fieldty, dict):
                 if not isinstance(v, dict):
                     raise TypeError(
-                        f"given value '{v}' does not match type '{fieldty}'"
+                        f"given value '{v}' for field '{field}' does not match type '{fieldty}'"
                     )
                 # convert the keys and values of the given dictionary
                 kwargs[field] = {

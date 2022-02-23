@@ -6,7 +6,7 @@ from enum import Enum
 from typing import Callable, Optional
 from ipaddress import IPv4Address, IPv4Interface
 from dataclasses import dataclass, fields, is_dataclass
-from serialize import Serialize
+from serialize import Serialize, Field
 from collections.abc import Iterable
 
 
@@ -73,8 +73,8 @@ class Action(Enum):
 class RouteFilter(
     ASTNode,
     Serialize,
-    action=("action", Action),
-    ip_wildcard=("ipWildcard", IPv4Interface),
+    action=Field("action", Action),
+    ip_wildcard=Field("ipWildcard", IPv4Interface),
     length_range="lengthRange",
 ):
     action: Action
@@ -87,9 +87,9 @@ class RouteFilter(
 class BgpActivePeerConfig(
     ASTNode,
     Serialize,
-    default_metric=("defaultMetric", int),
-    local_as=("localAs", int),
-    local_ip=("localIp", IPv4Address),
+    default_metric=Field("defaultMetric", int),
+    local_as=Field("localAs", int),
+    local_ip=Field("localIp", IPv4Address),
 ):
     default_metric: int
     local_as: int
@@ -97,7 +97,9 @@ class BgpActivePeerConfig(
 
 
 @dataclass
-class BgpProcess(ASTNode, Serialize, neighbors=("neighbors", dict[IPv4Address, dict])):
+class BgpProcess(
+    ASTNode, Serialize, neighbors=Field("neighbors", dict[IPv4Address, dict])
+):
     neighbors: dict[IPv4Address, dict]
 
 
@@ -106,8 +108,8 @@ class Vrf(
     ASTNode,
     Serialize,
     vrfname="name",
-    bgp=("bgpProcess", BgpProcess),
-    ospf=("ospfProcesses", dict),
+    bgp=Field("bgpProcess", BgpProcess, None),
+    ospf=Field("ospfProcesses", dict, None),
     resolution="resolutionPolicy",
 ):
     vrfname: str
@@ -120,7 +122,7 @@ class Vrf(
 class AclLine(
     ASTNode,
     Serialize,
-    action=("action", Action),
+    action=Field("action", Action),
     match_cond="matchCondition",
     _name="name",
     # these two are probably also skippable
@@ -141,7 +143,7 @@ class Acl(
     _name="name",
     srcname="sourceName",
     srctype="sourceType",
-    lines=("lines", list[AclLine]),
+    lines=Field("lines", list[AclLine]),
 ):
     _name: str
     srcname: str
