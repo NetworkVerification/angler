@@ -4,33 +4,18 @@ General expressions in the Batfish AST.
 """
 from dataclasses import dataclass
 import bast.base as ast
-import bast.btypes as types
 from serialize import Serialize, Field
 
 
 class ExprType(ast.Variant):
     """A type of expression."""
 
-    # MATCHIPV4 = "matchIpv4"
-    # CALLEXPR = "callExpr"
-    # WITHENVIRONMENTEXPR = "withEnvironmentExpr"
-    # ASEXPR = "asExpr"
-    # COMMUNITYSETEXPR = "communitySetExpr"
-    LITERALLONG = "LiteralLong"
-    LITERALASLIST = "LiteralAsList"
-    DESTINATION = "DestinationNetwork"  # variable
-    NAMEDPREFIXSET = "NamedPrefixSet"
+    CALL_EXPR = "CallExpr"
 
     def as_class(self) -> type:
         match self:
-            case ExprType.NAMEDPREFIXSET:
-                return NamedPrefixSet
-            case ExprType.DESTINATION:
-                return DestinationNetwork
-            case ExprType.LITERALLONG:
-                return LiteralLong
-            case ExprType.LITERALASLIST:
-                return LiteralAsList
+            case ExprType.CALL_EXPR:
+                return CallExpr
             case _:
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
@@ -49,25 +34,9 @@ class Expression(
 
 
 @dataclass
-class Var(Expression, Serialize):
-    """A class representing a Batfish variable."""
+class CallExpr(Expression, Serialize, policy="calledPolicyName"):
+    """
+    Call the given policy.
+    """
 
-
-@dataclass
-class DestinationNetwork(Var):
-    ...
-
-
-@dataclass
-class NamedPrefixSet(Var, Serialize, _name="name"):
-    _name: str
-
-
-@dataclass
-class LiteralLong(Expression, Serialize, value=Field("value", int)):
-    value: int
-
-
-@dataclass
-class LiteralAsList(Expression, Serialize, ases=Field("list", list[types.ExplicitAs])):
-    ases: list[types.ExplicitAs]
+    policy: str

@@ -2,10 +2,32 @@
 """
 Other Batfish AST types.
 """
+from enum import Enum
 from dataclasses import dataclass
 from serialize import Serialize, Field
 from ipaddress import IPv4Address
 import bast.base as ast
+
+
+class Protocol(Enum):
+    BGP = "bgp"
+    IBGP = "ibgp"
+    OSPF = "ospf"
+    STATIC = "static"
+    CONN = "connected"
+    AGG = "aggregate"
+    ISIS_EL1 = "isisEL1"
+    ISIS_EL2 = "isisEL2"
+    ISIS_L1 = "isisL1"
+    ISIS_L2 = "isisL2"
+
+
+class Comparator(Enum):
+    EQ = "EQ"
+    GE = "GE"
+    GT = "GT"
+    LE = "LE"
+    LT = "LT"
 
 
 @dataclass
@@ -41,11 +63,6 @@ class Edge(
     ips: list[IPv4Address]
     remote_iface: Interface
     remote_ips: list[IPv4Address]
-
-
-@dataclass
-class ExplicitAs(ast.ASTNode, Serialize, asnum=Field("as", int)):
-    asnum: int
 
 
 class Metric(dict):

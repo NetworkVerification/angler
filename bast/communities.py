@@ -88,7 +88,7 @@ class CommunitySetMatchExpr(
 
 @dataclass
 class CommunitySetDifference(
-    expr.Expression,
+    CommunityExpr,
     Serialize,
     initial=Field("initial", CommunityExpr),
     remove=Field("removalCriterion", CommunityExpr),
@@ -99,27 +99,27 @@ class CommunitySetDifference(
 
 @dataclass
 class LiteralCommunitySet(
-    expr.Expression, Serialize, comms=Field("communitySet", list[str])
+    CommunityExpr, Serialize, comms=Field("communitySet", list[str])
 ):
     # TODO: parse the community set
     comms: list[str]
 
 
 @dataclass
-class InputCommunities(expr.Var):
+class InputCommunities(CommunityExpr, Serialize):
     ...
 
 
 @dataclass
-class CommunitySetReference(expr.Var, Serialize, _name="name"):
+class CommunitySetReference(CommunityExpr, Serialize, _name="name"):
     _name: str
 
 
 @dataclass
-class CommunitySetMatchExprReference(expr.Var, Serialize, _name="name"):
+class CommunitySetMatchExprReference(CommunityExpr, Serialize, _name="name"):
     _name: str
 
 
 @dataclass
-class CommunityMatchExprReference(expr.Var, Serialize, _name="name"):
+class CommunityMatchExprReference(CommunityExpr, Serialize, _name="name"):
     _name: str
