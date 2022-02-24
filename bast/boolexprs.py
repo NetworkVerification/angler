@@ -133,13 +133,13 @@ class CommunityMatchRegex(
 class MatchCommunities(
     BooleanExpr,
     Serialize,
-    comms=Field("communitySetExpr", comms.CommunityExpr),
-    comms_match=Field("communitySetMatchExpr", comms.CommunityExpr),
+    _comms=Field("communitySetExpr", comms.CommunityExpr),
+    _comms_match=Field("communitySetMatchExpr", comms.CommunityExpr),
 ):
     # the set of communities to match
-    comms: comms.CommunityExpr
+    _comms: comms.CommunityExpr
     # the set to match against
-    comms_match: comms.CommunityExpr
+    _comms_match: comms.CommunityExpr
 
 
 @dataclass
@@ -155,22 +155,22 @@ class LegacyMatchAsPath(
 class MatchPrefixSet(
     BooleanExpr,
     Serialize,
-    prefix=Field("prefix", prefix.PrefixExpr),
-    prefix_set=Field("prefixSet", prefix.PrefixExpr),
+    _prefix=Field("prefix", prefix.PrefixExpr),
+    _prefixes=Field("prefixSet", prefix.PrefixExpr),
 ):
-    prefix: prefix.PrefixExpr
-    prefix_set: prefix.PrefixExpr
+    _prefix: prefix.PrefixExpr
+    _prefixes: prefix.PrefixExpr
 
 
 @dataclass
 class MatchPrefix6Set(
     BooleanExpr,
     Serialize,
-    prefix=Field("prefix", prefix.PrefixExpr),
-    prefix_set=Field("prefixSet", prefix.PrefixExpr),
+    _prefix=Field("prefix", prefix.PrefixExpr),
+    _prefixes=Field("prefixSet", prefix.PrefixExpr),
 ):
-    prefix: prefix.PrefixExpr
-    prefix_set: prefix.PrefixExpr
+    _prefix: prefix.PrefixExpr
+    _prefixes: prefix.PrefixExpr
 
 
 @dataclass

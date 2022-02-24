@@ -3,7 +3,7 @@
 Prefix expressions in the Batfish AST.
 """
 from dataclasses import dataclass
-from serialize import Serialize, Field
+from serialize import Serialize
 import bast.base as ast
 import bast.expression as expr
 
