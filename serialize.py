@@ -176,6 +176,10 @@ class Serialize(Serializable):
                     f"expected a field '{fieldname}' (corresponding to {cls.__name__}.{field}) in '{d}'",
                 )
                 raise e
+            # exit early if v is None
+            if v is None:
+                kwargs[field] = v
+                continue
             type_args = get_args(fieldty)
             if get_origin(fieldty) is tuple or isinstance(fieldty, tuple):
                 if not isinstance(v, tuple):

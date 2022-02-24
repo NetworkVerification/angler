@@ -8,6 +8,7 @@ from ipaddress import IPv4Address, IPv4Interface
 from dataclasses import dataclass, fields, is_dataclass
 from serialize import Serialize, Field
 from collections.abc import Iterable
+import bast.btypes as types
 
 
 def parse_bf_clsname(qualified: str) -> str:
@@ -55,29 +56,27 @@ class ASTNode(Serialize):
             f(self)
             for field in fields(self):
                 field_node = getattr(self, field.name)
-                if isinstance(field_node, Iterable):
+                if isinstance(field_node, dict):
+                    for field_elem in [
+                        e for e in field_node.values() if isinstance(e, ASTNode)
+                    ]:
+                        field_elem.visit(f)
+                elif isinstance(field_node, Iterable):
                     for field_elem in [e for e in field_node if isinstance(e, ASTNode)]:
                         field_elem.visit(f)
                 elif isinstance(field_node, ASTNode):
                     field_node.visit(f)
 
 
-class Action(Enum):
-    """An action to perform on routes."""
-
-    PERMIT = "PERMIT"
-    DENY = "DENY"
-
-
 @dataclass
 class RouteFilter(
     ASTNode,
     Serialize,
-    action=Field("action", Action),
+    action=Field("action", types.Action),
     ip_wildcard=Field("ipWildcard", IPv4Interface),
     length_range="lengthRange",
 ):
-    action: Action
+    action: types.Action
     ip_wildcard: IPv4Interface
     # TODO: parse string into a range
     length_range: str
@@ -104,12 +103,24 @@ class BgpProcess(
 
 
 @dataclass
+class OspfProcess(
+    ASTNode,
+    Serialize,
+    admin_costs="adminCosts",
+    areas="areas",
+    # TODO: other fields?
+):
+    admin_costs: dict
+    areas: dict
+
+
+@dataclass
 class Vrf(
     ASTNode,
     Serialize,
     vrfname="name",
     bgp=Field("bgpProcess", BgpProcess, None),
-    ospf=Field("ospfProcesses", dict, None),
+    ospf=Field("ospfProcesses", dict[str, OspfProcess], None),
     resolution="resolutionPolicy",
 ):
     vrfname: str
@@ -122,14 +133,14 @@ class Vrf(
 class AclLine(
     ASTNode,
     Serialize,
-    action=Field("action", Action),
+    action=Field("action", types.Action),
     match_cond="matchCondition",
     _name="name",
     # these two are probably also skippable
     trace_elem="traceElement",
     vendor_id="vendorStructureId",
 ):
-    action: Action
+    action: types.Action
     match_cond: dict
     _name: str
     trace_elem: dict

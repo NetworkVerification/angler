@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Any
 from serialize import Serialize, Field
 import bast.base as ast
-import bast.btypes as types
+import bast.topology as topology
 import bast.structure as struct
 import pybatfish.client.session as session
 import pybatfish.datamodel.answer as answer
@@ -19,10 +19,10 @@ def collect_rows(answer: answer.TableAnswer) -> list[dict[str, Any]]:
     return [row for a in answer["answerElements"] for row in a["rows"]]
 
 
-def query_session(session: session.Session) -> dict:
-    topology = session.q.layer3Edges().answer()
-    policy = session.q.nodeProperties().answer()
-    structures = session.q.namedStructures().answer()
+def query_session(session: session.Session) -> dict[str, list[dict]]:
+    topology = collect_rows(session.q.layer3Edges().answer())
+    policy = collect_rows(session.q.nodeProperties().answer())
+    structures = collect_rows(session.q.namedStructures().answer())
     return {
         "topology": topology,
         "policy": policy,
@@ -34,12 +34,12 @@ def query_session(session: session.Session) -> dict:
 class BatfishJson(
     ast.ASTNode,
     Serialize,
-    topology=Field("topology", list[types.Edge]),
-    policy="policy",
+    topology=Field("topology", list[topology.Edge]),
+    policy=Field("policy", list[dict]),
     declarations=Field("declarations", list[struct.Structure]),
 ):
-    topology: list[types.Edge]
-    policy: dict
+    topology: list[topology.Edge]
+    policy: list[dict]
     declarations: list[struct.Structure]
 
     @staticmethod

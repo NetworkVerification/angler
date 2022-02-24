@@ -11,7 +11,7 @@ import bast.communities as comms
 import bast.btypes as types
 import bast.ases as ases
 import bast.prefix as prefix
-import bast.long as long
+import bast.longexprs as longs
 
 
 class StaticBooleanExprType(Enum):
@@ -201,7 +201,7 @@ class MatchTag(
     BooleanExpr,
     Serialize,
     cmp=Field("cmp", types.Comparator),
-    tag=Field("tag", long.LongExpr),
+    tag=Field("tag", longs.LongExpr),
 ):
     cmp: types.Comparator
-    tag: long.LongExpr
+    tag: longs.LongExpr

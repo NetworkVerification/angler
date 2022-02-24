@@ -8,7 +8,7 @@ from serialize import Serialize, Serializable, Field
 import bast.base as ast
 import bast.statement as stmt
 import bast.communities as comms
-import bast.btypes as types
+import bast.topology as topology
 
 
 @dataclass
@@ -67,7 +67,7 @@ class StructureType(ast.Variant):
 class Structure(
     ast.ASTNode,
     Serialize,
-    node=Field("Node", types.Node),
+    node=Field("Node", topology.Node),
     ty=Field("Structure_Type", StructureType),
     struct_name=Field("Structure_Name", str),
     definition=Field("Structure_Definition", StructureDef),
@@ -76,7 +76,7 @@ class Structure(
     A named structure in Batfish.
     """
 
-    node: types.Node
+    node: topology.Node
     ty: StructureType
     struct_name: str
     definition: StructureDef

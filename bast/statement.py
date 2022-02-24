@@ -11,7 +11,7 @@ import bast.boolexprs as bools
 import bast.communities as comms
 import bast.nexthop as hop
 import bast.ases as ases
-import bast.long as long
+import bast.longexprs as longs
 
 
 class StatementType(ast.Variant):
@@ -112,9 +112,9 @@ class IfStatement(
 
 @dataclass
 class SetLocalPreference(
-    Statement, Serialize, lp=Field("localPreference", long.LongExpr)
+    Statement, Serialize, lp=Field("localPreference", longs.LongExpr)
 ):
-    lp: long.LongExpr
+    lp: longs.LongExpr
 
 
 @dataclass
