@@ -3,12 +3,13 @@
 Structure definitions in the Batfish AST.
 """
 from dataclasses import dataclass
-from typing import Union
 from serialize import Serialize, Serializable, Field
 import bast.base as ast
 import bast.statement as stmt
 import bast.communities as comms
 import bast.topology as topology
+import bast.acl as acl
+import bast.vrf as vrf
 
 
 @dataclass
@@ -22,9 +23,6 @@ class RoutingPolicy(
     statements: list[stmt.Statement]
 
 
-StructureValue = Union[ast.Vrf, ast.RouteFilter, RoutingPolicy, ast.Acl]
-
-
 @dataclass
 class StructureDef(ast.ASTNode, Serialize, value=Field("value", dict)):
     """
@@ -33,7 +31,7 @@ class StructureDef(ast.ASTNode, Serialize, value=Field("value", dict)):
     TODO: perhaps we can flatten this?
     """
 
-    value: StructureValue
+    value: vrf.Vrf | acl.RouteFilter | RoutingPolicy | acl.Acl
 
 
 class StructureType(ast.Variant):
@@ -49,16 +47,16 @@ class StructureType(ast.Variant):
             case StructureType.COMMS_MATCH:
                 return comms.CommunitySetMatchExpr
             case StructureType.IP_ACCESS_LIST:
-                return ast.Acl
+                return acl.Acl
             case StructureType.ROUTE_FILTER_LIST:
-                return list[ast.RouteFilter]
+                return list[acl.RouteFilter]
             case StructureType.ROUTE6_FILTER_LIST:
                 # TODO
                 return dict
             case StructureType.ROUTING_POLICY:
                 return RoutingPolicy
             case StructureType.VRF:
-                return ast.Vrf
+                return vrf.Vrf
             case _:
                 raise ValueError(f"{self} is not a valid {self.__class__}")
 

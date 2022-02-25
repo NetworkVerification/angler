@@ -5,11 +5,10 @@ Topology information in the Batfish AST.
 from dataclasses import dataclass
 from serialize import Serialize, Field
 from ipaddress import IPv4Address
-import bast.base as ast
 
 
 @dataclass
-class Node(ast.ASTNode, Serialize, nodeid="id", nodename="name"):
+class Node(Serialize, nodeid="id", nodename="name"):
     """A node in the network."""
 
     nodeid: str
@@ -17,14 +16,13 @@ class Node(ast.ASTNode, Serialize, nodeid="id", nodename="name"):
 
 
 @dataclass
-class Interface(ast.ASTNode, Serialize, host="hostname", iface="interface"):
+class Interface(Serialize, host="hostname", iface="interface"):
     host: str
     iface: str
 
 
 @dataclass
 class Edge(
-    ast.ASTNode,
     Serialize,
     iface=Field("Interface", Interface),
     ips=Field("IPs", list[IPv4Address]),

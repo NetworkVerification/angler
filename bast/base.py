@@ -3,12 +3,12 @@
 Base utilities for parsing the Batfish AST.
 """
 from enum import Enum
-from typing import Callable, Optional
-from ipaddress import IPv4Address, IPv4Interface
+from typing import Callable
+from ipaddress import IPv4Address
 from dataclasses import dataclass, fields, is_dataclass
 from serialize import Serialize, Field
 from collections.abc import Iterable
-import bast.btypes as types
+import bast.topology as topology
 
 
 def parse_bf_clsname(qualified: str) -> str:
@@ -68,95 +68,50 @@ class ASTNode(Serialize):
                     field_node.visit(f)
 
 
-@dataclass
-class RouteFilter(
-    ASTNode,
-    Serialize,
-    action=Field("action", types.Action),
-    ip_wildcard=Field("ipWildcard", IPv4Interface),
-    length_range="lengthRange",
-):
-    action: types.Action
-    ip_wildcard: IPv4Interface
-    # TODO: parse string into a range
-    length_range: str
+class RemoteIpType(Variant):
+    IP = "Ip"
+
+    def as_class(self) -> type:
+        match self:
+            case RemoteIpType.IP:
+                return RemoteIpAddress
+            case _:
+                raise NotImplementedError(f"{self} conversion not implemented.")
+
+    @classmethod
+    def parse_class(cls, s: str) -> type:
+        """
+        Return the type associated with a given string parsed into this variant.
+        """
+        return cls(s).as_class()
 
 
 @dataclass
-class BgpActivePeerConfig(
+class RemoteIp(Serialize, delegate=("schema", RemoteIpType.parse_class)):
+    ...
+
+
+@dataclass
+class RemoteIpAddress(Serialize, value=Field("value", IPv4Address)):
+    value: IPv4Address
+
+
+@dataclass
+class BgpPeerConfig(
     ASTNode,
     Serialize,
-    default_metric=Field("defaultMetric", int),
-    local_as=Field("localAs", int),
-    local_ip=Field("localIp", IPv4Address),
+    node=Field("Node", topology.Node),
+    local_as=Field("Local_AS", int),
+    local_ip=Field("Local_IP", IPv4Address),
+    remote_as=Field("Remote_AS", int),
+    remote_ip=Field("Remote_IP", RemoteIp),
+    import_policy=Field("Import_Policy", list[str]),
+    export_policy=Field("Export_Policy", list[str]),
 ):
-    default_metric: int
+    node: str
     local_as: int
     local_ip: IPv4Address
-
-
-@dataclass
-class BgpProcess(
-    ASTNode, Serialize, neighbors=Field("neighbors", dict[IPv4Address, dict])
-):
-    neighbors: dict[IPv4Address, dict]
-
-
-@dataclass
-class OspfProcess(
-    ASTNode,
-    Serialize,
-    admin_costs="adminCosts",
-    areas="areas",
-    # TODO: other fields?
-):
-    admin_costs: dict
-    areas: dict
-
-
-@dataclass
-class Vrf(
-    ASTNode,
-    Serialize,
-    vrfname="name",
-    bgp=Field("bgpProcess", BgpProcess, None),
-    ospf=Field("ospfProcesses", dict[str, OspfProcess], None),
-    resolution="resolutionPolicy",
-):
-    vrfname: str
-    resolution: str
-    bgp: Optional[BgpProcess] = None
-    ospf: Optional[dict] = None
-
-
-@dataclass
-class AclLine(
-    ASTNode,
-    Serialize,
-    action=Field("action", types.Action),
-    match_cond="matchCondition",
-    _name="name",
-    # these two are probably also skippable
-    trace_elem="traceElement",
-    vendor_id="vendorStructureId",
-):
-    action: types.Action
-    match_cond: dict
-    _name: str
-    trace_elem: dict
-    vendor_id: dict
-
-
-@dataclass
-class Acl(
-    ASTNode,
-    Serialize,
-    _name="name",
-    srcname="sourceName",
-    srctype="sourceType",
-    lines=Field("lines", list[AclLine]),
-):
-    _name: str
-    srcname: str
-    srctype: str
-    lines: list[AclLine]
+    remote_as: int
+    remote_ip: RemoteIp
+    import_policy: list[str]
+    export_policy: list[str]

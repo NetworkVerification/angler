@@ -23,10 +23,12 @@ def query_session(session: session.Session) -> dict[str, list[dict]]:
     topology = collect_rows(session.q.layer3Edges().answer())
     policy = collect_rows(session.q.nodeProperties().answer())
     structures = collect_rows(session.q.namedStructures().answer())
+    bgp_peers = collect_rows(session.q.bgpPeerConfiguration().answer())
     return {
         "topology": topology,
         "policy": policy,
         "declarations": structures,
+        "bgp": bgp_peers,
     }
 
 
@@ -36,10 +38,12 @@ class BatfishJson(
     Serialize,
     topology=Field("topology", list[topology.Edge]),
     policy=Field("policy", list[dict]),
+    bgp=Field("bgp", list[ast.BgpPeerConfig]),
     declarations=Field("declarations", list[struct.Structure]),
 ):
     topology: list[topology.Edge]
     policy: list[dict]
+    bgp: list[ast.BgpPeerConfig]
     declarations: list[struct.Structure]
 
     @staticmethod

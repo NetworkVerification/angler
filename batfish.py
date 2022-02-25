@@ -6,6 +6,7 @@ import os
 import sys
 from pybatfish.client.session import Session
 import bast.json
+from pathlib import Path
 
 
 def initialize_session(snapshot_dir: str):
@@ -43,7 +44,8 @@ if __name__ == "__main__":
                 print("Successfully parsed Batfish AST!")
             finally:
                 if len(tl) == 0:
-                    out_path = os.path.basename(p) + ".json"
+                    # use Path to sanitize the string
+                    out_path = Path(p).with_suffix(".json").name
                 else:
                     out_path = tl[0]
                 with open(out_path, "w") as jsonout:
