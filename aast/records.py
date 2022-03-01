@@ -3,7 +3,6 @@
 AST representation of records.
 """
 from dataclasses import dataclass
-from typing import Any
 from serialize import Serialize, Field
 import expression as expr
 import base as ast
@@ -26,8 +25,10 @@ class RecExpr(expr.Expression, Serialize, delegate=("class", RecExprType.parse_c
 
 
 @dataclass
-class CreateRecord(RecExpr, Serialize, _fields=Field("fields", dict[str, Any])):
-    _fields: dict[str, Any]
+class CreateRecord(
+    RecExpr, Serialize, _fields=Field("fields", dict[str, expr.Expression])
+):
+    _fields: dict[str, expr.Expression]
 
 
 # TODO: figure out where to put this and WithField in the types
@@ -48,8 +49,8 @@ class WithField(
     Serialize,
     rec=Field("record", RecExpr),
     field_name=Field("fieldName", str),
-    field_val="fieldVal",
+    field_val=Field("fieldVal", expr.Expression),
 ):
     rec: RecExpr
     field_name: str
-    field_val: Any
+    field_val: expr.Expression
