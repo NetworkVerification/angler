@@ -12,6 +12,9 @@ import bast.communities as comms
 import bast.nexthop as hop
 import bast.ases as ases
 import bast.longexprs as longs
+import aast.statement as astmt
+import aast.boolexprs as abools
+from converter import ToAast
 
 
 class StatementType(ast.Variant):
@@ -66,12 +69,24 @@ class Statement(
     The base class for statements.
     """
 
-    ...
+    def to_aast(self) -> astmt.Statement:
+        raise NotImplementedError()
 
 
 @dataclass
 class StaticStatement(Statement, Serialize, ty=Field("type", StaticStatementType)):
     ty: StaticStatementType
+
+    def to_aast(self) -> astmt.Statement:
+        match self.ty:
+            case StaticStatementType.TRUE | StaticStatementType.EXIT_ACCEPT:
+                return astmt.ReturnStatement(abools.LiteralTrue())
+            case StaticStatementType.FALSE | StaticStatementType.EXIT_REJECT:
+                return astmt.ReturnStatement(abools.LiteralFalse())
+            case StaticStatementType.LOCAL_DEF:
+                return astmt.ReturnStatement(abools.Havoc())
+            case _:
+                raise NotImplementedError()
 
 
 @dataclass
@@ -108,6 +123,14 @@ class IfStatement(
     guard: bools.BooleanExpr
     true_stmts: list[Statement]
     false_stmts: list[Statement]
+
+    def to_aast(self) -> astmt.IfStatement:
+        return astmt.IfStatement(
+            self.guard.to_aast(),
+            [s.to_aast() for s in self.true_stmts],
+            [s.to_aast() for s in self.false_stmts],
+            self.comment,
+        )
 
 
 @dataclass

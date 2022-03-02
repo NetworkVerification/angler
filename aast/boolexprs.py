@@ -1,6 +1,6 @@
-'''
+"""
 Boolean expressions
-'''
+"""
 from dataclasses import dataclass
 from serialize import Serialize, Field
 from aast.arithexprs import ArithExpr
@@ -24,7 +24,7 @@ class BoolExprType(Variant):
     LE = "LessThanOrEqual"
     GT = "GreaterThan"
     GE = "GreaterThanOrEqual"
-    #CONTAINS = "Contains" # set containment?
+    # CONTAINS = "Contains" # set containment?
 
     def as_class(self) -> type:
         match self:
@@ -33,7 +33,7 @@ class BoolExprType(Variant):
             case BoolExprType.FALSE:
                 return LiteralFalse
             case BoolExprType.HAVOC:
-                return Havoc 
+                return Havoc
             case BoolExprType.CONJUNCTION:
                 return Conjunction
             case BoolExprType.CONJUNCTION_CHAIN:
@@ -61,29 +61,30 @@ class BoolExprType(Variant):
             case _:
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
+
 class BoolExpr(
-    expr.Expression,
-    Serialize,
-    delegate = ("class", BoolExprType.parse_class)
+    expr.Expression, Serialize, delegate=("class", BoolExprType.parse_class)
 ):
     ...
+
 
 @dataclass
 class LiteralTrue(BoolExpr, Serialize):
     ...
 
+
 @dataclass
 class LiteralFalse(BoolExpr, Serialize):
     ...
+
 
 @dataclass
 class Havoc(BoolExpr, Serialize):
     ...
 
+
 @dataclass
-class Conjunction(
-    BoolExpr, Serialize, conjuncts=Field("conjuncts", list[BoolExpr])
-):
+class Conjunction(BoolExpr, Serialize, conjuncts=Field("conjuncts", list[BoolExpr])):
     conjuncts: list[BoolExpr]
 
 
@@ -95,68 +96,76 @@ class ConjunctionChain(
 
 
 @dataclass
-class Disjunction(
-    BoolExpr, Serialize, disjuncts=Field("disjuncts", list[BoolExpr])
-):
+class Disjunction(BoolExpr, Serialize, disjuncts=Field("disjuncts", list[BoolExpr])):
     disjuncts: list[BoolExpr]
 
 
 @dataclass
 class Not(BoolExpr, Serialize, expr=Field("expr", BoolExpr)):
     expr: BoolExpr
-    
-@dataclass 
-class Equal(BoolExpr, Serialize, 
-    operand1=Field("operand1", ArithExpr), 
-    operand2=Field("operand2", ArithExpr)
+
+
+@dataclass
+class Equal(
+    BoolExpr,
+    Serialize,
+    operand1=Field("operand1", ArithExpr),
+    operand2=Field("operand2", ArithExpr),
 ):
     operand1: ArithExpr
     operand2: ArithExpr
 
-@dataclass 
-class NotEqual(BoolExpr, Serialize, 
-    operand1=Field("operand1", ArithExpr), 
-    operand2=Field("operand2", ArithExpr)
+
+@dataclass
+class NotEqual(
+    BoolExpr,
+    Serialize,
+    operand1=Field("operand1", ArithExpr),
+    operand2=Field("operand2", ArithExpr),
 ):
     operand1: ArithExpr
     operand2: ArithExpr
 
-@dataclass 
-class LessThan(BoolExpr, Serialize, 
-    operand1=Field("operand1", ArithExpr), 
-    operand2=Field("operand2", ArithExpr)
+
+@dataclass
+class LessThan(
+    BoolExpr,
+    Serialize,
+    operand1=Field("operand1", ArithExpr),
+    operand2=Field("operand2", ArithExpr),
 ):
     operand1: ArithExpr
     operand2: ArithExpr
 
-@dataclass 
-class LessThanEqual(BoolExpr, Serialize, 
-    operand1=Field("operand1", ArithExpr), 
-    operand2=Field("operand2", ArithExpr)
+
+@dataclass
+class LessThanEqual(
+    BoolExpr,
+    Serialize,
+    operand1=Field("operand1", ArithExpr),
+    operand2=Field("operand2", ArithExpr),
 ):
     operand1: ArithExpr
     operand2: ArithExpr
 
-@dataclass 
-class GreaterThan(BoolExpr, Serialize, 
-    operand1=Field("operand1", ArithExpr), 
-    operand2=Field("operand2", ArithExpr)
+
+@dataclass
+class GreaterThan(
+    BoolExpr,
+    Serialize,
+    operand1=Field("operand1", ArithExpr),
+    operand2=Field("operand2", ArithExpr),
 ):
     operand1: ArithExpr
     operand2: ArithExpr
 
-@dataclass 
-class GreaterThanEqual(BoolExpr, Serialize, 
-    operand1=Field("operand1", ArithExpr), 
-    operand2=Field("operand2", ArithExpr)
-):
-    operand1: ArithExpr
-    operand2: ArithExpr
 
-@dataclass 
-class Equal(BoolExpr, Serialize, 
-    operand1=Field("operand1", ArithExpr), 
-    operand2=Field("operand2", ArithExpr)
+@dataclass
+class GreaterThanEqual(
+    BoolExpr,
+    Serialize,
+    operand1=Field("operand1", ArithExpr),
+    operand2=Field("operand2", ArithExpr),
 ):
     operand1: ArithExpr
     operand2: ArithExpr
@@ -164,10 +173,10 @@ class Equal(BoolExpr, Serialize,
 
 @dataclass
 class Match(
-    BoolExpr, 
-    Serialize, 
-    match_var = Field("match_var", expr.Var),
-    match_list = Field("match_list", BoolExpr)
+    BoolExpr,
+    Serialize,
+    match_var=Field("match_var", expr.Var),
+    match_list=Field("match_list", BoolExpr),
 ):
     match_var: expr.Var
     match_list: BoolExpr

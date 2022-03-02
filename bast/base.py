@@ -9,6 +9,7 @@ from dataclasses import dataclass, fields, is_dataclass
 from serialize import Serialize, Field
 from collections.abc import Iterable
 import bast.topology as topology
+import aast.base as aast
 
 
 def parse_bf_clsname(qualified: str) -> str:
@@ -66,6 +67,12 @@ class ASTNode(Serialize):
                         field_elem.visit(f)
                 elif isinstance(field_node, ASTNode):
                     field_node.visit(f)
+
+    def to_aast(self) -> aast.ASTNode:
+        """
+        Convert this node to a node in the Angler AST.
+        """
+        raise NotImplementedError()
 
 
 class RemoteIpType(Variant):
