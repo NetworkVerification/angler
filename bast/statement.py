@@ -14,7 +14,6 @@ import bast.ases as ases
 import bast.longexprs as longs
 import aast.statement as astmt
 import aast.boolexprs as abools
-from converter import ToAast
 
 
 class StatementType(ast.Variant):
