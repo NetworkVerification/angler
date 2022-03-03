@@ -35,6 +35,7 @@ class NextHopExpr(
 
 @dataclass
 class IpNextHop(NextHopExpr, Serialize, ips=Field("ips", list[IPv4Address])):
+    # NOTE: Batfish only handles a single-element ips list.
     ips: list[IPv4Address]
 
 

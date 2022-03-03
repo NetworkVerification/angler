@@ -11,19 +11,27 @@ import bast.expression as expr
 class PrefixExprType(ast.Variant):
     DESTINATION = "DestinationNetwork"  # variable
     DESTINATION6 = "DestinationNetwork6"  # variable
+
+    def as_class(self) -> type:
+        match self:
+            case PrefixExprType.DESTINATION:
+                return DestinationNetwork
+            case PrefixExprType.DESTINATION6:
+                return DestinationNetwork6
+            case _:
+                raise NotImplementedError(f"{self} conversion not implemented.")
+
+
+class PrefixSetExprType(ast.Variant):
     NAMED_PREFIX_SET = "NamedPrefixSet"
     NAMED_PREFIX6_SET = "NamedPrefix6Set"
 
     def as_class(self) -> type:
         match self:
-            case PrefixExprType.NAMED_PREFIX_SET:
+            case PrefixSetExprType.NAMED_PREFIX_SET:
                 return NamedPrefixSet
-            case PrefixExprType.DESTINATION:
-                return DestinationNetwork
-            case PrefixExprType.NAMED_PREFIX6_SET:
+            case PrefixSetExprType.NAMED_PREFIX6_SET:
                 return NamedPrefix6Set
-            case PrefixExprType.DESTINATION6:
-                return DestinationNetwork6
             case _:
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
@@ -36,13 +44,15 @@ class PrefixExpr(
 
 
 @dataclass
-class DestinationNetwork(PrefixExpr, Serialize):
+class PrefixSetExpr(
+    expr.Expression, Serialize, delegate=("class", PrefixSetExprType.parse_class)
+):
     ...
 
 
 @dataclass
-class NamedPrefixSet(PrefixExpr, Serialize, _name="name"):
-    _name: str
+class DestinationNetwork(PrefixExpr, Serialize):
+    ...
 
 
 @dataclass
@@ -51,5 +61,10 @@ class DestinationNetwork6(PrefixExpr, Serialize):
 
 
 @dataclass
-class NamedPrefix6Set(PrefixExpr, Serialize, _name="name"):
+class NamedPrefixSet(PrefixSetExpr, Serialize, _name="name"):
+    _name: str
+
+
+@dataclass
+class NamedPrefix6Set(PrefixSetExpr, Serialize, _name="name"):
     _name: str

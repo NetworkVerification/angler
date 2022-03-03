@@ -141,9 +141,9 @@ class SetLocalPreference(
 
 @dataclass
 class SetCommunities(
-    Statement, Serialize, comm_set=Field("communitySetExpr", comms.CommunityExpr)
+    Statement, Serialize, comm_set=Field("communitySetExpr", comms.CommunitySetExpr)
 ):
-    comm_set: comms.CommunityExpr
+    comm_set: comms.CommunitySetExpr
 
 
 @dataclass

@@ -35,8 +35,6 @@ class BooleanExprType(ast.Variant):
     LEGACY_MATCH_AS_PATH = "LegacyMatchAsPath"
     MATCH_TAG = "MatchTag"
     MATCH_COMMUNITIES = "MatchCommunities"
-    COMMUNITY_MATCH_REGEX = "CommunityMatchRegex"
-    COMMUNITY_IS = "CommunityIs"
 
     def as_class(self) -> type:
         match self:
@@ -56,10 +54,6 @@ class BooleanExprType(ast.Variant):
                 return MatchTag
             case BooleanExprType.MATCH_COMMUNITIES:
                 return MatchCommunities
-            case BooleanExprType.COMMUNITY_IS:
-                return CommunityIs
-            case BooleanExprType.COMMUNITY_MATCH_REGEX:
-                return CommunityMatchRegex
             case BooleanExprType.MATCH_PREFIXES:
                 return MatchPrefixSet
             case BooleanExprType.MATCH_PREFIXES6:
@@ -120,31 +114,16 @@ class Not(BooleanExpr, Serialize, expr=Field("expr", BooleanExpr)):
 
 
 @dataclass
-class CommunityIs(BooleanExpr, Serialize, community="community"):
-    # TODO parse the community set: it appears to be two integers separated by a colon
-    community: str
-
-
-@dataclass
-class CommunityMatchRegex(
-    BooleanExpr, Serialize, rendering="communityRendering", regex="regex"
-):
-    rendering: comms.CommunityRendering
-    # TODO parse
-    regex: str
-
-
-@dataclass
 class MatchCommunities(
     BooleanExpr,
     Serialize,
-    _comms=Field("communitySetExpr", comms.CommunityExpr),
-    _comms_match=Field("communitySetMatchExpr", comms.CommunityExpr),
+    _comms=Field("communitySetExpr", comms.CommunitySetExpr),
+    _comms_match=Field("communitySetMatchExpr", comms.CommunitySetMatchExpr),
 ):
     # the set of communities to match
-    _comms: comms.CommunityExpr
+    _comms: comms.CommunitySetExpr
     # the set to match against
-    _comms_match: comms.CommunityExpr
+    _comms_match: comms.CommunitySetMatchExpr
 
 
 @dataclass
@@ -161,10 +140,10 @@ class MatchPrefixSet(
     BooleanExpr,
     Serialize,
     _prefix=Field("prefix", prefix.PrefixExpr),
-    _prefixes=Field("prefixSet", prefix.PrefixExpr),
+    _prefixes=Field("prefixSet", prefix.PrefixSetExpr),
 ):
     _prefix: prefix.PrefixExpr
-    _prefixes: prefix.PrefixExpr
+    _prefixes: prefix.PrefixSetExpr
 
 
 @dataclass
@@ -172,10 +151,10 @@ class MatchPrefix6Set(
     BooleanExpr,
     Serialize,
     _prefix=Field("prefix", prefix.PrefixExpr),
-    _prefixes=Field("prefixSet", prefix.PrefixExpr),
+    _prefixes=Field("prefixSet", prefix.PrefixSetExpr),
 ):
     _prefix: prefix.PrefixExpr
-    _prefixes: prefix.PrefixExpr
+    _prefixes: prefix.PrefixSetExpr
 
 
 @dataclass

@@ -12,18 +12,22 @@ import bast.topology as topology
 import aast.base as aast
 
 
-def parse_bf_clsname(qualified: str) -> str:
+def parse_bf_clsname(name: str) -> str:
     """
     Given a string representing a class in batfish's namespace,
     return the class name.
+    Has the following behavior depending on the form of name:
+    - Qualified class name: "namespaces.name" -> "name"
+    - Qualified class name with named subclass: "namespaces.class$name" -> "name"
+    - Unqualified name: "name" -> "name"
     """
-    _, last = qualified.rsplit(sep=".", maxsplit=1)
-    # if a $ is found, name will contain the string following it
-    # if $ is not found, name will contain the original string
     try:
-        return last[last.rindex("$") + 1 :]
+        _, name = name.rsplit(sep=".", maxsplit=1)
+        # if a $ is found, name will contain the string following it
+        # if $ is not found, name will contain the original string
+        return name[name.rindex("$") + 1 :]
     except ValueError:
-        return last
+        return name
 
 
 class Variant(Enum):
@@ -75,31 +79,15 @@ class ASTNode(Serialize):
         raise NotImplementedError()
 
 
-class RemoteIpType(Variant):
+class RemoteIpType(Enum):
     IP = "Ip"
 
-    def as_class(self) -> type:
-        match self:
-            case RemoteIpType.IP:
-                return RemoteIpAddress
-            case _:
-                raise NotImplementedError(f"{self} conversion not implemented.")
-
-    @classmethod
-    def parse_class(cls, s: str) -> type:
-        """
-        Return the type associated with a given string parsed into this variant.
-        """
-        return cls(s).as_class()
-
 
 @dataclass
-class RemoteIp(Serialize, delegate=("schema", RemoteIpType.parse_class)):
-    ...
-
-
-@dataclass
-class RemoteIpAddress(Serialize, value=Field("value", IPv4Address)):
+class RemoteIpAddress(
+    Serialize, value=Field("value", IPv4Address), schema=Field("schema", RemoteIpType)
+):
+    schema: RemoteIpType
     value: IPv4Address
 
 
@@ -111,7 +99,7 @@ class BgpPeerConfig(
     local_as=Field("Local_AS", int),
     local_ip=Field("Local_IP", IPv4Address),
     remote_as=Field("Remote_AS", int),
-    remote_ip=Field("Remote_IP", RemoteIp),
+    remote_ip=Field("Remote_IP", RemoteIpAddress),
     import_policy=Field("Import_Policy", list[str]),
     export_policy=Field("Export_Policy", list[str]),
 ):
@@ -119,6 +107,6 @@ class BgpPeerConfig(
     local_as: int
     local_ip: IPv4Address
     remote_as: int
-    remote_ip: RemoteIp
+    remote_ip: RemoteIpAddress
     import_policy: list[str]
     export_policy: list[str]

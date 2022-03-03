@@ -8,31 +8,53 @@ import bast.base as ast
 import bast.expression as expr
 
 
-class CommunityExprType(ast.Variant):
+class CommunitySetExprType(ast.Variant):
     INPUT_COMMUNITIES = "InputCommunities"  # variable
     LITERAL_COMMUNITIES = "LiteralCommunitySet"
     COMMUNITY_UNION = "CommunitySetUnion"
     COMMUNITY_DIFFERENCE = "CommunitySetDifference"
     COMMUNITIES_REF = "CommunitySetReference"
-    COMMUNITIES_MATCH_REF = "CommunitySetMatchExprReference"
-    COMMUNITY_MATCH_REF = "CommunityMatchExprReference"
 
     def as_class(self) -> type:
         match self:
-            case CommunityExprType.INPUT_COMMUNITIES:
+            case CommunitySetExprType.INPUT_COMMUNITIES:
                 return InputCommunities
-            case CommunityExprType.LITERAL_COMMUNITIES:
+            case CommunitySetExprType.LITERAL_COMMUNITIES:
                 return LiteralCommunitySet
-            case CommunityExprType.COMMUNITY_UNION:
+            case CommunitySetExprType.COMMUNITY_UNION:
                 return CommunitySetUnion
-            case CommunityExprType.COMMUNITY_DIFFERENCE:
+            case CommunitySetExprType.COMMUNITY_DIFFERENCE:
                 return CommunitySetDifference
-            case CommunityExprType.COMMUNITIES_REF:
+            case CommunitySetExprType.COMMUNITIES_REF:
                 return CommunitySetReference
-            case CommunityExprType.COMMUNITIES_MATCH_REF:
-                return CommunitySetMatchExprReference
-            case CommunityExprType.COMMUNITY_MATCH_REF:
+            case _:
+                raise NotImplementedError(f"{self} conversion not implemented.")
+
+
+class CommunityMatchExprType(ast.Variant):
+    COMMUNITY_MATCH_REF = "CommunityMatchExprReference"
+    COMMUNITY_IS = "CommunityIs"
+    COMMUNITY_MATCH_REGEX = "CommunityMatchRegex"
+
+    def as_class(self) -> type:
+        match self:
+            case CommunityMatchExprType.COMMUNITY_MATCH_REF:
                 return CommunityMatchExprReference
+            case CommunityMatchExprType.COMMUNITY_IS:
+                return CommunityIs
+            case CommunityMatchExprType.COMMUNITY_MATCH_REGEX:
+                return CommunityMatchRegex
+            case _:
+                raise NotImplementedError(f"{self} conversion not implemented.")
+
+
+class CommunitySetMatchExprType(ast.Variant):
+    COMMUNITIES_MATCH_REF = "CommunitySetMatchExprReference"
+
+    def as_class(self) -> type:
+        match self:
+            case CommunitySetMatchExprType.COMMUNITIES_MATCH_REF:
+                return CommunitySetMatchExprReference
             case _:
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
@@ -68,58 +90,102 @@ class ColonSeparatedRendering(CommunityRendering, Serialize):
     ...
 
 
-class CommunityExpr(expr.Expression, Serialize):
+@dataclass
+class CommunitySetExpr(
+    expr.Expression, Serialize, delegate=("class", CommunitySetExprType.parse_class)
+):
+    """An expression representing a community set."""
+
+    ...
+
+
+@dataclass
+class CommunityMatchExpr(
+    expr.Expression,
+    Serialize,
+    delegate=("class", CommunityMatchExprType.parse_class),
+):
+    """An expression representing a match condition on a specific community."""
+
+    ...
+
+
+@dataclass
+class CommunitySetMatchExpr(
+    expr.Expression,
+    Serialize,
+    delegate=("class", CommunitySetMatchExprType.parse_class),
+):
+    """An expression representing a match condition on a community set."""
+
     ...
 
 
 @dataclass
 class CommunitySetUnion(
-    CommunityExpr, Serialize, exprs=Field("exprs", list[CommunityExpr])
+    CommunitySetExpr, Serialize, exprs=Field("exprs", list[CommunitySetExpr])
 ):
-    exprs: list[CommunityExpr]
-
-
-@dataclass
-class CommunitySetMatchExpr(
-    CommunityExpr, Serialize, expr=Field("expr", CommunityExpr)
-):
-    expr: CommunityExpr
+    exprs: list[CommunitySetExpr]
 
 
 @dataclass
 class CommunitySetDifference(
-    CommunityExpr,
+    CommunitySetExpr,
     Serialize,
-    initial=Field("initial", CommunityExpr),
-    remove=Field("removalCriterion", CommunityExpr),
+    initial=Field("initial", CommunitySetExpr),
+    remove=Field("removalCriterion", CommunityMatchExpr),
 ):
-    initial: CommunityExpr
-    remove: CommunityExpr
+    initial: CommunitySetExpr
+    remove: CommunityMatchExpr
 
 
 @dataclass
 class LiteralCommunitySet(
-    CommunityExpr, Serialize, comms=Field("communitySet", list[str])
+    CommunitySetExpr, Serialize, comms=Field("communitySet", list[str])
 ):
     # TODO: parse the community set
     comms: list[str]
 
 
 @dataclass
-class InputCommunities(CommunityExpr, Serialize):
+class CommunityIs(CommunityMatchExpr, Serialize, community="community"):
+    # TODO parse the community set: it appears to be two integers separated by a colon
+    community: str
+
+
+@dataclass
+class HasCommunity(
+    CommunitySetMatchExpr, Serialize, expr=Field("expr", CommunityMatchExpr)
+):
+    """Match a community set iff it has a community that is matched by expr."""
+
+    expr: CommunityMatchExpr
+
+
+@dataclass
+class CommunityMatchRegex(
+    CommunityMatchExpr, Serialize, rendering="communityRendering", regex="regex"
+):
+    rendering: CommunityRendering
+    # TODO parse
+    regex: str
+
+
+@dataclass
+class InputCommunities(CommunitySetExpr, Serialize):
     ...
 
 
 @dataclass
-class CommunitySetReference(CommunityExpr, Serialize, _name="name"):
+class CommunitySetReference(CommunitySetExpr, Serialize, _name="name"):
     _name: str
 
 
 @dataclass
-class CommunitySetMatchExprReference(CommunityExpr, Serialize, _name="name"):
+class CommunitySetMatchExprReference(CommunitySetMatchExpr, Serialize, _name="name"):
     _name: str
 
 
 @dataclass
-class CommunityMatchExprReference(CommunityExpr, Serialize, _name="name"):
+class CommunityMatchExprReference(CommunityMatchExpr, Serialize, _name="name"):
     _name: str

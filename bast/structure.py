@@ -45,7 +45,7 @@ class StructureType(ast.Variant):
     def as_class(self) -> type:
         match self:
             case StructureType.COMMS_MATCH:
-                return comms.CommunitySetMatchExpr
+                return comms.HasCommunity
             case StructureType.IP_ACCESS_LIST:
                 return acl.Acl
             case StructureType.ROUTE_FILTER_LIST:
