@@ -162,20 +162,20 @@ class Serialize(Serializable):
         """
         # if a delegate is assigned, delegate to it
         if cls.delegate:
-            # oldcls = cls
-            cls = cls.delegate[1](d[cls.delegate[0]])
-            # print(f"Delegated {oldcls} to {cls}")
+            del_field_name, del_func = cls.delegate
+            try:
+                # look up the delegate field name in d, and then call del_func on its value
+                cls = del_func(d[del_field_name])
+            except KeyError as e:
+                e.args = (
+                    f"expected a delegate field '{del_field_name}' for {cls.__name__} in '{d}'",
+                )
+                raise e
         kwargs = {}
         for field in cls.fields:
             fieldty = cls.fields[field].ty
             fieldname = cls.fields[field].json_name
-            try:
-                v = d.get(fieldname, cls.fields[field].default)
-            except KeyError as e:
-                e.args = (
-                    f"expected a field '{fieldname}' (corresponding to {cls.__name__}.{field}) in '{d}'",
-                )
-                raise e
+            v = d.get(fieldname, cls.fields[field].default)
             # exit early if v is None
             if v is None:
                 kwargs[field] = v
