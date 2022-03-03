@@ -2,8 +2,10 @@ from dataclasses import dataclass
 from serialize import Serialize, Field
 from aast.base import Variant, ASTNode
 
+
 class ExprType(Variant):
     """A type of expression."""
+
     CALL_EXPR = "CallExpr"
     VAR = "Variable"
     # IPADDRESS = "IPaddress" # string e.g. 10.0.1.0
@@ -18,9 +20,6 @@ class ExprType(Variant):
                 return Var
             case _:
                 raise NotImplementedError(f"{self} conversion not implemented.")
-
-
-
 
 
 @dataclass
@@ -46,8 +45,5 @@ class CallExpr(Expression, Serialize, policy="calledPolicyName"):
 
 
 @dataclass
-class Var(Expression, Serialize, name=Field("name", str)):
-        name: str
-
-
-
+class Var(Expression, Serialize, _name=Field("name", str)):
+    _name: str
