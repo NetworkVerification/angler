@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 """
 AST representation of sets.
-For now, we encode all sets as having ints as arguments:
+For now, we encode all sets as having strings as arguments:
 in the future, we may relax this restriction.
 """
 from dataclasses import dataclass
 from serialize import Serialize, Field
 import expression as expr
 import base as ast
-import arithexprs as arith
 
 
 class SetExprType(ast.Variant):
     EMPTY = "EmptySet"
+    UNION = "SetUnion"
     ADD = "SetAdd"
     REMOVE = "SetRemove"
 
@@ -24,6 +24,8 @@ class SetExprType(ast.Variant):
                 return SetAdd
             case SetExprType.REMOVE:
                 return SetRemove
+            case SetExprType.UNION:
+                return SetUnion
             case _:
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
@@ -42,19 +44,24 @@ class EmptySet(SetExpr, Serialize):
 class SetAdd(
     SetExpr,
     Serialize,
-    to_add=Field("expr", arith.ArithExpr),
+    to_add=Field("expr", str),
     _set=Field("set", SetExpr),
 ):
-    to_add: arith.ArithExpr
+    to_add: str
     _set: SetExpr
+
+
+@dataclass
+class SetUnion(SetExpr, Serialize, sets=Field("sets", list[SetExpr])):
+    sets: list[SetExpr]
 
 
 @dataclass
 class SetRemove(
     SetExpr,
     Serialize,
-    to_remove=Field("expr", arith.ArithExpr),
+    to_remove=Field("expr", str),
     _set=Field("set", SetExpr),
 ):
-    to_remove: arith.ArithExpr
+    to_remove: str
     _set: SetExpr

@@ -6,9 +6,11 @@ from typing import Generic, Optional, TypeVar, cast
 import bast.base as bast
 import bast.expression as bexpr
 import bast.boolexprs as bbools
+import bast.communities as bcomms
 import aast.base as aast
 import aast.expression as aexpr
 import aast.boolexprs as abools
+import aast.sets as asets
 
 BT = TypeVar("BT", bound=bast.ASTNode)
 AT = TypeVar("AT", bound=aast.ASTNode)
@@ -41,9 +43,9 @@ class ToAast(Generic[AT, BT]):
         return cls
 
 
-def convert(b: bast.ASTNode) -> aast.ASTNode:
+def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
     """
-    Convert the given Batfish AST node into an Angler AST node.
+    Convert the given Batfish AST expression into an Angler AST expression.
     """
     match b:
         case bexpr.CallExpr(policy):
@@ -53,6 +55,7 @@ def convert(b: bast.ASTNode) -> aast.ASTNode:
         case bbools.StaticBooleanExpr(ty=bbools.StaticBooleanExprType.FALSE):
             return abools.LiteralFalse()
         case bbools.StaticBooleanExpr(ty=bbools.StaticBooleanExprType.CALLCONTEXT):
+            # NOTE: not supported
             return abools.Havoc()
         case bbools.Conjunction(conjuncts):
             return abools.Conjunction(
@@ -65,5 +68,26 @@ def convert(b: bast.ASTNode) -> aast.ASTNode:
             return abools.Disjunction(adisj)
         case bbools.Not(e):
             return abools.Not(cast(abools.BoolExpr, convert(e)))
+        case bbools.MatchIpv4():
+            # NOTE: for now, we assume ipv4
+            return abools.LiteralTrue()
+        case bbools.MatchIpv6 | bbools.MatchPrefix6Set:
+            # NOTE: not supported (for now, we assume ipv4)
+            return abools.LiteralFalse()
+        case bbools.LegacyMatchAsPath:
+            # NOTE: not supported
+            return abools.Havoc()
+        case bcomms.LiteralCommunitySet(comms):
+            # add each community to the set one-by-one
+            e = asets.EmptySet()
+            for comm in comms:
+                e = asets.SetAdd(comm, e)
+            return e
+        case bcomms.CommunitySetUnion(exprs):
+            aes = [cast(asets.SetExpr, convert(expr)) for expr in exprs]
+            return asets.SetUnion(aes)
+        case bcomms.CommunitySetDifference(initial, bcomms.CommunityIs(community)):
+            ainitial = cast(asets.SetExpr, convert(initial))
+            return asets.SetRemove(community, ainitial)
         case _:
             raise NotImplementedError(f"No convert case for {b} found.")
