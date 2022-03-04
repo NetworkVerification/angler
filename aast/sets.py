@@ -31,7 +31,9 @@ class SetExprType(ast.Variant):
 
 
 @dataclass
-class SetExpr(expr.Expression, Serialize, delegate=("class", SetExprType.parse_class)):
+class SetExpr(
+    expr.Expression[set], Serialize, delegate=("class", SetExprType.parse_class)
+):
     ...
 
 
@@ -45,15 +47,15 @@ class SetAdd(
     SetExpr,
     Serialize,
     to_add=Field("expr", str),
-    _set=Field("set", SetExpr),
+    _set=Field("set", expr.Expression[set]),
 ):
     to_add: str
-    _set: SetExpr
+    _set: expr.Expression[set]
 
 
 @dataclass
-class SetUnion(SetExpr, Serialize, sets=Field("sets", list[SetExpr])):
-    sets: list[SetExpr]
+class SetUnion(SetExpr, Serialize, sets=Field("sets", list[expr.Expression[set]])):
+    sets: list[expr.Expression[set]]
 
 
 @dataclass
@@ -61,7 +63,7 @@ class SetRemove(
     SetExpr,
     Serialize,
     to_remove=Field("expr", str),
-    _set=Field("set", SetExpr),
+    _set=Field("set", expr.Expression[set]),
 ):
     to_remove: str
-    _set: SetExpr
+    _set: expr.Expression[set]

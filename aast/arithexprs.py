@@ -23,33 +23,33 @@ class ArithExprType(Variant):
 
 @dataclass
 class ArithExpr(
-    expr.Expression, Serialize, delegate=("class", ArithExprType.parse_class)
+    expr.Expression[int], Serialize, delegate=("class", ArithExprType.parse_class)
 ):
     ...
 
 
 @dataclass
-class LiteralInt(ArithExpr, Serialize, value=Field("value", int)):
+class LiteralInt(expr.Expression[int], Serialize, value=Field("value", int)):
     value: int
 
 
 @dataclass
 class Add(
-    ArithExpr,
+    expr.Expression[int],
     Serialize,
-    operand1=Field("operand1", ArithExpr),
-    operand2=Field("operand2", ArithExpr),
+    operand1=Field("operand1", expr.Expression[int]),
+    operand2=Field("operand2", expr.Expression[int]),
 ):
-    operand1: ArithExpr
-    operand2: ArithExpr
+    operand1: expr.Expression[int]
+    operand2: expr.Expression[int]
 
 
 @dataclass
 class Sub(
-    ArithExpr,
+    expr.Expression[int],
     Serialize,
-    operand1=Field("operand1", ArithExpr),
-    operand2=Field("operand2", ArithExpr),
+    operand1=Field("operand1", expr.Expression[int]),
+    operand2=Field("operand2", expr.Expression[int]),
 ):
-    operand1: ArithExpr
-    operand2: ArithExpr
+    operand1: expr.Expression[int]
+    operand2: expr.Expression[int]

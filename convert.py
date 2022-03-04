@@ -2,15 +2,17 @@
 """
 Conversion tools to transform Batfish AST terms to Angler AST terms.
 """
-from typing import Generic, Optional, TypeVar, cast
+from typing import Generic, Optional, TypeVar
 import bast.base as bast
 import bast.expression as bexpr
 import bast.boolexprs as bbools
 import bast.communities as bcomms
+import bast.longexprs as blongs
 import aast.base as aast
 import aast.expression as aexpr
 import aast.boolexprs as abools
 import aast.sets as asets
+import aast.arithexprs as aarith
 
 BT = TypeVar("BT", bound=bast.ASTNode)
 AT = TypeVar("AT", bound=aast.ASTNode)
@@ -58,16 +60,13 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             # NOTE: not supported
             return abools.Havoc()
         case bbools.Conjunction(conjuncts):
-            return abools.Conjunction(
-                [cast(abools.BoolExpr, convert(conjunct)) for conjunct in conjuncts]
-            )
+            conj = [convert_expr(c) for c in conjuncts]
+            return abools.Conjunction(conj)
         case bbools.Disjunction(disjuncts):
-            adisj: list[abools.BoolExpr] = [
-                cast(abools.BoolExpr, convert(d)) for d in disjuncts
-            ]
-            return abools.Disjunction(adisj)
+            disj = [convert_expr(d) for d in disjuncts]
+            return abools.Disjunction(disj)
         case bbools.Not(e):
-            return abools.Not(cast(abools.BoolExpr, convert(e)))
+            return abools.Not(convert_expr(e))
         case bbools.MatchIpv4():
             # NOTE: for now, we assume ipv4
             return abools.LiteralTrue()
@@ -84,10 +83,30 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
                 e = asets.SetAdd(comm, e)
             return e
         case bcomms.CommunitySetUnion(exprs):
-            aes = [cast(asets.SetExpr, convert(expr)) for expr in exprs]
+            aes = [convert_expr(expr) for expr in exprs]
             return asets.SetUnion(aes)
         case bcomms.CommunitySetDifference(initial, bcomms.CommunityIs(community)):
-            ainitial = cast(asets.SetExpr, convert(initial))
-            return asets.SetRemove(community, ainitial)
+            # remove a single community from the set
+            return asets.SetRemove(community, convert_expr(initial))
+        case bbools.MatchCommunities(
+            _comms, bcomms.HasCommunity(bcomms.CommunityIs(community))
+        ):
+            # check if community is in _comms
+            return abools.SetContains(community, convert_expr(_comms))
+        case bcomms.InputCommunities:
+            arg = aexpr.Var("route")
+            return aexpr.GetField(arg, "communities")
+        case bcomms.CommunitySetReference(_name) | bcomms.CommunityMatchExprReference(
+            _name
+        ) | bcomms.CommunitySetMatchExprReference(_name):
+            return aexpr.Var(_name)
+        case blongs.LiteralLong(value):
+            return aarith.LiteralInt(value)
+        case blongs.IncrementLocalPref(addend):
+            arg = aexpr.Var("route")
+            return aarith.Add(aexpr.GetField(arg, "lp"), aarith.LiteralInt(addend))
+        case blongs.DecrementLocalPref(subtrahend):
+            arg = aexpr.Var("route")
+            return aarith.Sub(aexpr.GetField(arg, "lp"), aarith.LiteralInt(subtrahend))
         case _:
             raise NotImplementedError(f"No convert case for {b} found.")

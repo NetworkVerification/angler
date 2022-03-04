@@ -4,6 +4,7 @@ from aast.base import Variant, ASTNode
 import aast.boolexprs as bexpr
 import aast.expression as expr
 
+
 class StatementType(Variant):
     IF = "If"
     ASSIGN = "Assign"
@@ -30,6 +31,7 @@ class Statement(
     """
     The base class for statements.
     """
+
     ...
 
 
@@ -37,7 +39,7 @@ class Statement(
 class IfStatement(
     Statement,
     Serialize,
-    guard=Field("guard", bexpr.BoolExpr),
+    guard=Field("guard", expr.Expression[bool]),
     true_stmts=Field("trueStatements", list[Statement], []),
     false_stmts=Field("falseStatements", list[Statement], []),
     comment="comment",
@@ -52,20 +54,17 @@ class IfStatement(
     false_stmts: list[Statement]
     comment: str
 
+
 @dataclass
 class AssignStatement(
-    Statement,
-    Serialize,
-    lhs=Field("lhs", expr.Var),
-    rhs=Field("rhs", expr.Expression)
+    Statement, Serialize, lhs=Field("lhs", expr.Var), rhs=Field("rhs", expr.Expression)
 ):
     lhs: expr.Var
     rhs: expr.Expression
 
+
 @dataclass
 class ReturnStatement(
-    Statement,
-    Serialize,
-    return_value=Field("return_value", expr.Expression)
+    Statement, Serialize, return_value=Field("return_value", expr.Expression)
 ):
     return_value: expr.Expression

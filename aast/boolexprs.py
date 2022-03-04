@@ -2,8 +2,8 @@
 Boolean expressions
 """
 from dataclasses import dataclass
+from aast.sets import SetExpr
 from serialize import Serialize, Field
-from aast.arithexprs import ArithExpr
 from aast.base import Variant
 import aast.expression as expr
 
@@ -24,7 +24,7 @@ class BoolExprType(Variant):
     LE = "LessThanOrEqual"
     GT = "GreaterThan"
     GE = "GreaterThanOrEqual"
-    # CONTAINS = "Contains" # set containment?
+    CONTAINS = "SetContains"
 
     def as_class(self) -> type:
         match self:
@@ -56,127 +56,145 @@ class BoolExprType(Variant):
                 return GreaterThanEqual
             case BoolExprType.MATCH:
                 return Match
-            # case BoolExprType.CONTAINS:
-            #     return Contains
+            case BoolExprType.CONTAINS:
+                return SetContains
             case _:
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
 
 class BoolExpr(
-    expr.Expression, Serialize, delegate=("class", BoolExprType.parse_class)
+    expr.Expression[bool], Serialize, delegate=("class", BoolExprType.parse_class)
 ):
     ...
 
 
 @dataclass
-class LiteralTrue(BoolExpr, Serialize):
+class LiteralTrue(expr.Expression[bool], Serialize):
     ...
 
 
 @dataclass
-class LiteralFalse(BoolExpr, Serialize):
+class LiteralFalse(expr.Expression[bool], Serialize):
     ...
 
 
 @dataclass
-class Havoc(BoolExpr, Serialize):
+class Havoc(expr.Expression[bool], Serialize):
     ...
 
 
 @dataclass
-class Conjunction(BoolExpr, Serialize, conjuncts=Field("conjuncts", list[BoolExpr])):
-    conjuncts: list[BoolExpr]
+class Conjunction(
+    expr.Expression[bool],
+    Serialize,
+    conjuncts=Field("conjuncts", list[expr.Expression[bool]]),
+):
+    conjuncts: list[expr.Expression[bool]]
 
 
 @dataclass
 class ConjunctionChain(
-    BoolExpr, Serialize, subroutines=Field("subroutines", list[expr.Expression])
+    expr.Expression[bool],
+    Serialize,
+    subroutines=Field("subroutines", list[expr.Expression]),
 ):
     subroutines: list[expr.Expression]
 
 
 @dataclass
-class Disjunction(BoolExpr, Serialize, disjuncts=Field("disjuncts", list[BoolExpr])):
-    disjuncts: list[BoolExpr]
+class Disjunction(
+    expr.Expression[bool],
+    Serialize,
+    disjuncts=Field("disjuncts", list[expr.Expression[bool]]),
+):
+    disjuncts: list[expr.Expression[bool]]
 
 
 @dataclass
-class Not(BoolExpr, Serialize, expr=Field("expr", BoolExpr)):
-    expr: BoolExpr
+class Not(expr.Expression[bool], Serialize, expr=Field("expr", expr.Expression[bool])):
+    expr: expr.Expression[bool]
 
 
 @dataclass
 class Equal(
-    BoolExpr,
+    expr.Expression[bool],
     Serialize,
-    operand1=Field("operand1", ArithExpr),
-    operand2=Field("operand2", ArithExpr),
+    operand1=Field("operand1", expr.Expression[int]),
+    operand2=Field("operand2", expr.Expression[int]),
 ):
-    operand1: ArithExpr
-    operand2: ArithExpr
+    operand1: expr.Expression[int]
+    operand2: expr.Expression[int]
 
 
 @dataclass
 class NotEqual(
-    BoolExpr,
+    expr.Expression[bool],
     Serialize,
-    operand1=Field("operand1", ArithExpr),
-    operand2=Field("operand2", ArithExpr),
+    operand1=Field("operand1", expr.Expression[int]),
+    operand2=Field("operand2", expr.Expression[int]),
 ):
-    operand1: ArithExpr
-    operand2: ArithExpr
+    operand1: expr.Expression[int]
+    operand2: expr.Expression[int]
 
 
 @dataclass
 class LessThan(
-    BoolExpr,
+    expr.Expression[bool],
     Serialize,
-    operand1=Field("operand1", ArithExpr),
-    operand2=Field("operand2", ArithExpr),
+    operand1=Field("operand1", expr.Expression[int]),
+    operand2=Field("operand2", expr.Expression[int]),
 ):
-    operand1: ArithExpr
-    operand2: ArithExpr
+    operand1: expr.Expression[int]
+    operand2: expr.Expression[int]
 
 
 @dataclass
 class LessThanEqual(
-    BoolExpr,
+    expr.Expression[bool],
     Serialize,
-    operand1=Field("operand1", ArithExpr),
-    operand2=Field("operand2", ArithExpr),
+    operand1=Field("operand1", expr.Expression[int]),
+    operand2=Field("operand2", expr.Expression[int]),
 ):
-    operand1: ArithExpr
-    operand2: ArithExpr
+    operand1: expr.Expression[int]
+    operand2: expr.Expression[int]
 
 
 @dataclass
 class GreaterThan(
-    BoolExpr,
+    expr.Expression[bool],
     Serialize,
-    operand1=Field("operand1", ArithExpr),
-    operand2=Field("operand2", ArithExpr),
+    operand1=Field("operand1", expr.Expression[int]),
+    operand2=Field("operand2", expr.Expression[int]),
 ):
-    operand1: ArithExpr
-    operand2: ArithExpr
+    operand1: expr.Expression[int]
+    operand2: expr.Expression[int]
 
 
 @dataclass
 class GreaterThanEqual(
-    BoolExpr,
+    expr.Expression[bool],
     Serialize,
-    operand1=Field("operand1", ArithExpr),
-    operand2=Field("operand2", ArithExpr),
+    operand1=Field("operand1", expr.Expression[int]),
+    operand2=Field("operand2", expr.Expression[int]),
 ):
-    operand1: ArithExpr
-    operand2: ArithExpr
+    operand1: expr.Expression[int]
+    operand2: expr.Expression[int]
 
 
 @dataclass
 class Match(
-    BoolExpr,
+    expr.Expression[bool],
     Serialize,
     match_var=Field("match_var", expr.Var),
-    match_list=Field("match_list", BoolExpr),
+    match_list=Field("match_list", expr.Expression[bool]),
 ):
     match_var: expr.Var
-    match_list: BoolExpr
+    match_list: expr.Expression[bool]
+
+
+@dataclass
+class SetContains(
+    expr.Expression[bool], Serialize, search="search", _set=Field("set", SetExpr)
+):
+    search: str
+    _set: expr.Expression[set]
