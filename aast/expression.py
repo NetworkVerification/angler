@@ -129,7 +129,7 @@ class Expression(
 
 
 @dataclass
-class CallExpr(Expression[T], Serialize, policy="calledPolicyName"):
+class CallExpr(Expression[T], Generic[T], Serialize, policy="calledPolicyName"):
     """
     Call the given policy.
     """
@@ -138,7 +138,7 @@ class CallExpr(Expression[T], Serialize, policy="calledPolicyName"):
 
 
 @dataclass
-class Var(Expression[T], Serialize, _name=Field("name", str)):
+class Var(Expression[T], Generic[T], Serialize, _name=Field("name", str)):
     _name: str
 
 

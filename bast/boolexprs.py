@@ -12,7 +12,6 @@ import bast.btypes as types
 import bast.ases as ases
 import bast.prefix as prefix
 import bast.longexprs as longs
-import aast.boolexprs as abools
 
 
 class StaticBooleanExprType(Enum):
@@ -73,8 +72,7 @@ class BooleanExpr(
     Serialize,
     delegate=("class", BooleanExprType.parse_class),
 ):
-    def to_aast(self) -> abools.BoolExpr:
-        raise NotImplementedError()
+    ...
 
 
 @dataclass
@@ -89,9 +87,6 @@ class Conjunction(
     BooleanExpr, Serialize, conjuncts=Field("conjuncts", list[BooleanExpr])
 ):
     conjuncts: list[BooleanExpr]
-
-    def to_aast(self) -> abools.Conjunction:
-        return abools.Conjunction([e.to_aast() for e in self.conjuncts])
 
 
 @dataclass

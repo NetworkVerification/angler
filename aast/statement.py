@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from serialize import Serialize, Field
 from aast.base import Variant, ASTNode
-import aast.boolexprs as bexpr
 import aast.expression as expr
 
 
@@ -49,7 +48,7 @@ class IfStatement(
     The true and false statements can be left empty.
     """
 
-    guard: bexpr.BoolExpr
+    guard: expr.Expression[bool]
     true_stmts: list[Statement]
     false_stmts: list[Statement]
     comment: str
