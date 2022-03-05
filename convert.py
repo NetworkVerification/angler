@@ -3,12 +3,14 @@
 Conversion tools to transform Batfish AST terms to Angler AST terms.
 """
 import bast.expression as bexpr
+import bast.statement as bstmt
 import bast.boolexprs as bools
 import bast.communities as bcomms
 import bast.longexprs as longs
 import bast.prefix as prefix
 from bast.btypes import Comparator
 import aast.expression as aexpr
+import aast.statement as astmt
 
 # the argument to the transfer
 ARG = aexpr.Var("route")
@@ -93,5 +95,41 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
                     return aexpr.GreaterThanEqual(route_tag, convert_expr(tag))
                 case Comparator.GT:
                     return aexpr.GreaterThan(route_tag, convert_expr(tag))
+        case _:
+            raise NotImplementedError(f"No convert case for {b} found.")
+
+
+def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
+    """
+    Convert Batfish AST statement to an Angler AST statement
+    """
+    match b:
+        case bstmt.IfStatement(guard, t_stmts, f_stmts, comment):
+            return astmt.IfStatement(convert_expr(guard), \
+                [convert_stmt(s) for s in t_stmts], [convert_stmt(s) for s in f_stmts], comment)
+        case bstmt.SetCommunities(comm_set):
+            return astmt.AssignStatement(ARG, aexpr.WithField(ARG, "communities", convert_expr(comm_set)))
+        case bstmt.SetLocalPreference(lp):
+            return astmt.AssignStatement(ARG, aexpr.WithField(ARG, "lp", convert_expr(lp)))
+        case bstmt.SetMetric(metric):
+            return astmt.AssignStatement(ARG, aexpr.WithField(ARG, "metric", convert_expr(metric)))
+        case bstmt.SetNextHop(nexthop_expr):
+            return astmt.AssignStatement(ARG, aexpr.WithField(ARG, "nexthop", convert_expr(nexthop_expr)))
+        case bstmt.StaticStatement(ty):
+            match ty:
+                case bstmt.StaticStatementType.TRUE | bstmt.StaticStatementType.EXIT_ACCEPT:
+                    return astmt.ReturnStatement(aexpr.LiteralTrue)
+                case bstmt.StaticStatementType.FALSE | bstmt.StaticStatementType.EXIT_REJECT:
+                    return astmt.ReturnStatement(aexpr.LiteralFalse)
+                case bstmt.StaticStatementType.LOCAL_DEF | bstmt.StaticStatementType.RETURN | bstmt.StaticStatementType.FALL_THROUGH:
+                    return astmt.ReturnStatement(aexpr.GetField(ARG, "LocalDefaultAction"))
+                case _:
+                    raise NotImplementedError(f"No convert case for static statement {ty} found.")
+        case bstmt.PrependAsPath(as_expr):
+            # no-op
+            return None
+        # case bstmt.TraceableStatement(inner, trace_elem):
+            # TODO return list of converted statements? Will need to change return type of convert_stmt
+            # return [convert_stmt(s) for s in inner]
         case _:
             raise NotImplementedError(f"No convert case for {b} found.")
