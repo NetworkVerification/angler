@@ -3,7 +3,8 @@
 Structure definitions in the Batfish AST.
 """
 from dataclasses import dataclass
-from serialize import Serialize, Serializable, Field
+from serialize import Serialize, Field
+from typing import cast
 import bast.base as ast
 import bast.statement as stmt
 import bast.communities as comms
@@ -85,5 +86,7 @@ class Structure(
         to the appropriate type.
         """
         cls = self.ty.as_class()
-        if isinstance(cls, Serializable):
-            self.definition.value = cls.from_dict(self.definition.value)
+        if issubclass(cls, Serialize) and isinstance(self.definition.value, dict):
+            self.definition.value = cast(
+                type(cls), cls.from_dict(self.definition.value)
+            )

@@ -4,11 +4,9 @@ from collections.abc import Callable
 from typing import (
     Any,
     Optional,
-    Protocol,
     Type,
     get_args,
     get_origin,
-    runtime_checkable,
 )
 
 
@@ -25,21 +23,7 @@ class Field:
         self.default = default
 
 
-@runtime_checkable
-class Serializable(Protocol):
-    """A protocol for checking that a type implements to_dict and from_dict."""
-
-    fields: dict[str, Field]
-
-    def to_dict(self) -> dict:
-        ...
-
-    @classmethod
-    def from_dict(cls, d: dict) -> "Serializable":
-        ...
-
-
-class Serialize(Serializable):
+class Serialize:
     """
     A mixin class that implements two dictionary
     methods `to_dict` and `from_dict`.
@@ -128,10 +112,10 @@ class Serialize(Serializable):
             # if the internal field also has a to_dict implementation, recursively convert it
             if isinstance(v, list):
                 d[fieldname] = [
-                    e.to_dict() if isinstance(e, Serializable) else e for e in v
+                    e.to_dict() if issubclass(type(e), Serialize) else e for e in v
                 ]
             else:
-                d[fieldname] = v.to_dict() if isinstance(v, Serializable) else v
+                d[fieldname] = v.to_dict() if issubclass(type(v), Serialize) else v
         return d
 
     @staticmethod
@@ -140,7 +124,7 @@ class Serialize(Serializable):
         if not v or fieldty is Any:
             return v
         # if the fieldty is not None and has a from_dict method, call that
-        if recurse and isinstance(fieldty, Serializable):
+        if recurse and issubclass(fieldty, Serialize):
             if isinstance(v, dict):
                 return fieldty.from_dict(v)
             else:

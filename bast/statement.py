@@ -6,7 +6,6 @@ from enum import Enum
 from dataclasses import dataclass
 from serialize import Serialize, Field
 import bast.base as ast
-import bast.btypes as types
 import bast.boolexprs as bools
 import bast.communities as comms
 import bast.nexthop as hop
@@ -128,8 +127,8 @@ class PrependAsPath(Statement, Serialize, expr=Field("expr", ases.AsPathListExpr
 
 
 @dataclass
-class SetMetric(Statement, Serialize, metric=Field("metric", types.Metric)):
-    metric: types.Metric
+class SetMetric(Statement, Serialize, metric=Field("metric", longs.LongExpr)):
+    metric: longs.LongExpr
 
 
 @dataclass

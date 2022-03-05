@@ -64,7 +64,7 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
         ):
             # check if community is in _comms
             return aexpr.SetContains(community, convert_expr(_comms))
-        case bcomms.InputCommunities:
+        case bcomms.InputCommunities():
             return aexpr.GetField(ARG, "communities")
         case bcomms.CommunitySetReference(_name) | bcomms.CommunityMatchExprReference(
             _name
@@ -76,7 +76,7 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             return aexpr.Add(aexpr.GetField(ARG, "lp"), aexpr.LiteralInt(addend))
         case longs.DecrementLocalPref(subtrahend):
             return aexpr.Sub(aexpr.GetField(ARG, "lp"), aexpr.LiteralInt(subtrahend))
-        case prefix.DestinationNetwork:
+        case prefix.DestinationNetwork():
             return aexpr.GetField(ARG, "prefix")
         case prefix.NamedPrefixSet(_name):
             return aexpr.Var(_name)
@@ -104,32 +104,48 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
     Convert Batfish AST statement to an Angler AST statement
     """
     match b:
-        case bstmt.IfStatement(guard, t_stmts, f_stmts, comment):
-            return astmt.IfStatement(convert_expr(guard), \
-                [convert_stmt(s) for s in t_stmts], [convert_stmt(s) for s in f_stmts], comment)
+        case bstmt.IfStatement(comment, guard, t_stmts, f_stmts):
+            return astmt.IfStatement(
+                convert_expr(guard),
+                [convert_stmt(s) for s in t_stmts],
+                [convert_stmt(s) for s in f_stmts],
+                comment,
+            )
         case bstmt.SetCommunities(comm_set):
-            return astmt.AssignStatement(ARG, aexpr.WithField(ARG, "communities", convert_expr(comm_set)))
+            return astmt.AssignStatement(
+                ARG, aexpr.WithField(ARG, "communities", convert_expr(comm_set))
+            )
         case bstmt.SetLocalPreference(lp):
-            return astmt.AssignStatement(ARG, aexpr.WithField(ARG, "lp", convert_expr(lp)))
+            return astmt.AssignStatement(
+                ARG, aexpr.WithField(ARG, "lp", convert_expr(lp))
+            )
         case bstmt.SetMetric(metric):
-            return astmt.AssignStatement(ARG, aexpr.WithField(ARG, "metric", convert_expr(metric)))
+            return astmt.AssignStatement(
+                ARG, aexpr.WithField(ARG, "metric", convert_expr(metric))
+            )
         case bstmt.SetNextHop(nexthop_expr):
-            return astmt.AssignStatement(ARG, aexpr.WithField(ARG, "nexthop", convert_expr(nexthop_expr)))
+            return astmt.AssignStatement(
+                ARG, aexpr.WithField(ARG, "nexthop", convert_expr(nexthop_expr))
+            )
         case bstmt.StaticStatement(ty):
             match ty:
                 case bstmt.StaticStatementType.TRUE | bstmt.StaticStatementType.EXIT_ACCEPT:
-                    return astmt.ReturnStatement(aexpr.LiteralTrue)
+                    return astmt.ReturnStatement(aexpr.LiteralTrue())
                 case bstmt.StaticStatementType.FALSE | bstmt.StaticStatementType.EXIT_REJECT:
-                    return astmt.ReturnStatement(aexpr.LiteralFalse)
+                    return astmt.ReturnStatement(aexpr.LiteralFalse())
                 case bstmt.StaticStatementType.LOCAL_DEF | bstmt.StaticStatementType.RETURN | bstmt.StaticStatementType.FALL_THROUGH:
-                    return astmt.ReturnStatement(aexpr.GetField(ARG, "LocalDefaultAction"))
+                    return astmt.ReturnStatement(
+                        aexpr.GetField(ARG, "LocalDefaultAction")
+                    )
                 case _:
-                    raise NotImplementedError(f"No convert case for static statement {ty} found.")
+                    raise NotImplementedError(
+                        f"No convert case for static statement {ty} found."
+                    )
         case bstmt.PrependAsPath(as_expr):
             # no-op
             return None
         # case bstmt.TraceableStatement(inner, trace_elem):
-            # TODO return list of converted statements? Will need to change return type of convert_stmt
-            # return [convert_stmt(s) for s in inner]
+        # TODO return list of converted statements? Will need to change return type of convert_stmt
+        # return [convert_stmt(s) for s in inner]
         case _:
             raise NotImplementedError(f"No convert case for {b} found.")
