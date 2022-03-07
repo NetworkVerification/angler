@@ -33,6 +33,9 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
         case bools.Conjunction(conjuncts):
             conj = [convert_expr(c) for c in conjuncts]
             return aexpr.Conjunction(conj)
+        case bools.ConjunctionChain(subroutines) if len(subroutines) == 1:
+            # NOTE: for now, we're just handling cases where there is only one subroutine
+            return convert_expr(subroutines[0])
         case bools.Disjunction(disjuncts):
             disj = [convert_expr(d) for d in disjuncts]
             return aexpr.Disjunction(disj)
@@ -47,23 +50,28 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
         case bools.LegacyMatchAsPath():
             # NOTE: not supported
             return aexpr.Havoc()
+        case bcomms.CommunityIs(community):
+            return aexpr.LiteralString(community)
         case bcomms.LiteralCommunitySet(comms):
             # add each community to the set one-by-one
             e = aexpr.EmptySet()
             for comm in comms:
-                e = aexpr.SetAdd(comm, e)
+                e = aexpr.SetAdd(aexpr.LiteralString(comm), e)
             return e
         case bcomms.CommunitySetUnion(exprs):
             aes = [convert_expr(expr) for expr in exprs]
             return aexpr.SetUnion(aes)
-        case bcomms.CommunitySetDifference(initial, bcomms.CommunityIs(community)):
+        case bcomms.CommunitySetDifference(initial, to_remove):
             # remove a single community from the set
-            return aexpr.SetRemove(community, convert_expr(initial))
-        case bools.MatchCommunities(
-            _comms, bcomms.HasCommunity(bcomms.CommunityIs(community))
-        ):
+            return aexpr.SetRemove(convert_expr(to_remove), convert_expr(initial))
+        case bools.MatchCommunities(_comms, bcomms.HasCommunity(expr)):
             # check if community is in _comms
-            return aexpr.SetContains(community, convert_expr(_comms))
+            return aexpr.SetContains(convert_expr(expr), convert_expr(_comms))
+        case bools.MatchCommunities(
+            _comms, bcomms.CommunitySetMatchExprReference(_name)
+        ):
+            cvar = aexpr.Var(_name)
+            return aexpr.SetContains(cvar, convert_expr(_comms))
         case bcomms.InputCommunities():
             return aexpr.GetField(ARG, "communities")
         case bcomms.CommunitySetReference(_name) | bcomms.CommunityMatchExprReference(
@@ -135,11 +143,12 @@ def convert_stmt(b: bstmt.Statement) -> list[astmt.Statement]:
                     ARG, aexpr.WithField(ARG, "metric", convert_expr(metric))
                 )
             ]
-        case bstmt.SetNextHop(nexthop_expr):
+        case bstmt.SetNextHop():
+            # TODO: for now, ignore nexthop
             return [
-                astmt.AssignStatement(
-                    ARG, aexpr.WithField(ARG, "nexthop", convert_expr(nexthop_expr))
-                )
+                # astmt.AssignStatement(
+                #     ARG, aexpr.WithField(ARG, "nexthop", convert_expr(nexthop_expr))
+                # )
             ]
         case bstmt.StaticStatement(ty):
             match ty:

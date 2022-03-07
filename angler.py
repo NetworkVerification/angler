@@ -67,7 +67,7 @@ if __name__ == "__main__":
                         for stmt in statements:
                             s = convert_stmt(stmt)
                             for stmt in s:
-                                stmt.visit(pr)
+                                stmt.visit(print)
             # print(bf_ast.declarations)
         case _:
             print(USAGE)

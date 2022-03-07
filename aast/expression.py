@@ -15,6 +15,7 @@ class ExprType(Variant):
 
     CALL_EXPR = "CallExpr"
     VAR = "Variable"
+    STR = "String"
     # Boolean expressions
     TRUE = "True"
     FALSE = "False"
@@ -53,6 +54,8 @@ class ExprType(Variant):
                 return CallExpr
             case ExprType.VAR:
                 return Var
+            case ExprType.STR:
+                return LiteralString
             # booleans
             case ExprType.TRUE:
                 return LiteralTrue
@@ -287,6 +290,11 @@ class GreaterThanEqual(
 
 
 @dataclass
+class LiteralString(Expression[str], Serialize, value="value"):
+    value: str
+
+
+@dataclass
 class EmptySet(Expression[set], Serialize):
     ...
 
@@ -295,10 +303,10 @@ class EmptySet(Expression[set], Serialize):
 class SetAdd(
     Expression[set],
     Serialize,
-    to_add=Field("expr", str),
+    to_add=Field("expr", Expression[str]),
     _set=Field("set", Expression[set]),
 ):
-    to_add: str
+    to_add: Expression[str]
     _set: Expression[set]
 
 
@@ -311,18 +319,21 @@ class SetUnion(Expression[set], Serialize, sets=Field("sets", list[Expression[se
 class SetRemove(
     Expression[set],
     Serialize,
-    to_remove=Field("expr", str),
+    to_remove=Field("expr", Expression[str]),
     _set=Field("set", Expression[set]),
 ):
-    to_remove: str
+    to_remove: Expression[str]
     _set: Expression[set]
 
 
 @dataclass
 class SetContains(
-    Expression[bool], Serialize, search="search", _set=Field("set", Expression[set])
+    Expression[bool],
+    Serialize,
+    search=Field("search", Expression[str]),
+    _set=Field("set", Expression[set]),
 ):
-    search: str
+    search: Expression[str]
     _set: Expression[set]
 
 
