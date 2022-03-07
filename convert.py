@@ -153,17 +153,18 @@ def convert_stmt(b: bstmt.Statement) -> list[astmt.Statement]:
         case bstmt.StaticStatement(ty):
             match ty:
                 case bstmt.StaticStatementType.TRUE | bstmt.StaticStatementType.EXIT_ACCEPT:
-                    return [astmt.ReturnStatement(aexpr.LiteralTrue())]
+                    fst = aexpr.LiteralTrue()
                 case bstmt.StaticStatementType.FALSE | bstmt.StaticStatementType.EXIT_REJECT:
-                    return [astmt.ReturnStatement(aexpr.LiteralFalse())]
+                    fst = aexpr.LiteralFalse()
                 case bstmt.StaticStatementType.LOCAL_DEF | bstmt.StaticStatementType.RETURN | bstmt.StaticStatementType.FALL_THROUGH:
-                    return [
-                        astmt.ReturnStatement(aexpr.GetField(ARG, "LocalDefaultAction"))
-                    ]
+                    fst = aexpr.GetField(ARG, "LocalDefaultAction")
                 case _:
                     raise NotImplementedError(
                         f"No convert case for static statement {ty} found."
                     )
+            # return a bool * route pair
+            pair = aexpr.Pair(fst, ARG)
+            return [astmt.ReturnStatement(pair)]
         case bstmt.PrependAsPath(_):
             # no-op
             return []
