@@ -8,6 +8,8 @@ from aast.base import Variant, ASTNode
 
 T = TypeVar("T")
 X = TypeVar("X")
+A = TypeVar("A")
+B = TypeVar("B")
 
 
 class ExprType(Variant):
@@ -27,6 +29,10 @@ class ExprType(Variant):
     GET_FIELD = "GetField"
     WITH_FIELD = "WithField"
     CREATE = "CreateRecord"
+    # Pair expressions
+    PAIR = "Pair"
+    FIRST = "First"
+    SECOND = "Second"
     # Set expressions
     EMPTY_SET = "EmptySet"
     SET_UNION = "SetUnion"
@@ -106,6 +112,13 @@ class ExprType(Variant):
                 return GetField
             case ExprType.WITH_FIELD:
                 return WithField
+            # pair
+            case ExprType.PAIR:
+                return Pair
+            case ExprType.FIRST:
+                return First
+            case ExprType.SECOND:
+                return Second
             # ip addresses
             case ExprType.IP_ADDRESS:
                 return IpAddress
@@ -368,6 +381,37 @@ class WithField(
     rec: Expression[dict[str, Expression[X]]]
     field_name: str
     field_val: Expression[X]
+
+
+@dataclass
+class Pair(
+    Expression[tuple[A, B]],
+    Serialize,
+    first=Field("first", Expression[A]),
+    second=Field("second", Expression[B]),
+):
+    first: Expression[A]
+    second: Expression[B]
+
+
+@dataclass
+class First(
+    Expression[A],
+    Generic[A, B],
+    Serialize,
+    pair=Field("pair", Expression[tuple[A, B]]),
+):
+    pair: Expression[tuple[A, B]]
+
+
+@dataclass
+class Second(
+    Expression[B],
+    Generic[A, B],
+    Serialize,
+    pair=Field("pair", Expression[tuple[A, B]]),
+):
+    pair: Expression[tuple[A, B]]
 
 
 @dataclass
