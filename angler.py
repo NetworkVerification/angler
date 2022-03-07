@@ -60,14 +60,18 @@ if __name__ == "__main__":
             bf_ast = bast.json.BatfishJson.from_dict(output)
             pr = lambda x: print(type(x))
             # bf_ast.visit(pr)
+            a_ast = {}
             for decl in bf_ast.declarations:
                 match decl.definition.value:
                     case RoutingPolicy(policyname, statements):
                         print(f"Converting {policyname}")
-                        for stmt in statements:
-                            s = convert_stmt(stmt)
-                            for stmt in s:
-                                stmt.visit(print)
+                        a_ast[policyname] = [
+                            stmt.to_dict(with_types=True)
+                            for s in statements
+                            for stmt in convert_stmt(s)
+                        ]
+            text = json.dumps(a_ast, indent=2)
+            print(text)
             # print(bf_ast.declarations)
         case _:
             print(USAGE)

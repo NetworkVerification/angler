@@ -135,7 +135,7 @@ class Expression(
     ASTNode,
     Generic[T],
     Serialize,
-    delegate=("class", ExprType.parse_class),
+    delegate=("$type", ExprType.parse_class),
 ):
     """
     The base class for expressions.

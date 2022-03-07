@@ -25,7 +25,7 @@ class StatementType(Variant):
 class Statement(
     ASTNode,
     Serialize,
-    delegate=("class", StatementType.parse_class),
+    delegate=("$type", StatementType.parse_class),
 ):
     """
     The base class for statements.

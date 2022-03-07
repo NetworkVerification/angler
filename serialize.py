@@ -98,11 +98,16 @@ class Serialize:
             k: (Field(f) if isinstance(f, str) else f) for k, f in fields.items()
         } or {}
 
-    def to_dict(self) -> dict:
+    def to_dict(self, with_types: bool = False) -> dict[str, Any]:
         """
         Convert this class into a dictionary.
         """
-        d = {}
+        if self.delegate:
+            # use the delegate name
+            ty_field = self.delegate[0]
+        else:
+            ty_field = "type"
+        d: dict[str, Any] = {ty_field: type(self).__name__} if with_types else {}
         fields = self.__class__.fields
         for field in fields:
             # will raise an AttributeError if the field is not present
@@ -112,10 +117,13 @@ class Serialize:
             # if the internal field also has a to_dict implementation, recursively convert it
             if isinstance(v, list):
                 d[fieldname] = [
-                    e.to_dict() if issubclass(type(e), Serialize) else e for e in v
+                    e.to_dict(with_types) if issubclass(type(e), Serialize) else e
+                    for e in v
                 ]
             else:
-                d[fieldname] = v.to_dict() if issubclass(type(v), Serialize) else v
+                d[fieldname] = (
+                    v.to_dict(with_types) if issubclass(type(v), Serialize) else v
+                )
         return d
 
     @staticmethod
