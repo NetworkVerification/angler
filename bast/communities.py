@@ -35,6 +35,7 @@ class CommunityMatchExprType(ast.Variant):
     COMMUNITY_MATCH_REF = "CommunityMatchExprReference"
     COMMUNITY_IS = "CommunityIs"
     COMMUNITY_MATCH_REGEX = "CommunityMatchRegex"
+    ALL_STANDARD = "AllStandardCommunities"
 
     def as_class(self) -> type:
         match self:
@@ -44,6 +45,8 @@ class CommunityMatchExprType(ast.Variant):
                 return CommunityIs
             case CommunityMatchExprType.COMMUNITY_MATCH_REGEX:
                 return CommunityMatchRegex
+            case CommunityMatchExprType.ALL_STANDARD:
+                return AllStandardCommunities
             case _:
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
@@ -169,6 +172,11 @@ class CommunityMatchRegex(
     rendering: CommunityRendering
     # TODO parse
     regex: str
+
+
+@dataclass
+class AllStandardCommunities(CommunityMatchExpr, Serialize):
+    ...
 
 
 @dataclass

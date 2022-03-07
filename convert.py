@@ -61,6 +61,10 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
         case bcomms.CommunitySetUnion(exprs):
             aes = [convert_expr(expr) for expr in exprs]
             return aexpr.SetUnion(aes)
+        case bcomms.CommunitySetDifference(initial, bcomms.AllStandardCommunities()):
+            # NOTE: assuming all communities are standard communities
+            # remove all communities
+            return aexpr.EmptySet()
         case bcomms.CommunitySetDifference(initial, to_remove):
             # remove a single community from the set
             return aexpr.SetRemove(convert_expr(to_remove), convert_expr(initial))
