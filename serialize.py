@@ -112,14 +112,31 @@ class Serialize:
         for field in fields:
             # will raise an AttributeError if the field is not present
             v = getattr(self, field)
+            if v is None:
+                # skip any None fields
+                continue
             # NOTE: we don't use the field type when encoding to a dictionary
             fieldname = fields[field].json_name
             # if the internal field also has a to_dict implementation, recursively convert it
-            if isinstance(v, list):
+            if isinstance(v, dict):
+                d[fieldname] = {
+                    k: (
+                        vv.to_dict(with_types)
+                        if issubclass(type(vv), Serialize)
+                        else vv
+                    )
+                    for k, vv in v.items()
+                }
+            elif isinstance(v, list):
                 d[fieldname] = [
                     e.to_dict(with_types) if issubclass(type(e), Serialize) else e
                     for e in v
                 ]
+            elif isinstance(v, tuple):
+                d[fieldname] = (
+                    e.to_dict(with_types) if issubclass(type(e), Serialize) else e
+                    for e in v
+                )
             else:
                 d[fieldname] = (
                     v.to_dict(with_types) if issubclass(type(v), Serialize) else v

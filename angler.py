@@ -8,8 +8,7 @@ from pybatfish.client.session import Session
 import bast.json
 from pathlib import Path
 
-from bast.structure import RoutingPolicy
-from convert import convert_stmt
+from convert import convert_batfish
 
 
 def initialize_session(snapshot_dir: str):
@@ -58,20 +57,9 @@ if __name__ == "__main__":
             with open(p) as fp:
                 output = json.load(fp)
             bf_ast = bast.json.BatfishJson.from_dict(output)
-            pr = lambda x: print(type(x))
-            # bf_ast.visit(pr)
-            a_ast = {}
-            for decl in bf_ast.declarations:
-                match decl.definition.value:
-                    case RoutingPolicy(policyname, statements):
-                        print(f"Converting {policyname}")
-                        a_ast[policyname] = [
-                            stmt.to_dict(with_types=True)
-                            for s in statements
-                            for stmt in convert_stmt(s)
-                        ]
+            a_ast = convert_batfish(bf_ast).to_dict(with_types=True)
+            print(a_ast)
             text = json.dumps(a_ast, indent=2)
             print(text)
-            # print(bf_ast.declarations)
         case _:
             print(USAGE)

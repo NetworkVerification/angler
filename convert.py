@@ -9,8 +9,11 @@ import bast.communities as bcomms
 import bast.longexprs as longs
 import bast.prefix as prefix
 from bast.btypes import Comparator, Protocol
+import bast.structure as struct
+import bast.json as json
 import aast.expression as aexpr
 import aast.statement as astmt
+import aast.program as prog
 
 # the argument to the transfer
 ARG = aexpr.Var("route")
@@ -176,3 +179,38 @@ def convert_stmt(b: bstmt.Statement) -> list[astmt.Statement]:
             return [stmt for s in inner for stmt in convert_stmt(s)]
         case _:
             raise NotImplementedError(f"No convert case for {b} found.")
+
+
+def convert_batfish(bf: json.BatfishJson) -> prog.Program:
+    """
+    Convert the Batfish JSON object to an Angler program.
+    """
+    edges = bf.topology
+    nodes = {}
+    for edge in edges:
+        # get the names of the hosts
+        src = edge.iface.host
+        snk = edge.remote_iface.host
+        if src in nodes:
+            pol = nodes[src].policies
+            if snk in pol:
+                # TODO: add import/export policy
+                print("foo")
+            else:
+                pol[snk] = prog.Policies()
+        else:
+            nodes[src] = prog.Properties()
+    decls = {}
+    for decl in bf.declarations:
+        match decl.definition.value:
+            case struct.RoutingPolicy(policyname, statements):
+                decls[policyname] = prog.Func(
+                    "route",
+                    [stmt for s in statements for stmt in convert_stmt(s)],
+                )
+            case _:
+                print(
+                    f"Encountered {decl.definition.value.__class__} which has no handler."
+                )
+
+    return prog.Program(route={}, nodes=nodes, declarations=decls)
