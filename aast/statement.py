@@ -99,9 +99,10 @@ class AssignStatement(
 
 @dataclass
 class ReturnStatement(
-    Statement[T],
+    Statement[E],
+    Generic[E],
     Serialize,
     with_type="$type",
-    return_value=Field("return_value", expr.Expression[T]),
+    return_value=Field("return_value", expr.Expression[E]),
 ):
-    return_value: expr.Expression[T]
+    return_value: expr.Expression[E]
