@@ -126,11 +126,16 @@ def convert_stmt(b: bstmt.Statement) -> list[astmt.Statement]:
     """
     match b:
         case bstmt.IfStatement(comment, guard, t_stmts, f_stmts):
+            # convert the arms of the batfish if into seq statements
             return [
                 astmt.IfStatement(
                     convert_expr(guard),
-                    [stmt for s in t_stmts for stmt in convert_stmt(s)],
-                    [stmt for s in f_stmts for stmt in convert_stmt(s)],
+                    astmt.SeqStatement.into(
+                        *[stmt for s in t_stmts for stmt in convert_stmt(s)]
+                    ),
+                    astmt.SeqStatement.into(
+                        *[stmt for s in f_stmts for stmt in convert_stmt(s)]
+                    ),
                     comment,
                 )
             ]
@@ -204,10 +209,10 @@ def convert_batfish(bf: json.BatfishJson) -> prog.Program:
     for decl in bf.declarations:
         match decl.definition.value:
             case struct.RoutingPolicy(policyname, statements):
-                decls[policyname] = prog.Func(
-                    "route",
-                    [stmt for s in statements for stmt in convert_stmt(s)],
+                body = astmt.SeqStatement.into(
+                    *[stmt for s in statements for stmt in convert_stmt(s)]
                 )
+                decls[policyname] = prog.Func("route", body)
             case _:
                 print(
                     f"Encountered {decl.definition.value.__class__} which has no handler."

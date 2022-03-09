@@ -1,16 +1,25 @@
 from dataclasses import dataclass
+import functools
+from types import NoneType
+from typing import Generic, TypeVar
 from serialize import Serialize, Field
 from aast.base import Variant, ASTNode
 import aast.expression as expr
 
+T = TypeVar("T")
+E = TypeVar("E")
+
 
 class StatementType(Variant):
-    IF = "If"
-    ASSIGN = "Assign"
-    RETURN = "Return"
+    SEQ = "SeqStatement"
+    IF = "IfStatement"
+    ASSIGN = "AssignStatement"
+    RETURN = "ReturnStatement"
 
     def as_class(self) -> type:
         match self:
+            case StatementType.SEQ:
+                return SeqStatement
             case StatementType.IF:
                 return IfStatement
             case StatementType.ASSIGN:
@@ -24,6 +33,7 @@ class StatementType(Variant):
 @dataclass
 class Statement(
     ASTNode,
+    Generic[T],
     Serialize,
     with_type="$type",
     delegate=("$type", StatementType.parse_class),
@@ -36,13 +46,31 @@ class Statement(
 
 
 @dataclass
+class SeqStatement(
+    Statement[T],
+    Generic[T],
+    Serialize,
+    with_type="$type",
+    first=Field("first", Statement[NoneType]),
+    second=Field("second", Statement[T]),
+):
+    first: Statement[NoneType]
+    second: Statement[T]
+
+    @staticmethod
+    def into(*stmts: Statement) -> Statement:
+        return functools.reduce(SeqStatement, stmts)
+
+
+@dataclass
 class IfStatement(
-    Statement,
+    Statement[T],
+    Generic[T],
     Serialize,
     with_type="$type",
     guard=Field("guard", expr.Expression[bool]),
-    true_stmts=Field("trueStatements", list[Statement], []),
-    false_stmts=Field("falseStatements", list[Statement], []),
+    true_stmts=Field("trueStatements", Statement[T], []),
+    false_stmts=Field("falseStatements", Statement[T], []),
     comment="comment",
 ):
     """
@@ -51,28 +79,29 @@ class IfStatement(
     """
 
     guard: expr.Expression[bool]
-    true_stmts: list[Statement]
-    false_stmts: list[Statement]
+    true_stmts: Statement[T]
+    false_stmts: Statement[T]
     comment: str
 
 
 @dataclass
 class AssignStatement(
-    Statement,
+    Statement[NoneType],
+    Generic[E],
     Serialize,
     with_type="$type",
     lhs=Field("lhs", expr.Var),
-    rhs=Field("rhs", expr.Expression),
+    rhs=Field("rhs", expr.Expression[E]),
 ):
     lhs: expr.Var
-    rhs: expr.Expression
+    rhs: expr.Expression[E]
 
 
 @dataclass
 class ReturnStatement(
-    Statement,
+    Statement[T],
     Serialize,
     with_type="$type",
-    return_value=Field("return_value", expr.Expression),
+    return_value=Field("return_value", expr.Expression[T]),
 ):
-    return_value: expr.Expression
+    return_value: expr.Expression[T]

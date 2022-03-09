@@ -26,7 +26,7 @@ class Func(Serialize, arg="arg", body="body"):
     """
 
     arg: str
-    body: list[stmt.Statement]
+    body: stmt.Statement
 
 
 @dataclass
