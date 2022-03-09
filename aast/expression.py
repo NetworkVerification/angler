@@ -135,6 +135,7 @@ class Expression(
     ASTNode,
     Generic[T],
     Serialize,
+    with_type="$type",
     delegate=("$type", ExprType.parse_class),
 ):
     """
@@ -145,7 +146,7 @@ class Expression(
 
 
 @dataclass
-class CallExpr(Expression[T], Serialize, policy="calledPolicyName"):
+class CallExpr(Expression[T], Serialize, with_type="$type", policy="calledPolicyName"):
     """
     Call the given policy.
     """
@@ -154,22 +155,22 @@ class CallExpr(Expression[T], Serialize, policy="calledPolicyName"):
 
 
 @dataclass
-class Var(Expression[T], Serialize, _name=Field("name", str)):
+class Var(Expression[T], Serialize, with_type="$type", _name=Field("name", str)):
     _name: str
 
 
 @dataclass
-class LiteralTrue(Expression[bool], Serialize):
+class LiteralTrue(Expression[bool], Serialize, with_type="$type"):
     ...
 
 
 @dataclass
-class LiteralFalse(Expression[bool], Serialize):
+class LiteralFalse(Expression[bool], Serialize, with_type="$type"):
     ...
 
 
 @dataclass
-class Havoc(Expression[bool], Serialize):
+class Havoc(Expression[bool], Serialize, with_type="$type"):
     ...
 
 
@@ -177,6 +178,7 @@ class Havoc(Expression[bool], Serialize):
 class Conjunction(
     Expression[bool],
     Serialize,
+    with_type="$type",
     conjuncts=Field("conjuncts", list[Expression[bool]]),
 ):
     conjuncts: list[Expression[bool]]
@@ -186,6 +188,7 @@ class Conjunction(
 class ConjunctionChain(
     Expression[bool],
     Serialize,
+    with_type="$type",
     subroutines=Field("subroutines", list[Expression]),
 ):
     """
@@ -199,18 +202,23 @@ class ConjunctionChain(
 class Disjunction(
     Expression[bool],
     Serialize,
+    with_type="$type",
     disjuncts=Field("disjuncts", list[Expression[bool]]),
 ):
     disjuncts: list[Expression[bool]]
 
 
 @dataclass
-class Not(Expression[bool], Serialize, expr=Field("expr", Expression[bool])):
+class Not(
+    Expression[bool], Serialize, with_type="$type", expr=Field("expr", Expression[bool])
+):
     expr: Expression[bool]
 
 
 @dataclass
-class LiteralInt(Expression[int], Serialize, value=Field("value", int)):
+class LiteralInt(
+    Expression[int], Serialize, with_type="$type", value=Field("value", int)
+):
     value: int
 
 
@@ -218,6 +226,7 @@ class LiteralInt(Expression[int], Serialize, value=Field("value", int)):
 class Add(
     Expression[int],
     Serialize,
+    with_type="$type",
     operand1=Field("operand1", Expression[int]),
     operand2=Field("operand2", Expression[int]),
 ):
@@ -229,6 +238,7 @@ class Add(
 class Sub(
     Expression[int],
     Serialize,
+    with_type="$type",
     operand1=Field("operand1", Expression[int]),
     operand2=Field("operand2", Expression[int]),
 ):
@@ -240,6 +250,7 @@ class Sub(
 class Equal(
     Expression[bool],
     Serialize,
+    with_type="$type",
     operand1=Field("operand1", Expression[int]),
     operand2=Field("operand2", Expression[int]),
 ):
@@ -251,6 +262,7 @@ class Equal(
 class NotEqual(
     Expression[bool],
     Serialize,
+    with_type="$type",
     operand1=Field("operand1", Expression[int]),
     operand2=Field("operand2", Expression[int]),
 ):
@@ -262,6 +274,7 @@ class NotEqual(
 class LessThan(
     Expression[bool],
     Serialize,
+    with_type="$type",
     operand1=Field("operand1", Expression[int]),
     operand2=Field("operand2", Expression[int]),
 ):
@@ -273,6 +286,7 @@ class LessThan(
 class LessThanEqual(
     Expression[bool],
     Serialize,
+    with_type="$type",
     operand1=Field("operand1", Expression[int]),
     operand2=Field("operand2", Expression[int]),
 ):
@@ -284,6 +298,7 @@ class LessThanEqual(
 class GreaterThan(
     Expression[bool],
     Serialize,
+    with_type="$type",
     operand1=Field("operand1", Expression[int]),
     operand2=Field("operand2", Expression[int]),
 ):
@@ -295,6 +310,7 @@ class GreaterThan(
 class GreaterThanEqual(
     Expression[bool],
     Serialize,
+    with_type="$type",
     operand1=Field("operand1", Expression[int]),
     operand2=Field("operand2", Expression[int]),
 ):
@@ -303,12 +319,12 @@ class GreaterThanEqual(
 
 
 @dataclass
-class LiteralString(Expression[str], Serialize, value="value"):
+class LiteralString(Expression[str], Serialize, with_type="$type", value="value"):
     value: str
 
 
 @dataclass
-class EmptySet(Expression[set], Serialize):
+class EmptySet(Expression[set], Serialize, with_type="$type"):
     ...
 
 
@@ -316,6 +332,7 @@ class EmptySet(Expression[set], Serialize):
 class SetAdd(
     Expression[set],
     Serialize,
+    with_type="$type",
     to_add=Field("expr", Expression[str]),
     _set=Field("set", Expression[set]),
 ):
@@ -324,7 +341,12 @@ class SetAdd(
 
 
 @dataclass
-class SetUnion(Expression[set], Serialize, sets=Field("sets", list[Expression[set]])):
+class SetUnion(
+    Expression[set],
+    Serialize,
+    with_type="$type",
+    sets=Field("sets", list[Expression[set]]),
+):
     sets: list[Expression[set]]
 
 
@@ -332,6 +354,7 @@ class SetUnion(Expression[set], Serialize, sets=Field("sets", list[Expression[se
 class SetRemove(
     Expression[set],
     Serialize,
+    with_type="$type",
     to_remove=Field("expr", Expression[str]),
     _set=Field("set", Expression[set]),
 ):
@@ -343,6 +366,7 @@ class SetRemove(
 class SetContains(
     Expression[bool],
     Serialize,
+    with_type="$type",
     search=Field("search", Expression[str]),
     _set=Field("set", Expression[set]),
 ):
@@ -354,6 +378,7 @@ class SetContains(
 class CreateRecord(
     Expression[dict[str, Expression[X]]],
     Serialize,
+    with_type="$type",
     _fields=Field("fields", dict[str, Expression[X]]),
 ):
     _fields: dict[str, Expression[X]]
@@ -363,6 +388,7 @@ class CreateRecord(
 class GetField(
     Expression[X],
     Serialize,
+    with_type="$type",
     rec=Field("record", Expression[dict[str, Expression[X]]]),
     field_name=Field("fieldName", str),
 ):
@@ -374,6 +400,7 @@ class GetField(
 class WithField(
     Expression[dict[str, Expression[X]]],
     Serialize,
+    with_type="$type",
     rec=Field("record", Expression[dict[str, Expression[X]]]),
     field_name=Field("fieldName", str),
     field_val=Field("fieldVal", Expression[X]),
@@ -387,6 +414,7 @@ class WithField(
 class Pair(
     Expression[tuple[A, B]],
     Serialize,
+    with_type="$type",
     first=Field("first", Expression[A]),
     second=Field("second", Expression[B]),
 ):
@@ -399,6 +427,7 @@ class First(
     Expression[A],
     Generic[A, B],
     Serialize,
+    with_type="$type",
     pair=Field("pair", Expression[tuple[A, B]]),
 ):
     pair: Expression[tuple[A, B]]
@@ -409,6 +438,7 @@ class Second(
     Expression[B],
     Generic[A, B],
     Serialize,
+    with_type="$type",
     pair=Field("pair", Expression[tuple[A, B]]),
 ):
     pair: Expression[tuple[A, B]]
@@ -418,6 +448,7 @@ class Second(
 class IpAddress(
     Expression[IPv4Address],
     Serialize,
+    with_type="$type",
     ip=Field("ip", IPv4Address),
 ):
     ip: IPv4Address
@@ -427,6 +458,7 @@ class IpAddress(
 class IpPrefix(
     Expression[IPv4Network],
     Serialize,
+    with_type="$type",
     ip=Field("ip", IPv4Network),
 ):
     ip: IPv4Network
@@ -436,6 +468,7 @@ class IpPrefix(
 class PrefixContains(
     Expression[bool],
     Serialize,
+    with_type="$type",
     addr=Field("addr", Expression[IPv4Address]),
     prefix=Field("prefix", Expression[IPv4Network]),
 ):

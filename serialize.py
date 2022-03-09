@@ -72,9 +72,11 @@ class Serialize:
 
     delegate: Optional[tuple[str, Callable[[str], Type]]]
     fields: dict[str, Field] = {}
+    with_type: Optional[str]
 
-    def __init__(self, delegate=None, **fields: str | Field):
+    def __init__(self, delegate=None, with_type=None, **fields: str | Field):
         self.delegate = delegate
+        self.with_type = with_type
         self.fields = {
             k: (Field(f) if isinstance(f, str) else f) for k, f in fields.items()
         } or {}
@@ -83,31 +85,33 @@ class Serialize:
         cls,
         /,
         delegate: Optional[tuple[str, Callable[[str], Type]]] = None,
+        with_type: Optional[str] = None,
         **fields: str | Field,
     ) -> None:
         """
         Construct a subclass using the keyword arguments.
         Note that this consumes all keyword arguments, which means it does not behave
         well with other classes implementing __init_subclass__!
+        :param delegate: when given, a key-function tuple used to identify classes which delegate
+        deserialization by passing the dict value at the given key to the given function
+        :param with_type: when given, a key to save the class's type under when serializing
         :param fields: a sequence of key-value pairs, where the keys are
         fields and the values are a string specifying the desired field name,
         or a tuple containing a field name string and a type.
         """
         cls.delegate = delegate
+        cls.with_type = with_type
         cls.fields = {
             k: (Field(f) if isinstance(f, str) else f) for k, f in fields.items()
         } or {}
 
-    def to_dict(self, with_types: bool = False) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert this class into a dictionary.
         """
-        if self.delegate:
-            # use the delegate name
-            ty_field = self.delegate[0]
-        else:
-            ty_field = "type"
-        d: dict[str, Any] = {ty_field: type(self).__name__} if with_types else {}
+        d: dict[str, Any] = (
+            {self.with_type: type(self).__name__} if self.with_type else {}
+        )
         fields = self.__class__.fields
         for field in fields:
             # will raise an AttributeError if the field is not present
@@ -120,27 +124,19 @@ class Serialize:
             # if the internal field also has a to_dict implementation, recursively convert it
             if isinstance(v, dict):
                 d[fieldname] = {
-                    k: (
-                        vv.to_dict(with_types)
-                        if issubclass(type(vv), Serialize)
-                        else vv
-                    )
+                    k: (vv.to_dict() if issubclass(type(vv), Serialize) else vv)
                     for k, vv in v.items()
                 }
             elif isinstance(v, list):
                 d[fieldname] = [
-                    e.to_dict(with_types) if issubclass(type(e), Serialize) else e
-                    for e in v
+                    e.to_dict() if issubclass(type(e), Serialize) else e for e in v
                 ]
             elif isinstance(v, tuple):
                 d[fieldname] = (
-                    e.to_dict(with_types) if issubclass(type(e), Serialize) else e
-                    for e in v
+                    e.to_dict() if issubclass(type(e), Serialize) else e for e in v
                 )
             else:
-                d[fieldname] = (
-                    v.to_dict(with_types) if issubclass(type(v), Serialize) else v
-                )
+                d[fieldname] = v.to_dict() if issubclass(type(v), Serialize) else v
         return d
 
     @staticmethod

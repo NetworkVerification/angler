@@ -25,6 +25,7 @@ class StatementType(Variant):
 class Statement(
     ASTNode,
     Serialize,
+    with_type="$type",
     delegate=("$type", StatementType.parse_class),
 ):
     """
@@ -38,6 +39,7 @@ class Statement(
 class IfStatement(
     Statement,
     Serialize,
+    with_type="$type",
     guard=Field("guard", expr.Expression[bool]),
     true_stmts=Field("trueStatements", list[Statement], []),
     false_stmts=Field("falseStatements", list[Statement], []),
@@ -56,7 +58,11 @@ class IfStatement(
 
 @dataclass
 class AssignStatement(
-    Statement, Serialize, lhs=Field("lhs", expr.Var), rhs=Field("rhs", expr.Expression)
+    Statement,
+    Serialize,
+    with_type="$type",
+    lhs=Field("lhs", expr.Var),
+    rhs=Field("rhs", expr.Expression),
 ):
     lhs: expr.Var
     rhs: expr.Expression
@@ -64,6 +70,9 @@ class AssignStatement(
 
 @dataclass
 class ReturnStatement(
-    Statement, Serialize, return_value=Field("return_value", expr.Expression)
+    Statement,
+    Serialize,
+    with_type="$type",
+    return_value=Field("return_value", expr.Expression),
 ):
     return_value: expr.Expression

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # Export Batfish JSON snapshots
-#
+
 import json
 import os
 import sys
@@ -11,7 +11,7 @@ from pathlib import Path
 from convert import convert_batfish
 
 
-def initialize_session(snapshot_dir: str):
+def initialize_session(snapshot_dir: str) -> Session:
     """
     Perform initial Session setup with the given example network
     and the provided snapshot directory and snapshot name.
@@ -21,6 +21,12 @@ def initialize_session(snapshot_dir: str):
     bf.set_network("example-net")
     bf.init_snapshot(snapshot_dir, "example-snapshot", overwrite=True)
     return bf
+
+
+def save_json(output: dict, path: Path | str):
+    with open(path, "w") as jsonout:
+        json_text = json.dumps(output, sort_keys=True, indent=2)
+        jsonout.write(json_text)
 
 
 USAGE = f"""
@@ -50,16 +56,18 @@ if __name__ == "__main__":
                     out_path = Path(p).with_suffix(".json").name
                 else:
                     out_path = tl[0]
-                with open(out_path, "w") as jsonout:
-                    json_text = json.dumps(output, sort_keys=True, indent=2)
-                    jsonout.write(json_text)
-        case [p] if os.path.isfile(p):
+                save_json(output, out_path)
+        case [p, *tl] if os.path.isfile(p):
             with open(p) as fp:
                 output = json.load(fp)
             bf_ast = bast.json.BatfishJson.from_dict(output)
-            a_ast = convert_batfish(bf_ast).to_dict(with_types=True)
-            print(a_ast)
-            text = json.dumps(a_ast, indent=2)
-            print(text)
+            a_ast = convert_batfish(bf_ast)
+            output = a_ast.to_dict()
+            if len(tl) == 0:
+                in_path = Path(p)
+                out_path = in_path.with_stem(f"{in_path.stem}.angler")
+            else:
+                out_path = tl[0]
+            save_json(output, out_path)
         case _:
             print(USAGE)
