@@ -87,7 +87,7 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             cvar = aexpr.Var(_name, ty="Var(String)")
             return aexpr.SetContains(cvar, convert_expr(_comms))
         case bcomms.InputCommunities():
-            return aexpr.GetField(ARG, "communities", ty="GetField(Set)")
+            return aexpr.GetField(ARG, "communities", ty="GetField(Route,Set)")
         case bcomms.CommunitySetReference(_name) | bcomms.CommunityMatchExprReference(
             _name
         ) | bcomms.CommunitySetMatchExprReference(_name):
@@ -96,20 +96,22 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             return aexpr.LiteralInt(value)
         case longs.IncrementLocalPref(addend):
             return aexpr.Add(
-                aexpr.GetField(ARG, "lp", ty="Var(Int32)"), aexpr.LiteralInt(addend)
+                aexpr.GetField(ARG, "lp", ty="GetField(Route,Int32)"),
+                aexpr.LiteralInt(addend),
             )
         case longs.DecrementLocalPref(subtrahend):
             return aexpr.Sub(
-                aexpr.GetField(ARG, "lp", ty="Var(Int32)"), aexpr.LiteralInt(subtrahend)
+                aexpr.GetField(ARG, "lp", ty="GetField(Route,Int32)"),
+                aexpr.LiteralInt(subtrahend),
             )
         case prefix.DestinationNetwork():
-            return aexpr.GetField(ARG, "prefix", ty="GetField(IpAddress)")
+            return aexpr.GetField(ARG, "prefix", ty="GetField(Route,IpAddress)")
         case prefix.NamedPrefixSet(_name):
             return aexpr.Var(_name, ty="Var(IpPrefix)")
         case bools.MatchPrefixSet(_prefix, _prefixes):
             return aexpr.PrefixContains(convert_expr(_prefix), convert_expr(_prefixes))
         case bools.MatchTag(cmp, tag):
-            route_tag = aexpr.GetField(ARG, "tag", ty="GetField(Int32)")
+            route_tag = aexpr.GetField(ARG, "tag", ty="GetField(Route,Int32)")
             match cmp:
                 case Comparator.EQ:
                     return aexpr.Equal(route_tag, convert_expr(tag))
@@ -164,17 +166,17 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
 
         case bstmt.SetCommunities(comm_set=comms):
             wf = aexpr.WithField(
-                ARG, "communities", convert_expr(comms), ty="WithField(Set)"
+                ARG, "communities", convert_expr(comms), ty="WithField(Route,Set)"
             )
             return astmt.AssignStatement(ARG, wf, ty=f"Assign({wf.ty})")
 
         case bstmt.SetLocalPreference(lp=lp):
-            wf = aexpr.WithField(ARG, "lp", convert_expr(lp), ty="WithField(Set)")
+            wf = aexpr.WithField(ARG, "lp", convert_expr(lp), ty="WithField(Route,Set)")
             return astmt.AssignStatement(ARG, wf, ty=f"Assign({wf.ty})")
 
         case bstmt.SetMetric(metric=metric):
             wf = aexpr.WithField(
-                ARG, "metric", convert_expr(metric), ty="WithField(Int32)"
+                ARG, "metric", convert_expr(metric), ty="WithField(Route,Int32)"
             )
             return astmt.AssignStatement(ARG, wf, ty=f"Assign({wf.ty})")
 
