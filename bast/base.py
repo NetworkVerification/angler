@@ -96,7 +96,7 @@ class BgpPeerConfig(
     import_policy=Field("Import_Policy", list[str]),
     export_policy=Field("Export_Policy", list[str]),
 ):
-    node: str
+    node: topology.Node
     local_as: int
     local_ip: IPv4Address
     remote_as: int

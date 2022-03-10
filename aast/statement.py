@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-import functools
 from types import NoneType
 from typing import Generic, TypeVar
 from serialize import Serialize, Field
@@ -11,6 +10,7 @@ E = TypeVar("E")
 
 
 class StatementType(Variant):
+    SKIP = "SkipStatement"
     SEQ = "SeqStatement"
     IF = "IfStatement"
     ASSIGN = "AssignStatement"
@@ -18,6 +18,8 @@ class StatementType(Variant):
 
     def as_class(self) -> type:
         match self:
+            case StatementType.SKIP:
+                return SkipStatement
             case StatementType.SEQ:
                 return SeqStatement
             case StatementType.IF:
@@ -46,6 +48,14 @@ class Statement(
 
 
 @dataclass
+class SkipStatement(
+    Statement[NoneType],
+    Serialize,
+):
+    ...
+
+
+@dataclass
 class SeqStatement(
     Statement[T],
     Generic[T],
@@ -56,10 +66,6 @@ class SeqStatement(
 ):
     first: Statement[NoneType]
     second: Statement[T]
-
-    @staticmethod
-    def into(*stmts: Statement) -> Statement:
-        return functools.reduce(SeqStatement, stmts)
 
 
 @dataclass

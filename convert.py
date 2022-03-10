@@ -2,6 +2,7 @@
 """
 Conversion tools to transform Batfish AST terms to Angler AST terms.
 """
+import functools
 import bast.expression as bexpr
 import bast.statement as bstmt
 import bast.boolexprs as bools
@@ -120,49 +121,44 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             raise NotImplementedError(f"No convert case for {b} found.")
 
 
-def convert_stmt(b: bstmt.Statement) -> list[astmt.Statement]:
+def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
     """
-    Convert Batfish AST statements to Angler AST statements.
+    Convert a Batfish AST statement into an Angler AST statement.
     """
     match b:
-        case bstmt.IfStatement(comment, guard, t_stmts, f_stmts):
+        case bstmt.IfStatement(
+            comment=comment, guard=guard, t_stmts=t_stmts, f_stmts=f_stmts
+        ):
             # convert the arms of the batfish if into seq statements
-            return [
-                astmt.IfStatement(
-                    convert_expr(guard),
-                    astmt.SeqStatement.into(
-                        *[stmt for s in t_stmts for stmt in convert_stmt(s)]
-                    ),
-                    astmt.SeqStatement.into(
-                        *[stmt for s in f_stmts for stmt in convert_stmt(s)]
-                    ),
-                    comment,
-                )
-            ]
-        case bstmt.SetCommunities(comm_set):
-            return [
-                astmt.AssignStatement(
-                    ARG, aexpr.WithField(ARG, "communities", convert_expr(comm_set))
-                )
-            ]
-        case bstmt.SetLocalPreference(lp):
-            return [
-                astmt.AssignStatement(ARG, aexpr.WithField(ARG, "lp", convert_expr(lp)))
-            ]
-        case bstmt.SetMetric(metric):
-            return [
-                astmt.AssignStatement(
-                    ARG, aexpr.WithField(ARG, "metric", convert_expr(metric))
-                )
-            ]
+            return astmt.IfStatement(
+                convert_expr(guard),
+                convert_stmts(t_stmts),
+                convert_stmts(f_stmts),
+                comment,
+            )
+
+        case bstmt.SetCommunities(comm_set=comm_set):
+            return astmt.AssignStatement(
+                ARG, aexpr.WithField(ARG, "communities", convert_expr(comm_set))
+            )
+
+        case bstmt.SetLocalPreference(lp=lp):
+            return astmt.AssignStatement(
+                ARG, aexpr.WithField(ARG, "lp", convert_expr(lp))
+            )
+
+        case bstmt.SetMetric(metric=metric):
+            return astmt.AssignStatement(
+                ARG, aexpr.WithField(ARG, "metric", convert_expr(metric))
+            )
+
         case bstmt.SetNextHop():
             # TODO: for now, ignore nexthop
-            return [
-                # astmt.AssignStatement(
-                #     ARG, aexpr.WithField(ARG, "nexthop", convert_expr(nexthop_expr))
-                # )
-            ]
-        case bstmt.StaticStatement(ty):
+            # return astmt.AssignStatement(
+            #     ARG, aexpr.WithField(ARG, "nexthop", convert_expr(nexthop_expr))
+            # )
+            return astmt.SkipStatement()
+        case bstmt.StaticStatement(ty=ty):
             match ty:
                 case bstmt.StaticStatementType.TRUE | bstmt.StaticStatementType.EXIT_ACCEPT:
                     fst = aexpr.LiteralTrue()
@@ -176,14 +172,26 @@ def convert_stmt(b: bstmt.Statement) -> list[astmt.Statement]:
                     )
             # return a bool * route pair
             pair = aexpr.Pair(fst, ARG)
-            return [astmt.ReturnStatement(pair)]
-        case bstmt.PrependAsPath(_):
-            # no-op
-            return []
-        case bstmt.TraceableStatement(inner, _):
-            return [stmt for s in inner for stmt in convert_stmt(s)]
+            return astmt.ReturnStatement(pair)
+        case bstmt.PrependAsPath():
+            return astmt.SkipStatement()
+        case bstmt.TraceableStatement(inner=inner):
+            return convert_stmts(inner)
         case _:
             raise NotImplementedError(f"No convert case for {b} found.")
+
+
+def convert_stmts(stmts: list[bstmt.Statement]) -> astmt.Statement:
+    """Convert a list of Batfish statements into an Angler statement."""
+    # use a match to simplify the case where we generate a Seq(Skip, s) element when stmts = [s]
+    match stmts:
+        case []:
+            return astmt.SkipStatement()
+        case [s]:
+            return convert_stmt(s)
+        case _:
+            # convert each statement, then reduce them all to a sequence
+            return functools.reduce(astmt.SeqStatement, map(convert_stmt, stmts))
 
 
 def convert_batfish(bf: json.BatfishJson) -> prog.Program:
@@ -195,12 +203,16 @@ def convert_batfish(bf: json.BatfishJson) -> prog.Program:
     for edge in edges:
         # get the names of the hosts
         src = edge.iface.host
+        src_ips = edge.ips
         snk = edge.remote_iface.host
+        snk_ips = edge.remote_ips
         if src in nodes:
             pol = nodes[src].policies
             if snk in pol:
                 # TODO: add import/export policy
-                print("foo")
+                for peer_conf in bf.bgp:
+                    if peer_conf.node.nodename == src:
+                        print("foo")
             else:
                 pol[snk] = prog.Policies()
         else:
@@ -209,9 +221,7 @@ def convert_batfish(bf: json.BatfishJson) -> prog.Program:
     for decl in bf.declarations:
         match decl.definition.value:
             case struct.RoutingPolicy(policyname, statements):
-                body = astmt.SeqStatement.into(
-                    *[stmt for s in statements for stmt in convert_stmt(s)]
-                )
+                body = convert_stmts(statements)
                 decls[policyname] = prog.Func("route", body)
             case _:
                 print(
