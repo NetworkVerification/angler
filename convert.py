@@ -17,13 +17,13 @@ import aast.statement as astmt
 import aast.program as prog
 
 # the argument to the transfer
-ARG = aexpr.Var("route")
+ARG = aexpr.Var("route", ty="Var(Route)")
 
 
 def accept() -> astmt.ReturnStatement:
     """Default accept return."""
-    pair = aexpr.Pair(aexpr.LiteralTrue(), ARG)
-    return astmt.ReturnStatement(pair)
+    pair = aexpr.Pair(aexpr.LiteralTrue(), ARG, ty="Pair(Bool,Route)")
+    return astmt.ReturnStatement(pair, ty=f"Return({pair.ty})")
 
 
 def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
@@ -84,10 +84,10 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
         case bools.MatchCommunities(
             _comms, bcomms.CommunitySetMatchExprReference(_name)
         ):
-            cvar = aexpr.Var(_name)
+            cvar = aexpr.Var(_name, ty="Var(String)")
             return aexpr.SetContains(cvar, convert_expr(_comms))
         case bcomms.InputCommunities():
-            return aexpr.GetField(ARG, "communities")
+            return aexpr.GetField(ARG, "communities", ty="GetField(Set)")
         case bcomms.CommunitySetReference(_name) | bcomms.CommunityMatchExprReference(
             _name
         ) | bcomms.CommunitySetMatchExprReference(_name):
@@ -95,17 +95,21 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
         case longs.LiteralLong(value):
             return aexpr.LiteralInt(value)
         case longs.IncrementLocalPref(addend):
-            return aexpr.Add(aexpr.GetField(ARG, "lp"), aexpr.LiteralInt(addend))
+            return aexpr.Add(
+                aexpr.GetField(ARG, "lp", ty="Var(Int32)"), aexpr.LiteralInt(addend)
+            )
         case longs.DecrementLocalPref(subtrahend):
-            return aexpr.Sub(aexpr.GetField(ARG, "lp"), aexpr.LiteralInt(subtrahend))
+            return aexpr.Sub(
+                aexpr.GetField(ARG, "lp", ty="Var(Int32)"), aexpr.LiteralInt(subtrahend)
+            )
         case prefix.DestinationNetwork():
-            return aexpr.GetField(ARG, "prefix")
+            return aexpr.GetField(ARG, "prefix", ty="GetField(IpAddress)")
         case prefix.NamedPrefixSet(_name):
-            return aexpr.Var(_name)
+            return aexpr.Var(_name, ty="Var(IpPrefix)")
         case bools.MatchPrefixSet(_prefix, _prefixes):
             return aexpr.PrefixContains(convert_expr(_prefix), convert_expr(_prefixes))
         case bools.MatchTag(cmp, tag):
-            route_tag = aexpr.GetField(ARG, "tag")
+            route_tag = aexpr.GetField(ARG, "tag", ty="GetField(Int32)")
             match cmp:
                 case Comparator.EQ:
                     return aexpr.Equal(route_tag, convert_expr(tag))
@@ -140,31 +144,39 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
             false_stmt = convert_stmts(f_stmts)
             # check that the types coincide: if either true_stmt or false_stmt ends in a return,
             # the other must as well
+            if true_stmt.returns() and false_stmt.returns():
+                ty_arg = "Pair(Bool,Route)"
             if true_stmt.returns() and not false_stmt.returns():
                 false_stmt = astmt.SeqStatement(false_stmt, accept())
+                ty_arg = "Pair(Bool,Route)"
             elif not true_stmt.returns() and false_stmt.returns():
                 true_stmt = astmt.SeqStatement(true_stmt, accept())
+                ty_arg = "Pair(Bool,Route)"
+            else:
+                ty_arg = "Unit"
             return astmt.IfStatement(
                 comment=comment,
                 guard=convert_expr(guard),
                 true_stmt=true_stmt,
                 false_stmt=false_stmt,
+                ty=f"If({ty_arg})",
             )
 
         case bstmt.SetCommunities(comm_set=comms):
-            return astmt.AssignStatement(
-                ARG, aexpr.WithField(ARG, "communities", convert_expr(comms))
+            wf = aexpr.WithField(
+                ARG, "communities", convert_expr(comms), ty="WithField(Set)"
             )
+            return astmt.AssignStatement(ARG, wf, ty=f"Assign({wf.ty})")
 
         case bstmt.SetLocalPreference(lp=lp):
-            return astmt.AssignStatement(
-                ARG, aexpr.WithField(ARG, "lp", convert_expr(lp))
-            )
+            wf = aexpr.WithField(ARG, "lp", convert_expr(lp), ty="WithField(Set)")
+            return astmt.AssignStatement(ARG, wf, ty=f"Assign({wf.ty})")
 
         case bstmt.SetMetric(metric=metric):
-            return astmt.AssignStatement(
-                ARG, aexpr.WithField(ARG, "metric", convert_expr(metric))
+            wf = aexpr.WithField(
+                ARG, "metric", convert_expr(metric), ty="WithField(Int32)"
             )
+            return astmt.AssignStatement(ARG, wf, ty=f"Assign({wf.ty})")
 
         case bstmt.SetNextHop():
             # TODO: for now, ignore nexthop
@@ -179,14 +191,14 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
                 case bstmt.StaticStatementType.FALSE | bstmt.StaticStatementType.EXIT_REJECT:
                     fst = aexpr.LiteralFalse()
                 case bstmt.StaticStatementType.LOCAL_DEF | bstmt.StaticStatementType.RETURN | bstmt.StaticStatementType.FALL_THROUGH:
-                    fst = aexpr.GetField(ARG, "LocalDefaultAction")
+                    fst = aexpr.GetField(ARG, "LocalDefaultAction", ty="GetField(Bool)")
                 case _:
                     raise NotImplementedError(
                         f"No convert case for static statement {ty} found."
                     )
             # return a bool * route pair
-            pair = aexpr.Pair(fst, ARG)
-            return astmt.ReturnStatement(pair)
+            pair = aexpr.Pair(fst, ARG, ty="Pair(Bool,Route)")
+            return astmt.ReturnStatement(pair, ty=f"Return({pair.ty})")
         case bstmt.PrependAsPath():
             return astmt.SkipStatement()
         case bstmt.TraceableStatement(inner=inner):

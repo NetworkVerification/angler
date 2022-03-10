@@ -1,8 +1,8 @@
 """
 """
 from ipaddress import IPv4Address, IPv4Network
-from dataclasses import dataclass
-from typing import Generic, TypeVar
+from dataclasses import dataclass, field
+from typing import Any, Generic, TypeVar
 from serialize import Serialize, Field
 from aast.base import Variant, ASTNode
 
@@ -135,60 +135,143 @@ class Expression(
     ASTNode,
     Generic[T],
     Serialize,
-    with_type="$type",
     delegate=("$type", ExprType.parse_class),
 ):
     """
     The base class for expressions.
     """
 
-    ...
+
+def from_class(e: Expression) -> ExprType:
+    match e:
+        case CallExpr():
+            return ExprType.CALL_EXPR
+        case Var():
+            return ExprType.VAR
+        case LiteralString():
+            return ExprType.STR
+        # booleans
+        case LiteralTrue():
+            return ExprType.TRUE
+        case LiteralFalse():
+            return ExprType.FALSE
+        case Havoc():
+            return ExprType.HAVOC
+        case Conjunction():
+            return ExprType.CONJUNCTION
+        case Disjunction():
+            return ExprType.DISJUNCTION
+        case Not():
+            return ExprType.NOT
+        # integers
+        case LiteralInt():
+            return ExprType.INT
+        case Add():
+            return ExprType.ADD
+        case Sub():
+            return ExprType.SUB
+        case Equal():
+            return ExprType.EQ
+        case NotEqual():
+            return ExprType.NEQ
+        case LessThan():
+            return ExprType.LT
+        case LessThanEqual():
+            return ExprType.LE
+        case GreaterThan():
+            return ExprType.GT
+        case GreaterThanEqual():
+            return ExprType.GE
+        # sets
+        case EmptySet():
+            return ExprType.EMPTY_SET
+        case SetAdd():
+            return ExprType.SET_ADD
+        case SetRemove():
+            return ExprType.SET_REMOVE
+        case SetUnion():
+            return ExprType.SET_UNION
+        case SetContains():
+            return ExprType.SET_CONTAINS
+        # records
+        case CreateRecord():
+            return ExprType.CREATE
+        case GetField():
+            return ExprType.GET_FIELD
+        case WithField():
+            return ExprType.WITH_FIELD
+        # pair
+        case Pair():
+            return ExprType.PAIR
+        case First():
+            return ExprType.FIRST
+        case Second():
+            return ExprType.SECOND
+        # ip addresses
+        case IpAddress():
+            return ExprType.IP_ADDRESS
+        case IpPrefix():
+            return ExprType.IP_PREFIX
+        case PrefixContains():
+            return ExprType.PREFIX_CONTAINS
+        case _:
+            raise ValueError(f"No ExprType associated with {e.__class__}.")
+
+
+# The type alias for route expressions
+ROUTE = Expression[tuple[bool, dict[str, Any]]]
 
 
 @dataclass
-class CallExpr(Expression[T], Serialize, with_type="$type", policy="calledPolicyName"):
+class CallExpr(
+    Expression[T], Serialize, policy="calledPolicyName", ty=Field("$type", str, "Call")
+):
     """
     Call the given policy.
     """
 
     policy: str
+    ty: str = field(default="Call", init=False)
 
 
 @dataclass
-class Var(Expression[T], Serialize, with_type="$type", _name=Field("name", str)):
+class Var(
+    Expression[T], Serialize, _name=Field("name", str), ty=Field("$type", str, "Var")
+):
     _name: str
+    ty: str = "Var"
 
 
 @dataclass
-class LiteralTrue(Expression[bool], Serialize, with_type="$type"):
-    ...
+class LiteralTrue(Expression[bool], Serialize, ty=Field("$type", str, "True")):
+    ty: str = field(default="True", init=False)
 
 
 @dataclass
-class LiteralFalse(Expression[bool], Serialize, with_type="$type"):
-    ...
+class LiteralFalse(Expression[bool], Serialize, ty=Field("$type", str, "False")):
+    ty: str = field(default="False", init=False)
 
 
 @dataclass
-class Havoc(Expression[bool], Serialize, with_type="$type"):
-    ...
+class Havoc(Expression[bool], Serialize, ty=Field("$type", str, "Havoc")):
+    ty: str = field(default="Havoc", init=False)
 
 
 @dataclass
 class Conjunction(
     Expression[bool],
     Serialize,
-    with_type="$type",
     conjuncts=Field("conjuncts", list[Expression[bool]]),
+    ty=Field("$type", str, "And"),
 ):
     conjuncts: list[Expression[bool]]
+    ty: str = field(default="And", init=False)
 
 
 @dataclass
 class ConjunctionChain(
     Expression[bool],
     Serialize,
-    with_type="$type",
     subroutines=Field("subroutines", list[Expression]),
 ):
     """
@@ -202,224 +285,249 @@ class ConjunctionChain(
 class Disjunction(
     Expression[bool],
     Serialize,
-    with_type="$type",
     disjuncts=Field("disjuncts", list[Expression[bool]]),
+    ty=Field("$type", str, "Or"),
 ):
     disjuncts: list[Expression[bool]]
+    ty: str = field(default="Or", init=False)
 
 
 @dataclass
 class Not(
-    Expression[bool], Serialize, with_type="$type", expr=Field("expr", Expression[bool])
+    Expression[bool],
+    Serialize,
+    expr=Field("expr", Expression[bool]),
+    ty=Field("$type", str, "Not"),
 ):
     expr: Expression[bool]
+    ty: str = field(default="Not", init=False)
 
 
 @dataclass
 class LiteralInt(
-    Expression[int], Serialize, with_type="$type", value=Field("value", int)
+    Expression[int], Serialize, value=Field("value", int), ty=Field("$type", str)
 ):
     value: int
+    ty: str = "Int32"
 
 
 @dataclass
 class Add(
     Expression[int],
     Serialize,
-    with_type="$type",
     operand1=Field("operand1", Expression[int]),
     operand2=Field("operand2", Expression[int]),
+    ty=Field("$type", str, "Plus32"),
 ):
     operand1: Expression[int]
     operand2: Expression[int]
+    ty: str = "Plus32"
 
 
 @dataclass
 class Sub(
     Expression[int],
     Serialize,
-    with_type="$type",
     operand1=Field("operand1", Expression[int]),
     operand2=Field("operand2", Expression[int]),
+    ty=Field("$type", str, "Sub32"),
 ):
     operand1: Expression[int]
     operand2: Expression[int]
+    ty: str = "Sub32"
 
 
 @dataclass
 class Equal(
     Expression[bool],
     Serialize,
-    with_type="$type",
     operand1=Field("operand1", Expression[int]),
     operand2=Field("operand2", Expression[int]),
+    ty=Field("$type", str, "Equals32"),
 ):
     operand1: Expression[int]
     operand2: Expression[int]
+    ty: str = "Equals32"
 
 
 @dataclass
 class NotEqual(
     Expression[bool],
     Serialize,
-    with_type="$type",
     operand1=Field("operand1", Expression[int]),
     operand2=Field("operand2", Expression[int]),
+    ty=Field("$type", str, "NotEqual32"),
 ):
     operand1: Expression[int]
     operand2: Expression[int]
+    ty: str = "NotEqual32"
 
 
 @dataclass
 class LessThan(
     Expression[bool],
     Serialize,
-    with_type="$type",
     operand1=Field("operand1", Expression[int]),
     operand2=Field("operand2", Expression[int]),
+    ty=Field("$type", str, "LessThan32"),
 ):
     operand1: Expression[int]
     operand2: Expression[int]
+    ty: str = "LessThan32"
 
 
 @dataclass
 class LessThanEqual(
     Expression[bool],
     Serialize,
-    with_type="$type",
     operand1=Field("operand1", Expression[int]),
     operand2=Field("operand2", Expression[int]),
+    ty=Field("$type", str, "LessThanEqual32"),
 ):
     operand1: Expression[int]
     operand2: Expression[int]
+    ty: str = "LessThanEqual32"
 
 
 @dataclass
 class GreaterThan(
     Expression[bool],
     Serialize,
-    with_type="$type",
     operand1=Field("operand1", Expression[int]),
     operand2=Field("operand2", Expression[int]),
+    ty=Field("$type", str, "GreaterThan32"),
 ):
     operand1: Expression[int]
     operand2: Expression[int]
+    ty: str = "GreaterThan32"
 
 
 @dataclass
 class GreaterThanEqual(
     Expression[bool],
     Serialize,
-    with_type="$type",
     operand1=Field("operand1", Expression[int]),
     operand2=Field("operand2", Expression[int]),
+    ty=Field("$type", str, "GreaterThanEqual32"),
 ):
     operand1: Expression[int]
     operand2: Expression[int]
+    ty: str = "GreaterThanEqual32"
 
 
 @dataclass
-class LiteralString(Expression[str], Serialize, with_type="$type", value="value"):
+class LiteralString(
+    Expression[str], Serialize, value="value", ty=Field("$type", str, "String")
+):
     value: str
+    ty: str = field(default="String", init=False)
 
 
 @dataclass
-class EmptySet(Expression[set], Serialize, with_type="$type"):
-    ...
+class EmptySet(Expression[set], Serialize, ty=Field("$type", str, "Set")):
+    ty: str = field(default="Set", init=False)
 
 
 @dataclass
 class SetAdd(
     Expression[set],
     Serialize,
-    with_type="$type",
     to_add=Field("expr", Expression[str]),
     _set=Field("set", Expression[set]),
+    ty=Field("$type", str, "SetAdd"),
 ):
     to_add: Expression[str]
     _set: Expression[set]
+    ty: str = field(default="SetAdd", init=False)
 
 
 @dataclass
 class SetUnion(
     Expression[set],
     Serialize,
-    with_type="$type",
     sets=Field("sets", list[Expression[set]]),
+    ty=Field("$type", str, "SetUnion"),
 ):
     sets: list[Expression[set]]
+    ty: str = field(default="SetUnion", init=False)
 
 
 @dataclass
 class SetRemove(
     Expression[set],
     Serialize,
-    with_type="$type",
     to_remove=Field("expr", Expression[str]),
     _set=Field("set", Expression[set]),
+    ty=Field("$type", str, "SetRemove"),
 ):
     to_remove: Expression[str]
     _set: Expression[set]
+    ty: str = field(default="SetRemove", init=False)
 
 
 @dataclass
 class SetContains(
     Expression[bool],
     Serialize,
-    with_type="$type",
     search=Field("search", Expression[str]),
     _set=Field("set", Expression[set]),
+    ty=Field("$type", str, "SetContains"),
 ):
     search: Expression[str]
     _set: Expression[set]
+    ty: str = field(default="SetContains", init=False)
 
 
 @dataclass
 class CreateRecord(
     Expression[dict[str, Expression[X]]],
     Serialize,
-    with_type="$type",
     _fields=Field("fields", dict[str, Expression[X]]),
+    ty=Field("$type", str, "CreateRecord"),
 ):
     _fields: dict[str, Expression[X]]
+    ty: str = field(default="CreateRecord", init=False)
 
 
 @dataclass
 class GetField(
     Expression[X],
     Serialize,
-    with_type="$type",
     rec=Field("record", Expression[dict[str, Expression[X]]]),
     field_name=Field("fieldName", str),
+    ty=Field("$type", str, "GetField"),
 ):
     rec: Expression[dict[str, Expression[X]]]
     field_name: str
+    ty: str = "GetField"
 
 
 @dataclass
 class WithField(
     Expression[dict[str, Expression[X]]],
     Serialize,
-    with_type="$type",
     rec=Field("record", Expression[dict[str, Expression[X]]]),
     field_name=Field("fieldName", str),
     field_val=Field("fieldVal", Expression[X]),
+    ty=Field("$type", str, "WithField"),
 ):
     rec: Expression[dict[str, Expression[X]]]
     field_name: str
     field_val: Expression[X]
+    ty: str = "WithField"
 
 
 @dataclass
 class Pair(
     Expression[tuple[A, B]],
     Serialize,
-    with_type="$type",
     first=Field("first", Expression[A]),
     second=Field("second", Expression[B]),
+    ty=Field("$type", str, "Pair"),
 ):
     first: Expression[A]
     second: Expression[B]
+    ty: str = "Pair"
 
 
 @dataclass
@@ -427,10 +535,11 @@ class First(
     Expression[A],
     Generic[A, B],
     Serialize,
-    with_type="$type",
     pair=Field("pair", Expression[tuple[A, B]]),
+    ty=Field("$type", str, "First"),
 ):
     pair: Expression[tuple[A, B]]
+    ty: str = "First"
 
 
 @dataclass
@@ -438,39 +547,43 @@ class Second(
     Expression[B],
     Generic[A, B],
     Serialize,
-    with_type="$type",
     pair=Field("pair", Expression[tuple[A, B]]),
+    ty=Field("$type", str, "Second"),
 ):
     pair: Expression[tuple[A, B]]
+    ty: str = "Second"
 
 
 @dataclass
 class IpAddress(
     Expression[IPv4Address],
     Serialize,
-    with_type="$type",
     ip=Field("ip", IPv4Address),
+    ty=Field("$type", str, "IpAddress"),
 ):
     ip: IPv4Address
+    ty: str = field(default="IpAddress", init=False)
 
 
 @dataclass
 class IpPrefix(
     Expression[IPv4Network],
     Serialize,
-    with_type="$type",
     ip=Field("ip", IPv4Network),
+    ty=Field("$type", str, "IpAddress"),
 ):
     ip: IPv4Network
+    ty: str = field(default="IpPrefix", init=False)
 
 
 @dataclass
 class PrefixContains(
     Expression[bool],
     Serialize,
-    with_type="$type",
     addr=Field("addr", Expression[IPv4Address]),
     prefix=Field("prefix", Expression[IPv4Network]),
+    ty=Field("$type", str, "PrefixContains"),
 ):
     addr: Expression[IPv4Address]
     prefix: Expression[IPv4Network]
+    ty: str = field(default="PrefixContains", init=False)

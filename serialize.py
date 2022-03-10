@@ -13,8 +13,11 @@ from typing import (
 class Field:
     """A field to serialize/deserialize from JSON."""
 
+    # the name used for this field in JSON
     json_name: str
+    # the type of this field
     ty: type
+    # the default to use for this field
     default: Any
 
     def __init__(self, name: str, ty: type = Any, default: Any = None):

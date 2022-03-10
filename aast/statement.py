@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import InitVar, dataclass, field
 from types import NoneType
 from typing import Generic, TypeVar
 from serialize import Serialize, Field
@@ -10,11 +10,11 @@ E = TypeVar("E")
 
 
 class StatementType(Variant):
-    SKIP = "SkipStatement"
-    SEQ = "SeqStatement"
-    IF = "IfStatement"
-    ASSIGN = "AssignStatement"
-    RETURN = "ReturnStatement"
+    SKIP = "Skip"
+    SEQ = "Seq"
+    IF = "If"
+    ASSIGN = "Assign"
+    RETURN = "Return"
 
     def as_class(self) -> type:
         match self:
@@ -37,7 +37,6 @@ class Statement(
     ASTNode,
     Generic[T],
     Serialize,
-    with_type="$type",
     delegate=("$type", StatementType.parse_class),
 ):
     """
@@ -50,12 +49,10 @@ class Statement(
 
 
 @dataclass
-class SkipStatement(
-    Statement[NoneType],
-    Serialize,
-    with_type="$type",
-):
+class SkipStatement(Statement[NoneType], Serialize, ty=Field("$type", str, "Skip")):
     """No-op statement."""
+
+    ty: str = field(default="Skip", init=False)
 
     def returns(self) -> bool:
         return False
@@ -66,14 +63,15 @@ class SeqStatement(
     Statement[T],
     Generic[T],
     Serialize,
-    with_type="$type",
     first=Field("first", Statement[NoneType]),
     second=Field("second", Statement[T]),
+    ty=Field("$type", str, "Seq"),
 ):
     """Two statements in sequence (cf. semi-colon operator in C)."""
 
     first: Statement[NoneType]
     second: Statement[T]
+    ty: InitVar[str] = "Seq"
 
     def returns(self) -> bool:
         return self.second.returns()
@@ -84,11 +82,11 @@ class IfStatement(
     Statement[T],
     Generic[T],
     Serialize,
-    with_type="$type",
     comment="comment",
     guard=Field("guard", expr.Expression[bool]),
     true_stmt=Field("trueStatements", Statement[T]),
     false_stmt=Field("falseStatements", Statement[T]),
+    ty=Field("$type", str, "If"),
 ):
     """If statement allowing branching control flow."""
 
@@ -96,6 +94,7 @@ class IfStatement(
     guard: expr.Expression[bool]
     true_stmt: Statement[T]
     false_stmt: Statement[T]
+    ty: InitVar[str] = "If"
 
     def returns(self) -> bool:
         # NOTE: we can't use type information on what T is here, so this is at best an approximation
@@ -110,14 +109,15 @@ class AssignStatement(
     Statement[NoneType],
     Generic[E],
     Serialize,
-    with_type="$type",
     lhs=Field("lhs", expr.Var),
     rhs=Field("rhs", expr.Expression[E]),
+    ty=Field("$type", str, "Assign"),
 ):
     """Assignment binding an expression to a variable."""
 
     lhs: expr.Var
     rhs: expr.Expression[E]
+    ty: InitVar[str] = "Assign"
 
     def returns(self) -> bool:
         return False
@@ -128,10 +128,11 @@ class ReturnStatement(
     Statement[E],
     Generic[E],
     Serialize,
-    with_type="$type",
     return_value=Field("return_value", expr.Expression[E]),
+    ty=Field("$type", str, "Return"),
 ):
     return_value: expr.Expression[E]
+    ty: InitVar[str] = "Return"
 
     def returns(self) -> bool:
         return True
