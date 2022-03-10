@@ -3,15 +3,18 @@
 Conversion tools to transform Batfish AST terms to Angler AST terms.
 """
 import functools
+import json
 import bast.expression as bexpr
 import bast.statement as bstmt
 import bast.boolexprs as bools
 import bast.communities as bcomms
 import bast.longexprs as longs
 import bast.prefix as prefix
-from bast.btypes import Comparator, Protocol
-import bast.structure as struct
-import bast.json as json
+import bast.acl as bacl
+import bast.vrf as bvrf
+from bast.btypes import Comparator, Protocol, Action
+import bast.structure as bstruct
+import aast.base as abase
 import aast.expression as aexpr
 import aast.statement as astmt
 import aast.program as prog
@@ -222,7 +225,6 @@ def convert_stmts(stmts: list[bstmt.Statement]) -> astmt.Statement:
                 [s for s in l if not isinstance(s, astmt.SkipStatement)],
             )
 
-
 def convert_batfish(bf: json.BatfishJson) -> prog.Program:
     """
     Convert the Batfish JSON object to an Angler program.
@@ -249,7 +251,7 @@ def convert_batfish(bf: json.BatfishJson) -> prog.Program:
     decls = {}
     for decl in bf.declarations:
         match decl.definition.value:
-            case struct.RoutingPolicy(policyname, statements):
+            case bstruct.RoutingPolicy(policyname, statements):
                 body = convert_stmts(statements)
                 decls[policyname] = prog.Func("route", body)
             case _:
@@ -258,3 +260,42 @@ def convert_batfish(bf: json.BatfishJson) -> prog.Program:
                 )
 
     return prog.Program(route={}, nodes=nodes, declarations=decls)
+        
+            
+def convert_structure(b: bstruct.Structure) -> list[abase.ASTNode]:
+    match b:
+        case bstruct.RoutingPolicy(_, statements):
+            return [s for stmt in statements for s in convert_stmt(stmt)]
+        case bacl.RouteFilterList(_, lines):
+            permit_disjuncts = []
+            deny_disjuncts = []
+            prev_conds = []
+            for l in lines:
+                cond = aexpr.PrefixMatches(l.ip_wildcard, l.length_range)
+                
+                not_prev = [aexpr.Not(c) for c in prev_conds]
+        
+                if len(not_prev) > 0:
+                    curr_matches = aexpr.Conjunction(not_prev + [cond])
+                else:
+                    curr_matches = cond
+                
+                if l.action == Action.PERMIT:
+                    permit_disjuncts.append(curr_matches)
+                else:
+                    deny_disjuncts.append(curr_matches)
+                        
+                prev_conds.append(cond)
+            
+            return [aexpr.MatchSet(permit=aexpr.Disjunction(permit_disjuncts), deny=aexpr.Disjunction(deny_disjuncts))]
+            # TODO: What is the default action if no rule matches?
+                
+        case bcomms.HasCommunity:
+            pass        
+        case bacl.Acl(name, srcname, srctype, lines):
+            pass
+        case bvrf.Vrf(name, bgp, ospf, resolution):
+            pass
+        case _:
+            raise NotImplementedError(f"No convert case for {b} found.")
+            
