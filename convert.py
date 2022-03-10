@@ -20,6 +20,12 @@ import aast.program as prog
 ARG = aexpr.Var("route")
 
 
+def accept() -> astmt.ReturnStatement:
+    """Default accept return."""
+    pair = aexpr.Pair(aexpr.LiteralTrue(), ARG)
+    return astmt.ReturnStatement(pair)
+
+
 def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
     """
     Convert the given Batfish AST expression into an Angler AST expression.
@@ -129,12 +135,20 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
         case bstmt.IfStatement(
             comment=comment, guard=guard, true_stmts=t_stmts, false_stmts=f_stmts
         ):
-            # convert the arms of the batfish if into seq statements
+            # convert the arms of the if
+            true_stmt = convert_stmts(t_stmts)
+            false_stmt = convert_stmts(f_stmts)
+            # check that the types coincide: if either true_stmt or false_stmt ends in a return,
+            # the other must as well
+            if true_stmt.returns() and not false_stmt.returns():
+                false_stmt = astmt.SeqStatement(false_stmt, accept())
+            elif not true_stmt.returns() and false_stmt.returns():
+                true_stmt = astmt.SeqStatement(true_stmt, accept())
             return astmt.IfStatement(
                 comment=comment,
                 guard=convert_expr(guard),
-                true_stmts=convert_stmts(t_stmts),
-                false_stmts=convert_stmts(f_stmts),
+                true_stmt=true_stmt,
+                false_stmt=false_stmt,
             )
 
         case bstmt.SetCommunities(comm_set=comms):
