@@ -127,19 +127,19 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
     """
     match b:
         case bstmt.IfStatement(
-            comment=comment, guard=guard, t_stmts=t_stmts, f_stmts=f_stmts
+            comment=comment, guard=guard, true_stmts=t_stmts, false_stmts=f_stmts
         ):
             # convert the arms of the batfish if into seq statements
             return astmt.IfStatement(
-                convert_expr(guard),
-                convert_stmts(t_stmts),
-                convert_stmts(f_stmts),
-                comment,
+                comment=comment,
+                guard=convert_expr(guard),
+                true_stmts=convert_stmts(t_stmts),
+                false_stmts=convert_stmts(f_stmts),
             )
 
-        case bstmt.SetCommunities(comm_set=comm_set):
+        case bstmt.SetCommunities(comm_set=comms):
             return astmt.AssignStatement(
-                ARG, aexpr.WithField(ARG, "communities", convert_expr(comm_set))
+                ARG, aexpr.WithField(ARG, "communities", convert_expr(comms))
             )
 
         case bstmt.SetLocalPreference(lp=lp):
@@ -178,20 +178,23 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
         case bstmt.TraceableStatement(inner=inner):
             return convert_stmts(inner)
         case _:
-            raise NotImplementedError(f"No convert case for {b} found.")
+            raise NotImplementedError(f"No convert_stmt case for statement {b} found.")
 
 
 def convert_stmts(stmts: list[bstmt.Statement]) -> astmt.Statement:
     """Convert a list of Batfish statements into an Angler statement."""
     # use a match to simplify the case where we generate a Seq(Skip, s) element when stmts = [s]
-    match stmts:
+    match [convert_stmt(s) for s in stmts]:
         case []:
             return astmt.SkipStatement()
         case [s]:
-            return convert_stmt(s)
-        case _:
-            # convert each statement, then reduce them all to a sequence
-            return functools.reduce(astmt.SeqStatement, map(convert_stmt, stmts))
+            return s
+        case l:
+            # filter out extra skips and reduce list to nested SeqStatements
+            return functools.reduce(
+                astmt.SeqStatement,
+                [s for s in l if not isinstance(s, astmt.SkipStatement)],
+            )
 
 
 def convert_batfish(bf: json.BatfishJson) -> prog.Program:
@@ -212,7 +215,7 @@ def convert_batfish(bf: json.BatfishJson) -> prog.Program:
                 # TODO: add import/export policy
                 for peer_conf in bf.bgp:
                     if peer_conf.node.nodename == src:
-                        print("foo")
+                        print("matched")
             else:
                 pol[snk] = prog.Policies()
         else:

@@ -51,8 +51,9 @@ class Statement(
 class SkipStatement(
     Statement[NoneType],
     Serialize,
+    with_type="$type",
 ):
-    ...
+    """No-op statement."""
 
 
 @dataclass
@@ -64,6 +65,8 @@ class SeqStatement(
     first=Field("first", Statement[NoneType]),
     second=Field("second", Statement[T]),
 ):
+    """Two statements in sequence (cf. semi-colon operator in C)."""
+
     first: Statement[NoneType]
     second: Statement[T]
 
@@ -74,20 +77,17 @@ class IfStatement(
     Generic[T],
     Serialize,
     with_type="$type",
-    guard=Field("guard", expr.Expression[bool]),
-    true_stmts=Field("trueStatements", Statement[T], []),
-    false_stmts=Field("falseStatements", Statement[T], []),
     comment="comment",
+    guard=Field("guard", expr.Expression[bool]),
+    true_stmts=Field("trueStatements", Statement[T]),
+    false_stmts=Field("falseStatements", Statement[T]),
 ):
-    """
-    An if statement allowing branching control flow.
-    The true and false statements can be left empty.
-    """
+    """If statement allowing branching control flow."""
 
+    comment: str
     guard: expr.Expression[bool]
     true_stmts: Statement[T]
     false_stmts: Statement[T]
-    comment: str
 
 
 @dataclass
@@ -99,6 +99,8 @@ class AssignStatement(
     lhs=Field("lhs", expr.Var),
     rhs=Field("rhs", expr.Expression[E]),
 ):
+    """Assignment binding an expression to a variable."""
+
     lhs: expr.Var
     rhs: expr.Expression[E]
 
