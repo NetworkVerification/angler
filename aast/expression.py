@@ -1,7 +1,7 @@
 """
 """
 from ipaddress import IPv4Address, IPv4Interface, IPv4Network
-from dataclasses import dataclass, field
+from dataclasses import InitVar, dataclass, field
 from typing import Generic, TypeVar, Any
 from serialize import Serialize, Field
 from aast.base import Variant, ASTNode
@@ -245,7 +245,11 @@ class Var(
     Expression[T], Serialize, _name=Field("name", str), ty=Field("$type", str, "Var")
 ):
     _name: str
-    ty: str = "Var"
+    ty: str = field(default="Var", init=False)
+    ty_arg: InitVar[str] = field(default="_", kw_only=True)
+
+    def __post_init__(self, ty_arg: str):
+        self.ty = f"{self.ty}({ty_arg})"
 
 
 @dataclass
@@ -311,10 +315,17 @@ class Not(
 
 @dataclass
 class LiteralInt(
-    Expression[int], Serialize, value=Field("value", int), ty=Field("$type", str)
+    Expression[int],
+    Serialize,
+    value=Field("value", int),
+    ty=Field("$type", str, "Int32"),
 ):
     value: int
-    ty: str = "Int32"
+    ty: str = field(default="Int", init=False)
+    width: InitVar[int] = field(default=32, kw_only=True)
+
+    def __post_init__(self, width: int):
+        self.ty = f"{self.ty}{width}"
 
 
 @dataclass
@@ -327,7 +338,11 @@ class Add(
 ):
     operand1: Expression[int]
     operand2: Expression[int]
-    ty: str = "Plus32"
+    ty: str = field(default="Plus", init=False)
+    width: InitVar[int] = field(default=32, kw_only=True)
+
+    def __post_init__(self, width: int):
+        self.ty = f"{self.ty}{width}"
 
 
 @dataclass
@@ -340,7 +355,11 @@ class Sub(
 ):
     operand1: Expression[int]
     operand2: Expression[int]
-    ty: str = "Sub32"
+    ty: str = field(default="Sub", init=False)
+    width: InitVar[int] = field(default=32, kw_only=True)
+
+    def __post_init__(self, width: int):
+        self.ty = f"{self.ty}{width}"
 
 
 @dataclass
@@ -353,7 +372,11 @@ class Equal(
 ):
     operand1: Expression[int]
     operand2: Expression[int]
-    ty: str = "Equals32"
+    ty: str = field(default="Equals", init=False)
+    width: InitVar[int] = field(default=32, kw_only=True)
+
+    def __post_init__(self, width: int):
+        self.ty = f"{self.ty}{width}"
 
 
 @dataclass
@@ -366,7 +389,11 @@ class NotEqual(
 ):
     operand1: Expression[int]
     operand2: Expression[int]
-    ty: str = "NotEqual32"
+    ty: str = field(default="NotEqual", init=False)
+    width: InitVar[int] = field(default=32, kw_only=True)
+
+    def __post_init__(self, width: int):
+        self.ty = f"{self.ty}{width}"
 
 
 @dataclass
@@ -379,7 +406,11 @@ class LessThan(
 ):
     operand1: Expression[int]
     operand2: Expression[int]
-    ty: str = "LessThan32"
+    ty: str = field(default="LessThan", init=False)
+    width: InitVar[int] = field(default=32, kw_only=True)
+
+    def __post_init__(self, width: int):
+        self.ty = f"{self.ty}{width}"
 
 
 @dataclass
@@ -392,7 +423,11 @@ class LessThanEqual(
 ):
     operand1: Expression[int]
     operand2: Expression[int]
-    ty: str = "LessThanEqual32"
+    ty: str = field(default="LessThanEqual", init=False)
+    width: InitVar[int] = field(default=32, kw_only=True)
+
+    def __post_init__(self, width: int):
+        self.ty = f"{self.ty}{width}"
 
 
 @dataclass
@@ -405,7 +440,11 @@ class GreaterThan(
 ):
     operand1: Expression[int]
     operand2: Expression[int]
-    ty: str = "GreaterThan32"
+    ty: str = field(default="GreaterThan", init=False)
+    width: InitVar[int] = field(default=32, kw_only=True)
+
+    def __post_init__(self, width: int):
+        self.ty = f"{self.ty}{width}"
 
 
 @dataclass
@@ -418,7 +457,11 @@ class GreaterThanEqual(
 ):
     operand1: Expression[int]
     operand2: Expression[int]
-    ty: str = "GreaterThanEqual32"
+    ty: str = field(default="GreaterThanEqual", init=False)
+    width: InitVar[int] = field(default=32, kw_only=True)
+
+    def __post_init__(self, width: int):
+        self.ty = f"{self.ty}{width}"
 
 
 @dataclass
@@ -505,7 +548,11 @@ class GetField(
 ):
     rec: Expression[dict[str, Expression[X]]]
     field_name: str
-    ty: str = "GetField"
+    ty: str = field(default="GetField", init=False)
+    ty_args: InitVar[tuple[str, str]] = field(default=("_", "_"), kw_only=True)
+
+    def __post_init__(self, ty_args: tuple[str, str]):
+        self.ty = f"{self.ty}({ty_args[0]},{ty_args[1]})"
 
 
 @dataclass
@@ -520,7 +567,11 @@ class WithField(
     rec: Expression[dict[str, Expression[X]]]
     field_name: str
     field_val: Expression[X]
-    ty: str = "WithField"
+    ty: str = field(default="WithField", init=False)
+    ty_args: InitVar[tuple[str, str]] = field(default=("_", "_"), kw_only=True)
+
+    def __post_init__(self, ty_args: tuple[str, str]):
+        self.ty = f"{self.ty}({ty_args[0]},{ty_args[1]})"
 
 
 @dataclass
@@ -533,7 +584,11 @@ class Pair(
 ):
     first: Expression[A]
     second: Expression[B]
-    ty: str = "Pair"
+    ty: str = field(default="Pair", init=False)
+    ty_args: InitVar[tuple[str, str]] = field(default=("_", "_"), kw_only=True)
+
+    def __post_init__(self, ty_args: tuple[str, str]):
+        self.ty = f"{self.ty}({ty_args[0]},{ty_args[1]})"
 
 
 @dataclass
@@ -545,7 +600,11 @@ class First(
     ty=Field("$type", str, "First"),
 ):
     pair: Expression[tuple[A, B]]
-    ty: str = "First"
+    ty: str = field(default="First", init=False)
+    ty_args: InitVar[tuple[str, str]] = field(default=("_", "_"), kw_only=True)
+
+    def __post_init__(self, ty_args: tuple[str, str]):
+        self.ty = f"{self.ty}({ty_args[0]},{ty_args[1]})"
 
 
 @dataclass
@@ -557,7 +616,11 @@ class Second(
     ty=Field("$type", str, "Second"),
 ):
     pair: Expression[tuple[A, B]]
-    ty: str = "Second"
+    ty: str = field(default="Second", init=False)
+    ty_args: InitVar[tuple[str, str]] = field(default=("_", "_"), kw_only=True)
+
+    def __post_init__(self, ty_args: tuple[str, str]):
+        self.ty = f"{self.ty}({ty_args[0]},{ty_args[1]})"
 
 
 @dataclass

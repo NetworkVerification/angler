@@ -71,7 +71,11 @@ class SeqStatement(
 
     first: Statement[NoneType]
     second: Statement[T]
-    ty: InitVar[str] = "Seq"
+    ty: str = field(default="Seq", init=False)
+    ty_arg: InitVar[str] = field(default="_", kw_only=True)
+
+    def __post_init__(self, ty_arg: str):
+        self.ty = f"{self.ty}({ty_arg})"
 
     def returns(self) -> bool:
         return self.second.returns()
@@ -94,7 +98,11 @@ class IfStatement(
     guard: expr.Expression[bool]
     true_stmt: Statement[T]
     false_stmt: Statement[T]
-    ty: InitVar[str] = "If"
+    ty: str = field(default="If", init=False)
+    ty_arg: InitVar[str] = field(default="_", kw_only=True)
+
+    def __post_init__(self, ty_arg: str):
+        self.ty = f"{self.ty}({ty_arg})"
 
     def returns(self) -> bool:
         # NOTE: we can't use type information on what T is here, so this is at best an approximation
@@ -117,7 +125,11 @@ class AssignStatement(
 
     lhs: expr.Var
     rhs: expr.Expression[E]
-    ty: InitVar[str] = "Assign"
+    ty: str = field(default="Assign", init=False)
+    ty_arg: InitVar[str] = field(default="_", kw_only=True)
+
+    def __post_init__(self, ty_arg: str):
+        self.ty = f"{self.ty}({ty_arg})"
 
     def returns(self) -> bool:
         return False
@@ -132,7 +144,11 @@ class ReturnStatement(
     ty=Field("$type", str, "Return"),
 ):
     return_value: expr.Expression[E]
-    ty: InitVar[str] = "Return"
+    ty: str = field(default="Return", init=False)
+    ty_arg: InitVar[str] = field(default="_", kw_only=True)
+
+    def __post_init__(self, ty_arg: str):
+        self.ty = f"{self.ty}({ty_arg})"
 
     def returns(self) -> bool:
         return True
