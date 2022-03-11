@@ -10,7 +10,7 @@ import bast.base as ast
 
 
 @dataclass
-class RouteFilter(
+class RouteFilterLine(
     ast.ASTNode,
     Serialize,
     action=Field("action", types.Action),
@@ -22,6 +22,16 @@ class RouteFilter(
     # TODO: parse string into a range
     length_range: str
 
+
+@dataclass
+class RouteFilterList(
+    ast.ASTNode,
+    Serialize,
+    _name="name",
+    lines=Field("lines", list[RouteFilterLine])
+):
+    _name: str
+    lines: list[RouteFilterLine]
 
 @dataclass
 class AclLine(

@@ -1,8 +1,8 @@
 """
 """
-from ipaddress import IPv4Address, IPv4Network
+from ipaddress import IPv4Address, IPv4Interface, IPv4Network
 from dataclasses import dataclass, field
-from typing import Any, Generic, TypeVar
+from typing import Generic, TypeVar, Any
 from serialize import Serialize, Field
 from aast.base import Variant, ASTNode
 
@@ -53,6 +53,8 @@ class ExprType(Variant):
     IP_ADDRESS = "IpAddress"  # string e.g. 10.0.1.0
     IP_PREFIX = "IpPrefix"  # tuple (ipaddress, prefix width)
     PREFIX_CONTAINS = "PrefixContains"
+    MATCH_SET = "MatchSet"
+    MATCH = "Match"
 
     def as_class(self) -> type:
         match self:
@@ -126,6 +128,10 @@ class ExprType(Variant):
                 return IpPrefix
             case ExprType.PREFIX_CONTAINS:
                 return PrefixContains
+            case ExprType.MATCH_SET:
+                return MatchSet
+            case ExprType.MATCH:
+                return Match
             case _:
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
@@ -587,3 +593,33 @@ class PrefixContains(
     addr: Expression[IPv4Address]
     prefix: Expression[IPv4Network]
     ty: str = field(default="PrefixContains", init=False)
+
+@dataclass
+class PrefixMatches(
+    Expression[bool],
+    Serialize,
+    ip_wildcard = Field("ip_wildcard", IPv4Interface),
+    prefix_length_range = "prefix_length_range",
+):
+    ip_wildcard: IPv4Interface
+    prefix_length_range: str
+
+@dataclass
+class MatchSet(
+    Expression[bool],
+    Serialize,
+    permit = Field("permit", Expression[bool]),
+    deny = Field("deny", Expression[bool])
+):
+    permit: Expression[bool]
+    deny: Expression[bool]
+
+@dataclass
+class Match(
+    Expression[bool],
+    Serialize,
+    match_key = Field("match_key", Expression),
+    match_set = Field("match_set", MatchSet)
+):
+    match_key: Expression
+    match_set: MatchSet
