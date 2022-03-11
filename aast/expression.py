@@ -594,32 +594,39 @@ class PrefixContains(
     prefix: Expression[IPv4Network]
     ty: str = field(default="PrefixContains", init=False)
 
+
 @dataclass
 class PrefixMatches(
     Expression[bool],
     Serialize,
-    ip_wildcard = Field("ip_wildcard", IPv4Interface),
-    prefix_length_range = "prefix_length_range",
+    ip_wildcard=Field("ip_wildcard", IPv4Interface),
+    prefix_length_range="prefix_length_range",
+    ty=Field("$type", str, "PrefixMatches"),
 ):
     ip_wildcard: IPv4Interface
     prefix_length_range: str
+    ty: str = field(default="PrefixMatches", init=False)
+
 
 @dataclass
 class MatchSet(
     Expression[bool],
     Serialize,
-    permit = Field("permit", Expression[bool]),
-    deny = Field("deny", Expression[bool])
+    permit=Field("permit", Expression[bool]),
+    deny=Field("deny", Expression[bool]),
+    ty=Field("$type", str, "MatchSet"),
 ):
     permit: Expression[bool]
     deny: Expression[bool]
+    ty: str = field(default="MatchSet", init=False)
+
 
 @dataclass
 class Match(
     Expression[bool],
     Serialize,
-    match_key = Field("match_key", Expression),
-    match_set = Field("match_set", MatchSet)
+    match_key=Field("match_key", Expression),
+    match_set=Field("match_set", MatchSet),
 ):
     match_key: Expression
     match_set: MatchSet

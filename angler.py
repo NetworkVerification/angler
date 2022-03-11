@@ -1,14 +1,17 @@
 #!/usr/bin/env python3
 # Export Batfish JSON snapshots
 
+from ipaddress import IPv4Address, IPv4Interface, IPv4Network
 import json
 import os
 import sys
+from typing import Any
 from pybatfish.client.session import Session
 import bast.json
 from pathlib import Path
 
 from convert import convert_batfish
+from serialize import Serialize
 
 
 def initialize_session(snapshot_dir: str) -> Session:
@@ -23,10 +26,19 @@ def initialize_session(snapshot_dir: str) -> Session:
     return bf
 
 
-def save_json(output: dict, path: Path | str):
+class AstEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, IPv4Network | IPv4Address | IPv4Interface):
+            return str(obj)
+        elif isinstance(obj, Serialize):
+            return obj.to_dict()
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self, obj)
+
+
+def save_json(output: Any, path: Path | str):
     with open(path, "w") as jsonout:
-        json_text = json.dumps(output, sort_keys=True, indent=2)
-        jsonout.write(json_text)
+        json.dump(output, jsonout, cls=AstEncoder, sort_keys=True, indent=2)
 
 
 USAGE = f"""
@@ -62,12 +74,11 @@ if __name__ == "__main__":
                 output = json.load(fp)
             bf_ast = bast.json.BatfishJson.from_dict(output)
             a_ast = convert_batfish(bf_ast)
-            output = a_ast.to_dict()
             if len(tl) == 0:
                 in_path = Path(p)
                 out_path = in_path.with_stem(f"{in_path.stem}.angler")
             else:
                 out_path = tl[0]
-            save_json(output, out_path)
+            save_json(a_ast, out_path)
         case _:
             print(USAGE)

@@ -110,7 +110,7 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
         case prefix.DestinationNetwork():
             return aexpr.GetField(ARG, "prefix", ty="GetField(Route,IpAddress)")
         case prefix.NamedPrefixSet(_name):
-            return aexpr.Var(_name, ty="Var(IpPrefix)")
+            return aexpr.Var(_name, ty="Var(PrefixSet)")
         case bools.MatchPrefixSet(_prefix, _prefixes):
             return aexpr.PrefixContains(convert_expr(_prefix), convert_expr(_prefixes))
         case bools.MatchTag(cmp, tag):
@@ -251,9 +251,20 @@ def convert_batfish(bf: json.BatfishJson) -> prog.Program:
                 pol[snk] = prog.Policies()
         else:
             nodes[src] = prog.Properties()
-    decls = dict(*[convert_structure(s) for s in bf.declarations])
+    decls = {}
+    consts = {}
+    for s in bf.declarations:
+        k, v = convert_structure(s)
+        match v:
+            case prog.Func():
+                decls[k] = v
+            case aexpr.Expression():
+                consts[k] = v
+            case _:
+                # skip for now
+                pass
 
-    return prog.Program(route={}, nodes=nodes, declarations=decls)
+    return prog.Program(route={}, nodes=nodes, declarations=decls, consts=consts)
 
 
 def convert_structure(b: bstruct.Structure) -> tuple[str, Any]:
