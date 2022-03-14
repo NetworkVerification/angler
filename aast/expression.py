@@ -142,10 +142,13 @@ class Expression(
     Generic[T],
     Serialize,
     delegate=("$type", ExprType.parse_class),
+    ty=Field("$type", str, "Expression"),
 ):
     """
     The base class for expressions.
     """
+
+    ty: str = field(default="Expression", init=False)
 
 
 def from_class(e: Expression) -> ExprType:
@@ -552,7 +555,7 @@ class GetField(
     ty_args: InitVar[tuple[str, str]] = field(default=("_", "_"), kw_only=True)
 
     def __post_init__(self, ty_args: tuple[str, str]):
-        self.ty = f"{self.ty}({ty_args[0]},{ty_args[1]})"
+        self.ty = f"{self.ty}({ty_args[0]};{ty_args[1]})"
 
 
 @dataclass
@@ -571,7 +574,7 @@ class WithField(
     ty_args: InitVar[tuple[str, str]] = field(default=("_", "_"), kw_only=True)
 
     def __post_init__(self, ty_args: tuple[str, str]):
-        self.ty = f"{self.ty}({ty_args[0]},{ty_args[1]})"
+        self.ty = f"{self.ty}({ty_args[0]};{ty_args[1]})"
 
 
 @dataclass
@@ -588,7 +591,7 @@ class Pair(
     ty_args: InitVar[tuple[str, str]] = field(default=("_", "_"), kw_only=True)
 
     def __post_init__(self, ty_args: tuple[str, str]):
-        self.ty = f"{self.ty}({ty_args[0]},{ty_args[1]})"
+        self.ty = f"{self.ty}({ty_args[0]};{ty_args[1]})"
 
 
 @dataclass
@@ -604,7 +607,7 @@ class First(
     ty_args: InitVar[tuple[str, str]] = field(default=("_", "_"), kw_only=True)
 
     def __post_init__(self, ty_args: tuple[str, str]):
-        self.ty = f"{self.ty}({ty_args[0]},{ty_args[1]})"
+        self.ty = f"{self.ty}({ty_args[0]};{ty_args[1]})"
 
 
 @dataclass
@@ -620,7 +623,7 @@ class Second(
     ty_args: InitVar[tuple[str, str]] = field(default=("_", "_"), kw_only=True)
 
     def __post_init__(self, ty_args: tuple[str, str]):
-        self.ty = f"{self.ty}({ty_args[0]},{ty_args[1]})"
+        self.ty = f"{self.ty}({ty_args[0]};{ty_args[1]})"
 
 
 @dataclass

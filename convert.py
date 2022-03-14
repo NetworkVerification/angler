@@ -92,9 +92,11 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             return aexpr.SetContains(cvar, convert_expr(_comms))
         case bcomms.InputCommunities():
             return aexpr.GetField(ARG, "communities", ty_args=(ARG.ty, "Set"))
-        case bcomms.CommunitySetReference(_name) | bcomms.CommunityMatchExprReference(
+        case bcomms.CommunitySetReference(_name):
+            return aexpr.Var(_name, ty_arg="Set")
+        case bcomms.CommunitySetMatchExprReference(
             _name
-        ) | bcomms.CommunitySetMatchExprReference(_name):
+        ) | bcomms.CommunityMatchExprReference(_name):
             return aexpr.Var(_name)
         case longs.LiteralLong(value):
             return aexpr.LiteralInt(value)
@@ -223,14 +225,18 @@ def convert_stmts(stmts: list[bstmt.Statement]) -> astmt.Statement:
     match [convert_stmt(s) for s in stmts]:
         case []:
             return astmt.SkipStatement()
-        case [s]:
-            return s
-        case l:
+        case [hd, *tl]:
             # filter out extra skips and reduce list to nested SeqStatements
-            return functools.reduce(
-                astmt.SeqStatement,
-                [s for s in l if not isinstance(s, astmt.SkipStatement)],
-            )
+            for s in tl:
+                if not isinstance(s, astmt.SkipStatement):
+                    hd = astmt.SeqStatement(hd, s, ty_arg=s.ty)
+            return hd
+            # return functools.reduce(
+            #     astmt.SeqStatement,
+            #     [s for s in l if not isinstance(s, astmt.SkipStatement)],
+            # )
+        case _:
+            raise Exception("unreachable")
 
 
 def convert_batfish(bf: json.BatfishJson) -> prog.Program:
@@ -308,10 +314,15 @@ def convert_structure(b: bstruct.Structure) -> tuple[str, Any]:
             # TODO: What is the default action if no rule matches?
 
         case bcomms.HasCommunity(e):
-            return b.struct_name, convert_expr(e)
+            return b.struct_name, None
         case bacl.Acl(name, srcname, srctype, lines):
+            # TODO
             return name, None
         case bvrf.Vrf(name, bgp, ospf, resolution):
+            # TODO
+            return name, None
+        case bacl.Route6FilterList(_name=name):
+            # TODO
             return name, None
         case _:
             raise NotImplementedError(f"No convert case for {b} found.")

@@ -38,10 +38,13 @@ class Statement(
     Generic[T],
     Serialize,
     delegate=("$type", StatementType.parse_class),
+    ty=Field("$type", str, "Statement"),
 ):
     """
     The base class for statements.
     """
+
+    ty: str = field(default="Statement", init=False)
 
     def returns(self) -> bool:
         """Return True if this statement returns, and False otherwise."""

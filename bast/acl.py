@@ -2,8 +2,8 @@
 """
 Expressions for filtering routes and using access lists in Batfish.
 """
-from ipaddress import IPv4Interface
-from dataclasses import dataclass
+from ipaddress import IPv4Interface, IPv6Interface
+from dataclasses import dataclass, field
 from serialize import Serialize, Field
 import bast.btypes as types
 import bast.base as ast
@@ -24,14 +24,40 @@ class RouteFilterLine(
 
 
 @dataclass
+class Route6FilterLine(
+    ast.ASTNode,
+    Serialize,
+    action=Field("action", types.Action),
+    ip_wildcard=Field("ipWildcard", IPv6Interface),
+    length_range="lengthRange",
+):
+    action: types.Action
+    ip_wildcard: IPv6Interface
+    # TODO: parse string into a range
+    length_range: str
+
+
+@dataclass
 class RouteFilterList(
     ast.ASTNode,
     Serialize,
     _name="name",
-    lines=Field("lines", list[RouteFilterLine])
+    lines=Field("lines", list[RouteFilterLine], []),
 ):
     _name: str
-    lines: list[RouteFilterLine]
+    lines: list[RouteFilterLine] = field(default_factory=list)
+
+
+@dataclass
+class Route6FilterList(
+    ast.ASTNode,
+    Serialize,
+    _name="name",
+    lines=Field("lines", list[Route6FilterLine], []),
+):
+    _name: str
+    lines: list[Route6FilterLine] = field(default_factory=list)
+
 
 @dataclass
 class AclLine(
