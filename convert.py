@@ -2,8 +2,7 @@
 """
 Conversion tools to transform Batfish AST terms to Angler AST terms.
 """
-import functools
-from typing import Any, Optional
+from typing import Any
 import bast.json as json
 import bast.expression as bexpr
 import bast.statement as bstmt
@@ -17,10 +16,19 @@ from bast.btypes import Comparator, Protocol, Action
 import bast.structure as bstruct
 import aast.expression as aexpr
 import aast.statement as astmt
+import aast.types as atys
 import aast.program as prog
 
 # the argument to the transfer
 ARG = aexpr.Var("route", ty_arg="Route")
+
+FIELDS = {
+    "prefix": atys.TypeAnnotation.IP_ADDRESS,
+    "lp": atys.TypeAnnotation.INT32,
+    "metric": atys.TypeAnnotation.INT32,
+    "communities": atys.TypeAnnotation.SET,
+    "tag": atys.TypeAnnotation.INT32,
+}
 
 
 def accept() -> astmt.ReturnStatement:
@@ -244,20 +252,20 @@ def convert_batfish(bf: json.BatfishJson) -> prog.Program:
     Convert the Batfish JSON object to an Angler program.
     """
     edges = bf.topology
-    nodes = {}
+    nodes: dict[str, prog.Properties] = {}
     for edge in edges:
         # get the names of the hosts
         src = edge.iface.host
-        src_ips = edge.ips
+        # src_ips = edge.ips
         snk = edge.remote_iface.host
-        snk_ips = edge.remote_ips
+        # snk_ips = edge.remote_ips
         if src in nodes:
             pol = nodes[src].policies
             if snk in pol:
-                # TODO: add import/export policy
                 for peer_conf in bf.bgp:
                     if peer_conf.node.nodename == src:
-                        print("matched")
+                        pol[snk].imp.extend(peer_conf.import_policy)
+                        pol[snk].exp.extend(peer_conf.export_policy)
             else:
                 pol[snk] = prog.Policies()
         else:
@@ -275,7 +283,7 @@ def convert_batfish(bf: json.BatfishJson) -> prog.Program:
                 # skip for now
                 pass
 
-    return prog.Program(route={}, nodes=nodes, declarations=decls, consts=consts)
+    return prog.Program(route=FIELDS, nodes=nodes, declarations=decls, consts=consts)
 
 
 def convert_structure(b: bstruct.Structure) -> tuple[str, Any]:
