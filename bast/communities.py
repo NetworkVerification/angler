@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from serialize import Serialize, Field
 import bast.base as ast
 import bast.expression as expr
-
+import bast.btypes as types
 
 class CommunitySetExprType(ast.Variant):
     INPUT_COMMUNITIES = "InputCommunities"  # variable
@@ -34,6 +34,7 @@ class CommunitySetExprType(ast.Variant):
 class CommunityMatchExprType(ast.Variant):
     COMMUNITY_MATCH_REF = "CommunityMatchExprReference"
     COMMUNITY_IS = "CommunityIs"
+    HAS_COMMUNITY = "HasCommunity"
     COMMUNITY_MATCH_REGEX = "CommunityMatchRegex"
     ALL_STANDARD = "AllStandardCommunities"
 
@@ -43,6 +44,8 @@ class CommunityMatchExprType(ast.Variant):
                 return CommunityMatchExprReference
             case CommunityMatchExprType.COMMUNITY_IS:
                 return CommunityIs
+            case CommunityMatchExprType.HAS_COMMUNITY:
+                return HasCommunity
             case CommunityMatchExprType.COMMUNITY_MATCH_REGEX:
                 return CommunityMatchRegex
             case CommunityMatchExprType.ALL_STANDARD:
@@ -52,10 +55,13 @@ class CommunityMatchExprType(ast.Variant):
 
 
 class CommunitySetMatchExprType(ast.Variant):
+    COMMUNITIES_MATCH_ALL = "CommunitySetMatchAll"
     COMMUNITIES_MATCH_REF = "CommunitySetMatchExprReference"
 
     def as_class(self) -> type:
         match self:
+            case CommunitySetMatchExprType.COMMUNITIES_MATCH_ALL:
+                return CommunitySetMatchAll
             case CommunitySetMatchExprType.COMMUNITIES_MATCH_REF:
                 return CommunitySetMatchExprReference
             case _:
@@ -158,7 +164,7 @@ class CommunityIs(CommunityMatchExpr, Serialize, community="community"):
 
 @dataclass
 class HasCommunity(
-    CommunitySetMatchExpr, Serialize, expr=Field("expr", CommunityMatchExpr)
+    CommunityMatchExpr, Serialize, expr=Field("expr", CommunityMatchExpr)
 ):
     """Match a community set iff it has a community that is matched by expr."""
 
@@ -190,6 +196,10 @@ class CommunitySetReference(CommunitySetExpr, Serialize, _name="name"):
 
 
 @dataclass
+class CommunitySetMatchAll(CommunitySetMatchExpr, Serialize, match_list=Field("exprs", list[CommunityMatchExpr])):
+    match_list: list[CommunityMatchExpr]
+
+@dataclass
 class CommunitySetMatchExprReference(CommunitySetMatchExpr, Serialize, _name="name"):
     _name: str
 
@@ -197,3 +207,23 @@ class CommunitySetMatchExprReference(CommunitySetMatchExpr, Serialize, _name="na
 @dataclass
 class CommunityMatchExprReference(CommunityMatchExpr, Serialize, _name="name"):
     _name: str
+
+
+
+@dataclass
+class CommunityListLine(
+    ast.ASTNode,
+    Serialize,
+    action=Field("action", types.Action),
+    matchExpr=Field("communitySetMatchExpr", CommunitySetMatchExpr)
+):
+    action: types.Action
+    matchExpr: CommunitySetMatchExpr
+
+@dataclass
+class CommunityList(
+    ast.ASTNode,
+    Serialize,
+    lines=Field("lines", list[CommunityListLine])
+):
+    lines: list[CommunityListLine]

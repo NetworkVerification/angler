@@ -32,7 +32,7 @@ class StructureDef(ast.ASTNode, Serialize, value=Field("value", dict)):
     TODO: perhaps we can flatten this?
     """
 
-    value: vrf.Vrf | acl.RouteFilterList | acl.Route6FilterList | RoutingPolicy | acl.Acl
+    value: vrf.Vrf | acl.RouteFilterList | RoutingPolicy | acl.Acl | comms.CommunityList
 
 
 class StructureType(ast.Variant):
@@ -46,7 +46,8 @@ class StructureType(ast.Variant):
     def as_class(self) -> type:
         match self:
             case StructureType.COMMS_MATCH:
-                return comms.HasCommunity
+                # return comms.HasCommunity
+                return comms.CommunityList
             case StructureType.IP_ACCESS_LIST:
                 return acl.Acl
             case StructureType.ROUTE_FILTER_LIST:

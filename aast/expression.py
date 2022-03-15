@@ -673,6 +673,16 @@ class PrefixMatches(
     prefix_length_range: str
     ty: str = field(default="PrefixMatches", init=False)
 
+@dataclass
+class CommunityMatches(
+    Expression[bool],
+    Serialize,
+    community=Field("community", LiteralString),
+    ty=Field("$type", str, "CommunityMatches")
+):
+    community: LiteralString
+    ty: str = field(default="CommunityMatches", init=False)
+
 
 @dataclass
 class MatchSet(

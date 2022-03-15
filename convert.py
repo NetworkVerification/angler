@@ -289,9 +289,11 @@ def convert_batfish(bf: json.BatfishJson) -> prog.Program:
 def convert_structure(b: bstruct.Structure) -> tuple[str, Any]:
     match b.definition.value:
         case bstruct.RoutingPolicy(policyname=name, statements=stmts):
+            print(f"Routing policy {b.struct_name}")
             body = convert_stmts(stmts)
             return name, prog.Func("route", body)
         case bacl.RouteFilterList(_name=name, lines=lines):
+            print(f"Route filter list {b.struct_name}")
             permit_disjuncts = []
             deny_disjuncts = []
             prev_conds = []
@@ -321,8 +323,49 @@ def convert_structure(b: bstruct.Structure) -> tuple[str, Any]:
 
             # TODO: What is the default action if no rule matches?
 
-        case bcomms.HasCommunity(e):
-            return b.struct_name, None
+        case bcomms.CommunityList(lines=lines):
+            print(f"Community list {b.struct_name}")
+            permit_disjuncts = []
+            deny_disjuncts = []
+            prev_conds = []
+            for l in lines:
+                match_expr = l.matchExpr
+                match match_expr:
+                    case bcomms.CommunitySetMatchAll(match_list):
+                        assert(len(match_list) == 1) # TODO generalize
+                        cond = None
+                        match match_list[0]:
+                            case bcomms.HasCommunity(e):
+                                cond = aexpr.CommunityMatches(convert_expr(e))
+                            case _:
+                                raise NotImplementedError(f"No convert case for {match_list[0]} found")
+                        
+                        not_prev: list[aexpr.Expression[bool]] = [
+                            aexpr.Not(c) for c in prev_conds
+                        ]
+
+                        if len(not_prev) > 0:
+                            curr_matches = aexpr.Conjunction(not_prev + [cond])
+                        else:
+                            curr_matches = cond
+
+                        if l.action == Action.PERMIT:
+                            permit_disjuncts.append(curr_matches)
+                        else:
+                            deny_disjuncts.append(curr_matches)
+
+                        prev_conds.append(cond)
+                    case _:
+                        raise NotImplementedError(f"No convert case for {match_expr} found")
+
+            return b.struct_name, aexpr.MatchSet(
+                permit=aexpr.Disjunction(permit_disjuncts),
+                deny=aexpr.Disjunction(deny_disjuncts),
+            )
+
+        # case bcomms.HasCommunity(e):
+        #     print(f"HasCommunity {b}")
+        #     return b.struct_name, convert_expr(e)
         case bacl.Acl(name, srcname, srctype, lines):
             # TODO
             return name, None
