@@ -7,6 +7,7 @@ import os
 import sys
 from typing import Any
 from pybatfish.client.session import Session
+from aast.types import TypeAnnotation
 import bast.json
 from pathlib import Path
 
@@ -32,6 +33,8 @@ class AstEncoder(json.JSONEncoder):
             return str(obj)
         elif isinstance(obj, Serialize):
             return obj.to_dict()
+        elif isinstance(obj, TypeAnnotation):
+            return obj.value
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self, obj)
 

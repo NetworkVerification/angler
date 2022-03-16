@@ -57,20 +57,22 @@ class Properties(
 @dataclass
 class Program(
     Serialize,
-    route="route",
-    nodes="nodes",
-    consts="consts",
-    declarations="declarations",
-    ghost="ghost",
-    assertions="assertions",
-    symbolics="symbolics",
-    invariants="invariants",
+    route="Route",
+    nodes="Nodes",
+    consts="Consts",
+    declarations="Declarations",
+    ghost="Ghost",
+    assertions="Assertions",
+    symbolics="Symbolics",
+    temporal_invariants="TemporalInvariants",
 ):
     route: dict[str, ty.TypeAnnotation]
     nodes: dict[str, Properties]
     consts: dict[str, expr.Expression] = field(default_factory=dict)
     declarations: dict[str, Func] = field(default_factory=dict)
-    ghost: Optional[dict] = None
+    ghost: Optional[dict[str, ty.TypeAnnotation]] = None
+    # safety properties P(v, t)
     assertions: dict[str, Predicate] = field(default_factory=dict)
     symbolics: dict[str, Predicate] = field(default_factory=dict)
-    invariants: dict[str, Predicate] = field(default_factory=dict)
+    # temporal invariants A(v, t)
+    temporal_invariants: dict[str, Predicate] = field(default_factory=dict)
