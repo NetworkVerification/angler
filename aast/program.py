@@ -52,7 +52,7 @@ class Properties(
     assertions="Assertions",
     invariant="TemporalInvariant",
 ):
-    prefixes: list[IPv4Network] = field(default_factory=list)
+    prefixes: set[IPv4Network] = field(default_factory=set)
     policies: dict[str, Policies] = field(default_factory=dict)
     consts: dict[str, expr.Expression] = field(default_factory=dict)
     declarations: dict[str, Func] = field(default_factory=dict)

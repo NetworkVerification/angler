@@ -32,14 +32,29 @@ def initialize_session(snapshot_dir: str, diagnostics: bool = False) -> Session:
 
 class AstEncoder(json.JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, IPv4Network | IPv4Address | IPv4Interface):
-            return str(obj)
-        elif isinstance(obj, Serialize):
-            return obj.to_dict()
-        elif isinstance(obj, TypeAnnotation):
-            return obj.value
-        # Let the base class default method raise the TypeError
-        return json.JSONEncoder.default(self, obj)
+        match obj:
+            case set():
+                return list(obj)
+            case IPv4Address():
+                return {
+                    "Begin": str(obj),
+                    "End": str(obj),
+                }
+            case IPv4Interface():
+                # drop down to the IPv4Address case
+                return obj.ip
+            case IPv4Network():
+                return {
+                    "Begin": str(obj[0]),
+                    "End": str(obj[-1]),
+                }
+            case Serialize():
+                return obj.to_dict()
+            case TypeAnnotation():
+                return obj.value
+            case _:
+                # Let the base class default method raise the TypeError
+                return json.JSONEncoder.default(self, obj)
 
 
 def save_json(output: Any, path: Path | str):

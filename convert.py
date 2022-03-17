@@ -328,23 +328,28 @@ def convert_batfish(bf: json.BatfishJson) -> prog.Program:
     """
     edges = bf.topology
     nodes: dict[str, prog.Properties] = {}
+    # assign all the edges
     for edge in edges:
-        # get the names of the hosts
         src = edge.iface.host
-        # src_ips = edge.ips
+        src_ips = edge.ips
         snk = edge.remote_iface.host
-        # snk_ips = edge.remote_ips
+        snk_ips = edge.remote_ips
         if src in nodes:
-            pol = nodes[src].policies
-            if snk in pol:
-                for peer_conf in bf.bgp:
-                    if peer_conf.node.nodename == src:
-                        pol[snk].imp.extend(peer_conf.import_policy)
-                        pol[snk].exp.extend(peer_conf.export_policy)
-            else:
-                pol[snk] = prog.Policies()
+            nodes[src].policies[snk] = prog.Policies()
+            nodes[src].prefixes.update(map(IPv4Network, src_ips))
         else:
             nodes[src] = prog.Properties()
+        if snk in nodes:
+            nodes[snk].prefixes.update(map(IPv4Network, snk_ips))
+        else:
+            nodes[snk] = prog.Properties()
+    # add import and export policies
+    for peer_conf in bf.bgp:
+        node = peer_conf.node.nodename
+        for (nbr, pol) in nodes[node].policies.items():
+            if peer_conf.remote_ip.value in nodes[nbr].prefixes:
+                pol.exp.extend(peer_conf.export_policy)
+                pol.imp.extend(peer_conf.import_policy)
     for s in bf.declarations:
         n, k, v = convert_structure(s)
         match v:
@@ -353,7 +358,7 @@ def convert_batfish(bf: json.BatfishJson) -> prog.Program:
             case aexpr.Expression():
                 nodes[n].consts[k] = v
             case IPv4Address():
-                nodes[n].prefixes.append(IPv4Network((v, 24)))
+                nodes[n].prefixes.add(IPv4Network((v, 24)))
             case None:
                 pass
 
