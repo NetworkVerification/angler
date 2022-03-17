@@ -13,14 +13,16 @@ class TypeAnnotation(Enum):
     """
 
     UNKNOWN = "_"
-    BOOL = "Bool"
-    INT32 = "Int32"
-    INT2 = "Int2"
-    STRING = "String"
-    IP_ADDRESS = "IpAddress"
-    SET = "Set"
-    PAIR = "Pair"
-    ROUTE = "Route"
+    UNIT = "TUnit"
+    BOOL = "TBool"
+    INT32 = "TInt32"
+    INT2 = "TInt2"
+    STRING = "TString"
+    IP_ADDRESS = "TIpAddress"
+    PREFIX_SET = "TPrefixSet"
+    SET = "TSet"
+    PAIR = "TPair"
+    ROUTE = "TRoute"
 
 
 def annotate(cls: type, tys: list[TypeAnnotation]) -> str:

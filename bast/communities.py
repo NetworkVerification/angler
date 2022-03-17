@@ -34,6 +34,7 @@ class CommunitySetExprType(ast.Variant):
 class CommunityMatchExprType(ast.Variant):
     COMMUNITY_MATCH_REF = "CommunityMatchExprReference"
     COMMUNITY_IS = "CommunityIs"
+    HAS_COMMUNITY = "HasCommunity"
     COMMUNITY_MATCH_REGEX = "CommunityMatchRegex"
     ALL_STANDARD = "AllStandardCommunities"
 
@@ -43,6 +44,8 @@ class CommunityMatchExprType(ast.Variant):
                 return CommunityMatchExprReference
             case CommunityMatchExprType.COMMUNITY_IS:
                 return CommunityIs
+            case CommunityMatchExprType.HAS_COMMUNITY:
+                return HasCommunity
             case CommunityMatchExprType.COMMUNITY_MATCH_REGEX:
                 return CommunityMatchRegex
             case CommunityMatchExprType.ALL_STANDARD:
@@ -158,7 +161,7 @@ class CommunityIs(CommunityMatchExpr, Serialize, community="community"):
 
 @dataclass
 class HasCommunity(
-    CommunitySetMatchExpr, Serialize, expr=Field("expr", CommunityMatchExpr)
+    CommunityMatchExpr, Serialize, expr=Field("expr", CommunityMatchExpr)
 ):
     """Match a community set iff it has a community that is matched by expr."""
 

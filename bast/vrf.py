@@ -3,7 +3,7 @@
 VRFs in the Batfish AST.
 """
 from typing import Optional
-from ipaddress import IPv4Address
+from ipaddress import IPv4Address, IPv4Interface
 from dataclasses import dataclass
 from serialize import Serialize, Field
 import bast.base as ast
@@ -16,19 +16,23 @@ class BgpActivePeerConfig(
     default_metric=Field("defaultMetric", int),
     local_as=Field("localAs", int),
     local_ip=Field("localIp", IPv4Address),
+    remote_as=Field('remoteAs', int),
+    peer_ip = Field("peerIp", IPv4Address)
 ):
     default_metric: int
     local_as: int
     local_ip: IPv4Address
+    remote_as: int
+    peer_ip: IPv4Address
 
 
 @dataclass
 class BgpProcess(
     ast.ASTNode,
     Serialize,
-    neighbors=Field("neighbors", dict[IPv4Address, BgpActivePeerConfig]),
+    neighbors=Field("neighbors", dict[IPv4Interface, BgpActivePeerConfig]),
 ):
-    neighbors: dict[IPv4Address, BgpActivePeerConfig]
+    neighbors: dict[IPv4Interface, BgpActivePeerConfig]
 
 
 @dataclass

@@ -3,6 +3,7 @@ from types import NoneType
 from typing import Generic, TypeVar
 from serialize import Serialize, Field
 from aast.base import Variant, ASTNode
+from aast.types import TypeAnnotation
 import aast.expression as expr
 
 T = TypeVar("T")
@@ -75,10 +76,12 @@ class SeqStatement(
     first: Statement[NoneType]
     second: Statement[T]
     ty: str = field(default="Seq", init=False)
-    ty_arg: InitVar[str] = field(default="_", kw_only=True)
+    ty_arg: InitVar[TypeAnnotation] = field(
+        default=TypeAnnotation.UNKNOWN, kw_only=True
+    )
 
-    def __post_init__(self, ty_arg: str):
-        self.ty = f"{self.ty}({ty_arg})"
+    def __post_init__(self, ty_arg: TypeAnnotation):
+        self.ty = f"{self.ty}({ty_arg.value})"
 
     def returns(self) -> bool:
         return self.second.returns()
@@ -102,10 +105,12 @@ class IfStatement(
     true_stmt: Statement[T]
     false_stmt: Statement[T]
     ty: str = field(default="If", init=False)
-    ty_arg: InitVar[str] = field(default="_", kw_only=True)
+    ty_arg: InitVar[TypeAnnotation] = field(
+        default=TypeAnnotation.UNKNOWN, kw_only=True
+    )
 
-    def __post_init__(self, ty_arg: str):
-        self.ty = f"{self.ty}({ty_arg})"
+    def __post_init__(self, ty_arg: TypeAnnotation):
+        self.ty = f"{self.ty}({ty_arg.value})"
 
     def returns(self) -> bool:
         # NOTE: we can't use type information on what T is here, so this is at best an approximation
@@ -129,10 +134,12 @@ class AssignStatement(
     lhs: expr.Var
     rhs: expr.Expression[E]
     ty: str = field(default="Assign", init=False)
-    ty_arg: InitVar[str] = field(default="_", kw_only=True)
+    ty_arg: InitVar[TypeAnnotation] = field(
+        default=TypeAnnotation.UNKNOWN, kw_only=True
+    )
 
-    def __post_init__(self, ty_arg: str):
-        self.ty = f"{self.ty}({ty_arg})"
+    def __post_init__(self, ty_arg: TypeAnnotation):
+        self.ty = f"{self.ty}({ty_arg.value})"
 
     def returns(self) -> bool:
         return False
@@ -148,10 +155,12 @@ class ReturnStatement(
 ):
     return_value: expr.Expression[E]
     ty: str = field(default="Return", init=False)
-    ty_arg: InitVar[str] = field(default="_", kw_only=True)
+    ty_arg: InitVar[TypeAnnotation] = field(
+        default=TypeAnnotation.UNKNOWN, kw_only=True
+    )
 
-    def __post_init__(self, ty_arg: str):
-        self.ty = f"{self.ty}({ty_arg})"
+    def __post_init__(self, ty_arg: TypeAnnotation):
+        self.ty = f"{self.ty}({ty_arg.value})"
 
     def returns(self) -> bool:
         return True

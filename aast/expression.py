@@ -5,6 +5,7 @@ from dataclasses import InitVar, dataclass, field
 from typing import Generic, TypeVar, Any
 from serialize import Serialize, Field
 from aast.base import Variant, ASTNode
+from aast.types import TypeAnnotation
 
 T = TypeVar("T")
 X = TypeVar("X")
@@ -249,10 +250,12 @@ class Var(
 ):
     _name: str
     ty: str = field(default="Var", init=False)
-    ty_arg: InitVar[str] = field(default="_", kw_only=True)
+    ty_arg: InitVar[TypeAnnotation] = field(
+        default=TypeAnnotation.UNKNOWN, kw_only=True
+    )
 
-    def __post_init__(self, ty_arg: str):
-        self.ty = f"{self.ty}({ty_arg})"
+    def __post_init__(self, ty_arg: TypeAnnotation):
+        self.ty = f"{self.ty}({ty_arg.value})"
 
 
 @dataclass
@@ -552,10 +555,12 @@ class GetField(
     rec: Expression[dict[str, Expression[X]]]
     field_name: str
     ty: str = field(default="GetField", init=False)
-    ty_args: InitVar[tuple[str, str]] = field(default=("_", "_"), kw_only=True)
+    ty_args: InitVar[tuple[TypeAnnotation, TypeAnnotation]] = field(
+        default=(TypeAnnotation.UNKNOWN, TypeAnnotation.UNKNOWN), kw_only=True
+    )
 
-    def __post_init__(self, ty_args: tuple[str, str]):
-        self.ty = f"{self.ty}({ty_args[0]};{ty_args[1]})"
+    def __post_init__(self, ty_args: tuple[TypeAnnotation, TypeAnnotation]):
+        self.ty = f"{self.ty}({ty_args[0].value};{ty_args[1].value})"
 
 
 @dataclass
@@ -571,10 +576,12 @@ class WithField(
     field_name: str
     field_val: Expression[X]
     ty: str = field(default="WithField", init=False)
-    ty_args: InitVar[tuple[str, str]] = field(default=("_", "_"), kw_only=True)
+    ty_args: InitVar[tuple[TypeAnnotation, TypeAnnotation]] = field(
+        default=(TypeAnnotation.UNKNOWN, TypeAnnotation.UNKNOWN), kw_only=True
+    )
 
-    def __post_init__(self, ty_args: tuple[str, str]):
-        self.ty = f"{self.ty}({ty_args[0]};{ty_args[1]})"
+    def __post_init__(self, ty_args: tuple[TypeAnnotation, TypeAnnotation]):
+        self.ty = f"{self.ty}({ty_args[0].value};{ty_args[1].value})"
 
 
 @dataclass
@@ -588,10 +595,12 @@ class Pair(
     first: Expression[A]
     second: Expression[B]
     ty: str = field(default="Pair", init=False)
-    ty_args: InitVar[tuple[str, str]] = field(default=("_", "_"), kw_only=True)
+    ty_args: InitVar[tuple[TypeAnnotation, TypeAnnotation]] = field(
+        default=(TypeAnnotation.UNKNOWN, TypeAnnotation.UNKNOWN), kw_only=True
+    )
 
-    def __post_init__(self, ty_args: tuple[str, str]):
-        self.ty = f"{self.ty}({ty_args[0]};{ty_args[1]})"
+    def __post_init__(self, ty_args: tuple[TypeAnnotation, TypeAnnotation]):
+        self.ty = f"{self.ty}({ty_args[0].value};{ty_args[1].value})"
 
 
 @dataclass
@@ -604,10 +613,12 @@ class First(
 ):
     pair: Expression[tuple[A, B]]
     ty: str = field(default="First", init=False)
-    ty_args: InitVar[tuple[str, str]] = field(default=("_", "_"), kw_only=True)
+    ty_args: InitVar[tuple[TypeAnnotation, TypeAnnotation]] = field(
+        default=(TypeAnnotation.UNKNOWN, TypeAnnotation.UNKNOWN), kw_only=True
+    )
 
-    def __post_init__(self, ty_args: tuple[str, str]):
-        self.ty = f"{self.ty}({ty_args[0]};{ty_args[1]})"
+    def __post_init__(self, ty_args: tuple[TypeAnnotation, TypeAnnotation]):
+        self.ty = f"{self.ty}({ty_args[0].value};{ty_args[1].value})"
 
 
 @dataclass
@@ -620,10 +631,12 @@ class Second(
 ):
     pair: Expression[tuple[A, B]]
     ty: str = field(default="Second", init=False)
-    ty_args: InitVar[tuple[str, str]] = field(default=("_", "_"), kw_only=True)
+    ty_args: InitVar[tuple[TypeAnnotation, TypeAnnotation]] = field(
+        default=(TypeAnnotation.UNKNOWN, TypeAnnotation.UNKNOWN), kw_only=True
+    )
 
-    def __post_init__(self, ty_args: tuple[str, str]):
-        self.ty = f"{self.ty}({ty_args[0]};{ty_args[1]})"
+    def __post_init__(self, ty_args: tuple[TypeAnnotation, TypeAnnotation]):
+        self.ty = f"{self.ty}({ty_args[0].value};{ty_args[1].value})"
 
 
 @dataclass
@@ -672,6 +685,17 @@ class PrefixMatches(
     ip_wildcard: IPv4Interface
     prefix_length_range: str
     ty: str = field(default="PrefixMatches", init=False)
+
+
+@dataclass
+class CommunityMatches(
+    Expression[bool],
+    Serialize,
+    community=Field("community", LiteralString),
+    ty=Field("$type", str, "CommunityMatches"),
+):
+    community: LiteralString
+    ty: str = field(default="CommunityMatches", init=False)
 
 
 @dataclass
