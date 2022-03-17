@@ -25,6 +25,9 @@ def query_session(session: session.Session) -> dict[str, list[dict]]:
     structures = collect_rows(session.q.namedStructures().answer())
     bgp_peers = collect_rows(session.q.bgpPeerConfiguration().answer())
     issues = collect_rows(session.q.initIssues().answer())
+    # TODO: include static and connected routes
+    # static_routes = collect_rows(session.q.routes(protocols="static").answer())
+    # connected_routes = collect_rows(session.q.routes(protocols="connected").answer())
     return {
         "topology": topology,
         "policy": policy,

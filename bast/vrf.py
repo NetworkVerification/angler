@@ -16,8 +16,8 @@ class BgpActivePeerConfig(
     default_metric=Field("defaultMetric", int),
     local_as=Field("localAs", int),
     local_ip=Field("localIp", IPv4Address),
-    remote_as=Field('remoteAs', int),
-    peer_ip = Field("peerIp", IPv4Address)
+    remote_as=Field("remoteAsns", int),
+    peer_ip=Field("peerAddress", IPv4Address),
 ):
     default_metric: int
     local_as: int
@@ -31,8 +31,10 @@ class BgpProcess(
     ast.ASTNode,
     Serialize,
     neighbors=Field("neighbors", dict[IPv4Interface, BgpActivePeerConfig]),
+    router=Field("routerId", IPv4Address),
 ):
     neighbors: dict[IPv4Interface, BgpActivePeerConfig]
+    router: IPv4Address
 
 
 @dataclass

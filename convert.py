@@ -2,7 +2,8 @@
 """
 Conversion tools to transform Batfish AST terms to Angler AST terms.
 """
-from typing import Any, TypeVar
+from ipaddress import IPv4Address, IPv4Network
+from typing import TypeVar
 import bast.json as json
 import bast.expression as bexpr
 import bast.statement as bstmt
@@ -344,30 +345,35 @@ def convert_batfish(bf: json.BatfishJson) -> prog.Program:
                 pol[snk] = prog.Policies()
         else:
             nodes[src] = prog.Properties()
-    decls = {}
-    consts = {}
     for s in bf.declarations:
-        k, v = convert_structure(s)
+        n, k, v = convert_structure(s)
         match v:
             case prog.Func():
-                decls[k] = v
+                nodes[n].declarations[k] = v
             case aexpr.Expression():
-                consts[k] = v
-            case _:
-                # skip for now
+                nodes[n].consts[k] = v
+            case IPv4Address():
+                nodes[n].prefixes.append(IPv4Network((v, 24)))
+            case None:
                 pass
 
-    return prog.Program(route=FIELDS, nodes=nodes, declarations=decls, consts=consts)
+    return prog.Program(route=FIELDS, nodes=nodes)
 
 
-def convert_structure(b: bstruct.Structure) -> tuple[str, Any]:
+def convert_structure(
+    b: bstruct.Structure,
+) -> tuple[str, str, prog.Func | aexpr.Expression | IPv4Address | None]:
+    node_name = b.node.nodename
+    struct_name: str = b.struct_name
+    value = None
     match b.definition.value:
         case bstruct.RoutingPolicy(policyname=name, statements=stmts):
             print(f"Routing policy {b.struct_name}")
             # convert the statements and then add a bind check to capture
             # the semantics of potentially dropping the route
             body = bind_stmt(convert_stmts(stmts))
-            return name, prog.Func(ARG._name, body)
+            struct_name = name
+            value = prog.Func(ARG._name, body)
         case bacl.RouteFilterList(_name=name, lines=lines):
             print(f"Route filter list {b.struct_name}")
             permit_disjuncts = []
@@ -392,7 +398,8 @@ def convert_structure(b: bstruct.Structure) -> tuple[str, Any]:
 
                 prev_conds.append(cond)
 
-            return name, aexpr.MatchSet(
+            struct_name = name
+            value = aexpr.MatchSet(
                 permit=aexpr.Disjunction(permit_disjuncts),
                 deny=aexpr.Disjunction(deny_disjuncts),
             )
@@ -401,15 +408,15 @@ def convert_structure(b: bstruct.Structure) -> tuple[str, Any]:
 
         case bcomms.HasCommunity(e):
             print(f"HasCommunity {b.struct_name}")
-            return b.struct_name, convert_expr(e)
-        case bacl.Acl(name, srcname, srctype, lines):
+            value = convert_expr(e)
+        case bacl.Acl(name=name):
             # TODO
-            return name, None
-        case bvrf.Vrf(name, bgp, ospf, resolution):
-            # TODO
-            return name, None
+            struct_name = name
+        case bvrf.Vrf(vrfname="default", bgp=bgp) if bgp is not None:
+            value = bgp.router
         case bacl.Route6FilterList(_name=name):
             # TODO
-            return name, None
+            struct_name = name
         case _:
             raise NotImplementedError(f"No convert case for {b} found.")
+    return node_name, struct_name, value

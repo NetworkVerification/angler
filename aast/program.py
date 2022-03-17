@@ -44,10 +44,18 @@ class Policies(Serialize, imp="import", exp="export"):
 
 @dataclass
 class Properties(
-    Serialize, prefixes="prefixes", policies="policies", assertions="assertions"
+    Serialize,
+    prefixes="Prefixes",
+    policies="Policies",
+    consts="Consts",
+    declarations="Declarations",
+    assertions="Assertions",
+    invariant="TemporalInvariant",
 ):
     prefixes: list[IPv4Network] = field(default_factory=list)
     policies: dict[str, Policies] = field(default_factory=dict)
+    consts: dict[str, expr.Expression] = field(default_factory=dict)
+    declarations: dict[str, Func] = field(default_factory=dict)
     # asserts over a route
     assertions: list[str] = field(default_factory=list)
     # assert over a route and a time
@@ -59,8 +67,6 @@ class Program(
     Serialize,
     route="Route",
     nodes="Nodes",
-    consts="Consts",
-    declarations="Declarations",
     ghost="Ghost",
     assertions="Assertions",
     symbolics="Symbolics",
@@ -68,8 +74,6 @@ class Program(
 ):
     route: dict[str, ty.TypeAnnotation]
     nodes: dict[str, Properties]
-    consts: dict[str, expr.Expression] = field(default_factory=dict)
-    declarations: dict[str, Func] = field(default_factory=dict)
     ghost: Optional[dict[str, ty.TypeAnnotation]] = None
     # safety properties P(v, t)
     assertions: dict[str, Predicate] = field(default_factory=dict)
