@@ -4,7 +4,9 @@ Conversion tools to transform Batfish AST terms to Angler AST terms.
 """
 from ipaddress import IPv4Address, IPv4Network
 from typing import TypeVar
+import igraph
 import bast.json as json
+import bast.topology as topology
 import bast.expression as bexpr
 import bast.statement as bstmt
 import bast.boolexprs as bools
@@ -324,30 +326,24 @@ def convert_batfish(bf: json.BatfishJson) -> prog.Program:
     """
     Convert the Batfish JSON object to an Angler program.
     """
-    edges = bf.topology
+    # generate a graph of the topology
+    g = topology.edges_to_graph(bf.topology)
     nodes: dict[str, prog.Properties] = {}
-    # assign all the edges
-    for edge in edges:
-        src = edge.iface.host
-        src_ips = edge.ips
-        snk = edge.remote_iface.host
-        snk_ips = edge.remote_ips
-        if src in nodes:
-            nodes[src].policies[snk] = prog.Policies()
-            nodes[src].prefixes.update(map(IPv4Network, src_ips))
-        else:
-            nodes[src] = prog.Properties()
-        if snk in nodes:
-            nodes[snk].prefixes.update(map(IPv4Network, snk_ips))
-        else:
-            nodes[snk] = prog.Properties()
-    # add import and export policies
+    # add import and export policies from the BGP peer configs
     for peer_conf in bf.bgp:
-        node = peer_conf.node.nodename
-        for (nbr, pol) in nodes[node].policies.items():
-            if peer_conf.remote_ip.value in nodes[nbr].prefixes:
-                pol.exp.extend(peer_conf.export_policy)
-                pol.imp.extend(peer_conf.import_policy)
+        pol = prog.Policies(imp=peer_conf.import_policy, exp=peer_conf.export_policy)
+        # look up the node in g
+        name = peer_conf.node.nodename
+        node: igraph.Vertex = g.vs.find(name)
+        if name not in nodes:
+            nodes[name] = prog.Properties()
+        # look up the neighbor of node whose edge has the associated remote IP
+        edge: igraph.Edge = g.es[g.incident(node)].find(
+            lambda e: peer_conf.remote_ip.value in e["ips"][1]
+        )
+        nbr = g.vs[edge.target]["name"]
+        nodes[name].policies[nbr] = pol
+    # add constants, declarations and prefixes for each of the nodes
     for s in bf.declarations:
         n, k, v = convert_structure(s)
         match v:

@@ -2,6 +2,7 @@
 """
 Topology information in the Batfish AST.
 """
+import igraph
 from dataclasses import dataclass
 from serialize import Serialize, Field
 from ipaddress import IPv4Address
@@ -39,3 +40,34 @@ class Edge(
     ips: list[IPv4Address]
     remote_iface: Interface
     remote_ips: list[IPv4Address]
+
+
+def edges_to_graph(edges: list[Edge]) -> igraph.Graph:
+    """
+    Return a directed graph constructed from a list of Edges.
+    Each vertex has an associated name (the hostname),
+    and each edge has a list of IP addresses associated with its endpoints.
+    """
+    hosts = dict()
+    edge_ips = []
+    i = 0
+    igraph_edges = []
+    for edge in edges:
+        src = edge.iface.host
+        snk = edge.remote_iface.host
+        if src not in hosts:
+            hosts[src] = i
+            i += 1
+        if snk not in hosts:
+            hosts[snk] = i
+            i += 1
+        igraph_edges.append((hosts[src], hosts[snk]))
+        edge_ips.append((edge.ips, edge.remote_ips))
+    # sort the hosts by the index and then return the host names in order
+    host_names = [h for h, _ in sorted(hosts.items(), key=lambda x: x[1])]
+    return igraph.Graph(
+        edges=igraph_edges,
+        directed=True,
+        vertex_attrs={"name": host_names},
+        edge_attrs={"ips": edge_ips},
+    )
