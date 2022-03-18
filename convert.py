@@ -272,21 +272,19 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
 
 def convert_stmts(stmts: list[bstmt.Statement]) -> astmt.Statement:
     """Convert a list of Batfish statements into an Angler statement."""
-    # use a match to simplify the case where we generate a Seq(Skip, s) element when stmts = [s]
-    match [convert_stmt(s) for s in stmts]:
+    match stmts:
         case []:
             return astmt.SkipStatement()
         case [hd, *tl]:
-            # filter out extra skips and reduce list to nested SeqStatements
-            for s in tl:
-                if not isinstance(s, astmt.SkipStatement):
-                    # TODO: re-add type annotations
-                    hd = astmt.SeqStatement(hd, s)
-            return hd
-            # return functools.reduce(
-            #     astmt.SeqStatement,
-            #     [s for s in l if not isinstance(s, astmt.SkipStatement)],
-            # )
+            hd1 = convert_stmt(hd)
+            tl1 = convert_stmts(tl)
+            if isinstance(hd1, astmt.SkipStatement):
+                return tl1
+            elif isinstance(tl1, astmt.SkipStatement):
+                return hd1
+            else:
+                # all non-skip statements set a type arg, so this should work
+                return astmt.SeqStatement(hd1, tl1, ty_arg=tl1.ty_arg)
         case _:
             raise Exception("unreachable")
 
