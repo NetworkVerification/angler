@@ -6,6 +6,7 @@ from typing import Optional
 import aast.expression as expr
 import aast.statement as stmt
 import aast.types as ty
+import aast.temporal as temp
 
 from serialize import Serialize
 
@@ -49,17 +50,16 @@ class Properties(
     policies="Policies",
     consts="Consts",
     declarations="Declarations",
-    assertions="Assertions",
-    invariant="TemporalInvariant",
+    stable="Stable",
+    temporal="Temporal",
 ):
     prefixes: set[IPv4Network] = field(default_factory=set)
     policies: dict[str, Policies] = field(default_factory=dict)
     consts: dict[str, expr.Expression] = field(default_factory=dict)
     declarations: dict[str, Func] = field(default_factory=dict)
     # asserts over a route
-    assertions: list[str] = field(default_factory=list)
-    # assert over a route and a time
-    invariant: Optional[str] = None
+    stable: list[str] = field(default_factory=list)
+    temporal: Optional[temp.TemporalOp] = None
 
 
 @dataclass
@@ -68,15 +68,11 @@ class Program(
     route="Route",
     nodes="Nodes",
     ghost="Ghost",
-    assertions="Assertions",
+    predicates="Predicates",
     symbolics="Symbolics",
-    temporal_invariants="TemporalInvariants",
 ):
     route: dict[str, ty.TypeAnnotation]
     nodes: dict[str, Properties]
     ghost: Optional[dict[str, ty.TypeAnnotation]] = None
-    # safety properties P(v, t)
-    assertions: dict[str, Predicate] = field(default_factory=dict)
+    predicates: dict[str, Predicate] = field(default_factory=dict)
     symbolics: dict[str, Predicate] = field(default_factory=dict)
-    # temporal invariants A(v, t)
-    temporal_invariants: dict[str, Predicate] = field(default_factory=dict)

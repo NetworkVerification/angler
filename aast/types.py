@@ -21,8 +21,8 @@ class TypeAnnotation(Enum):
     IP_ADDRESS = "TIpAddress"
     PREFIX_SET = "TPrefixSet"
     SET = "TSet"
-    PAIR = "TPair"
     ROUTE = "TRoute"
+    PAIR = "TPair(TBool,TRoute)"
 
 
 def annotate(cls: type, tys: list[TypeAnnotation]) -> str:
