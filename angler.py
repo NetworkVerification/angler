@@ -12,6 +12,7 @@ import bast.json
 from pathlib import Path
 
 from convert import convert_batfish
+from query import QueryType
 from serialize import Serialize
 
 
@@ -36,10 +37,11 @@ class AstEncoder(json.JSONEncoder):
             case set():
                 return list(obj)
             case IPv4Address():
-                return {
-                    "Begin": str(obj),
-                    "End": str(obj),
-                }
+                return str(obj)
+                # return {
+                #     "Begin": str(obj),
+                #     "End": str(obj),
+                # }
             case IPv4Interface():
                 # drop down to the IPv4Address case
                 return obj.ip
@@ -99,12 +101,19 @@ if __name__ == "__main__":
             with open(p) as fp:
                 output = json.load(fp)
             bf_ast = bast.json.BatfishJson.from_dict(output)
-            a_ast = convert_batfish(bf_ast)
-            if len(tl) == 0:
-                in_path = Path(p)
-                out_path = in_path.with_stem(f"{in_path.stem}.angler")
-            else:
-                out_path = tl[0]
+            match tl:
+                case []:
+                    in_path = Path(p)
+                    out_path = in_path.with_stem(f"{in_path.stem}.angler")
+                    query = None
+                case ["-q", q, address, *tl]:
+                    in_path = Path(p)
+                    out_path = in_path.with_stem(f"{in_path.stem}.angler")
+                    query = QueryType(q).to_query(IPv4Address(address), "-t" in tl)
+                case _:
+                    out_path = tl[0]
+                    query = None
+            a_ast = convert_batfish(bf_ast, query)
             save_json(a_ast, out_path)
         case _:
             print(USAGE)
