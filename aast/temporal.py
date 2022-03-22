@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # Representation of temporal predicates in Angler AST.
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from aast.base import Variant
-from serialize import Serialize
+from serialize import Field, Serialize
 
 
 class TemporalOpType(Variant):
@@ -31,18 +31,30 @@ class TemporalOp(
 
 
 @dataclass
-class Finally(TemporalOp, Serialize, time="time", then="then"):
+class Finally(
+    TemporalOp, Serialize, time="time", then="then", ty=Field("$type", str, "Finally")
+):
     time: int
     then: str
+    ty: str = field(default="Finally", init=False)
 
 
 @dataclass
-class Until(TemporalOp, Serialize, time="time", before="before", after="after"):
+class Until(
+    TemporalOp,
+    Serialize,
+    time="time",
+    before="before",
+    after="after",
+    ty=Field("$type", str, "Until"),
+):
     time: int
     before: str
     after: str
+    ty: str = field(default="Until", init=False)
 
 
 @dataclass
-class Globally(TemporalOp, Serialize, p="p"):
+class Globally(TemporalOp, Serialize, p="p", ty=Field("$type", str, "Globally")):
     p: str
+    ty: str = field(default="Globally", init=False)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from dataclasses import dataclass, field
-from ipaddress import IPv4Network
+from ipaddress import IPv4Address, IPv4Network
 from typing import Optional
 import aast.expression as expr
 import aast.statement as stmt
@@ -9,6 +9,11 @@ import aast.types as ty
 import aast.temporal as temp
 
 from serialize import Serialize
+
+
+@dataclass
+class Dest(Serialize, address="address"):
+    address: IPv4Address
 
 
 @dataclass
@@ -70,9 +75,11 @@ class Program(
     ghost="Ghost",
     predicates="Predicates",
     symbolics="Symbolics",
+    destination="Destination",
 ):
     route: dict[str, ty.TypeAnnotation]
     nodes: dict[str, Properties]
     ghost: Optional[dict[str, ty.TypeAnnotation]] = None
     predicates: dict[str, Predicate] = field(default_factory=dict)
     symbolics: dict[str, Predicate] = field(default_factory=dict)
+    destination: Optional[Dest] = None

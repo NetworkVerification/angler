@@ -3,7 +3,7 @@
 Conversion tools to transform Batfish AST terms to Angler AST terms.
 """
 from ipaddress import IPv4Address, IPv4Network
-from typing import TypeVar
+from typing import Optional, TypeVar
 import igraph
 import bast.json as json
 import bast.topology as topology
@@ -21,6 +21,8 @@ import aast.expression as aexpr
 import aast.statement as astmt
 import aast.types as atys
 import aast.program as prog
+import aast.temporal as temp
+from query import Query
 
 ARG = aexpr.Var("pair", ty_arg=atys.TypeAnnotation.PAIR)
 # the route record passed through the transfer
@@ -322,7 +324,9 @@ def bind_stmt(body: astmt.Statement[tuple[bool, T]]) -> astmt.Statement[tuple[bo
     )
 
 
-def convert_batfish(bf: json.BatfishJson) -> prog.Program:
+def convert_batfish(
+    bf: json.BatfishJson, query: Optional[Query] = None
+) -> prog.Program:
     """
     Convert the Batfish JSON object to an Angler program.
     """
@@ -355,8 +359,40 @@ def convert_batfish(bf: json.BatfishJson) -> prog.Program:
                 nodes[n].prefixes.add(IPv4Network((v, 24)))
             case None:
                 pass
+    destination = None
+    predicates = {}
+    ghost = None
+    symbolics = {}
+    if query:
+        # determine the destination for routing
+        destination = query.dest
+        if query.dest and query.with_time:
+            src = None
+            for n, p in nodes.items():
+                if any([query.dest.address in prefix for prefix in p.prefixes]):
+                    src = n
+            # compute shortest paths
+            distances = g.shortest_paths(source=src, mode="all")[0]
+            for i, d in enumerate(distances):
+                # FIXME: change from hard-coded predicate
+                if d == 0:
+                    t = temp.Globally("isValid")
+                else:
+                    t = temp.Finally(d, "isValid")
+                nodes[g.vs[i]["name"]].temporal = t
+        # add all query predicates
+        predicates = query.predicates
+        for node, props in nodes.items():
+            props.stable.extend(query.predicates.keys())
 
-    return prog.Program(route=FIELDS, nodes=nodes)
+    return prog.Program(
+        route=FIELDS,
+        nodes=nodes,
+        ghost=ghost,
+        predicates=predicates,
+        symbolics=symbolics,
+        destination=destination,
+    )
 
 
 def convert_structure(
