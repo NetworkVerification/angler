@@ -53,7 +53,7 @@ class Properties(
     Serialize,
     prefixes="Prefixes",
     policies="Policies",
-    consts="Consts",
+    consts="Constants",
     declarations="Declarations",
     stable="Stable",
     temporal="Temporal",
@@ -63,7 +63,7 @@ class Properties(
     consts: dict[str, expr.Expression] = field(default_factory=dict)
     declarations: dict[str, Func] = field(default_factory=dict)
     # asserts over a route
-    stable: list[str] = field(default_factory=list)
+    stable: Optional[str] = None
     temporal: Optional[temp.TemporalOp] = None
 
 
@@ -76,6 +76,7 @@ class Program(
     predicates="Predicates",
     symbolics="Symbolics",
     destination="Destination",
+    converge_time="ConvergeTime",
 ):
     route: dict[str, ty.TypeAnnotation]
     nodes: dict[str, Properties]
@@ -83,3 +84,4 @@ class Program(
     predicates: dict[str, Predicate] = field(default_factory=dict)
     symbolics: dict[str, Predicate] = field(default_factory=dict)
     destination: Optional[Dest] = None
+    converge_time: Optional[int] = None

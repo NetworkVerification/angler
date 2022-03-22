@@ -363,7 +363,18 @@ def convert_batfish(
     predicates = {}
     ghost = None
     symbolics = {}
+    converge_time = None
     if query:
+        # add all query predicates
+        if isinstance(query.predicates, dict):
+            for node, p in query.predicates.items():
+                predicate_name = f"pred-{node}"
+                nodes[node].stable = predicate_name
+                predicates[predicate_name] = p
+        else:
+            predicates = {"pred": query.predicates}
+            for props in nodes.values():
+                props.stable = "pred"
         # determine the destination for routing
         destination = query.dest
         if query.dest and query.with_time:
@@ -373,17 +384,16 @@ def convert_batfish(
                     src = n
             # compute shortest paths
             distances = g.shortest_paths(source=src, mode="all")[0]
+            converge_time = max(distances)
             for i, d in enumerate(distances):
-                # FIXME: change from hard-coded predicate
-                if d == 0:
-                    t = temp.Globally("isValid")
-                else:
-                    t = temp.Finally(d, "isValid")
-                nodes[g.vs[i]["name"]].temporal = t
-        # add all query predicates
-        predicates = query.predicates
-        for node, props in nodes.items():
-            props.stable.extend(query.predicates.keys())
+                name = g.vs[i]["name"]
+                pred = nodes[name].stable
+                if pred is not None:
+                    if d == 0:
+                        t = temp.Globally(pred)
+                    else:
+                        t = temp.Finally(d, pred)
+                    nodes[name].temporal = t
 
     return prog.Program(
         route=FIELDS,
@@ -392,6 +402,7 @@ def convert_batfish(
         predicates=predicates,
         symbolics=symbolics,
         destination=destination,
+        converge_time=converge_time,
     )
 
 
