@@ -22,7 +22,7 @@ class TypeAnnotation(Enum):
     PREFIX_SET = "TPrefixSet"
     SET = "TSet"
     ROUTE = "TRoute"
-    PAIR = "TPair(TBool,TRoute)"
+    PAIR = "TPair(TBool;TRoute)"
 
 
 def annotate(cls: type, tys: list[TypeAnnotation]) -> str:
