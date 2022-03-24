@@ -366,15 +366,14 @@ def convert_batfish(
     converge_time = None
     if query:
         # add all query predicates
-        if isinstance(query.predicates, dict):
-            for node, p in query.predicates.items():
-                predicate_name = f"pred-{node}"
-                nodes[node].stable = predicate_name
-                predicates[predicate_name] = p
+        predicates = query.predicates
+        if isinstance(query.safety_checks, dict):
+            for node, pred_name in query.safety_checks.items():
+                nodes[node].stable = pred_name
         else:
-            predicates = {"pred": query.predicates}
-            for props in nodes.values():
-                props.stable = "pred"
+            for node in nodes.keys():
+                nodes[node].stable = query.safety_checks
+
         # determine the destination for routing
         destination = query.dest
         if query.dest and query.with_time:
@@ -392,7 +391,7 @@ def convert_batfish(
                     if d == 0:
                         t = temp.Globally(pred)
                     else:
-                        t = temp.Finally(d, pred)
+                        t = query.with_time(d)
                     nodes[name].temporal = t
 
     return prog.Program(

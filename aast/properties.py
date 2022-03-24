@@ -40,3 +40,11 @@ def isValidTags(*comms: str) -> prog.Predicate:
     for comm in comms:
         conjuncts.append(e.Not(e.SetContains(e.LiteralString(comm), get_comms)))
     return prog.Predicate(arg=arg._name, expr=e.Conjunction(conjuncts))
+
+
+def hasInternalRoute() -> prog.Predicate:
+    raise NotImplementedError()
+
+
+def hasExternalRoute() -> prog.Predicate:
+    raise NotImplementedError()

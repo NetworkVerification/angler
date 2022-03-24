@@ -4,10 +4,11 @@
 from dataclasses import dataclass
 from enum import Enum
 from ipaddress import IPv4Address
-from typing import Optional
+from typing import Callable, Optional
 import aast.program as prog
 import aast.types as ty
 import aast.properties as prop
+import aast.temporal as temp
 
 
 @dataclass
@@ -17,11 +18,12 @@ class Query:
     """
 
     dest: Optional[prog.Dest]
-    # map from nodes to predicates or a single predicate for all nodes
-    predicates: dict[str, prog.Predicate] | prog.Predicate
+    predicates: dict[str, prog.Predicate]
     symbolics: dict[str, prog.Predicate]
     ghost: Optional[dict[str, ty.TypeAnnotation]]
-    with_time: bool
+    # either a map from nodes to predicate names or a predicate name used by all nodes
+    safety_checks: dict[str, str] | str
+    with_time: Optional[Callable[[int], temp.TemporalOp]]
 
 
 class QueryType(Enum):
@@ -33,13 +35,44 @@ class QueryType(Enum):
         match self:
             case QueryType.SP:
                 return reachable(address, with_time)
+            case QueryType.FAT:
+                return vf_reachable(address, with_time)
             case _:
                 raise NotImplementedError("Query not yet implemented")
 
 
-def reachable(address: IPv4Address, with_time: bool) -> Query:
+def vf_reachable(address: IPv4Address, with_time: bool) -> Query:
     dest = prog.Dest(address)
-    predicates = prop.isValid()
+    predicates = {
+        "isValidTags": prop.isValidTags(),
+        "isNull": prop.isNull(),
+    }
     symbolics = {}
     ghost = None
-    return Query(dest, predicates, symbolics, ghost, with_time)
+    temporal_op = None
+    if with_time:
+        temporal_op = lambda x: temp.Until(x, "isNull", "isValidTags")
+    return Query(dest, predicates, symbolics, ghost, "isValidTags", temporal_op)
+
+
+def reachable(address: IPv4Address, with_time: bool) -> Query:
+    dest = prog.Dest(address)
+    predicates = {"isValid": prop.isValid()}
+    symbolics = {}
+    ghost = None
+    temporal_op = None
+    if with_time:
+        temporal_op = lambda x: temp.Finally(x, "isValid")
+    return Query(dest, predicates, symbolics, ghost, "isValid", temporal_op)
+
+
+def hijack_safe(address: IPv4Address, with_time: bool) -> Query:
+    dest = prog.Dest(address)
+    predicates = {"hasInternalRoute": prop.hasInternalRoute()}
+    # add a hijack route variable which is marked as an external route
+    symbolics = {"hijack": prop.hasExternalRoute()}
+    ghost = {"external": ty.TypeAnnotation.BOOL}
+    temporal_op = None
+    if with_time:
+        temporal_op = lambda x: temp.Finally(x, "hasInternalRoute")
+    return Query(dest, predicates, symbolics, ghost, "hasInternalRoute", temporal_op)
