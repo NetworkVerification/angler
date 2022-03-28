@@ -83,24 +83,21 @@ if __name__ == "__main__":
         case [p, *tl] if os.path.isdir(p):
             bf = initialize_session(p, "-d" in tl)
             output = bast.json.query_session(bf)
-            try:
-                # will fail if any json elements are not implemented in the AST
-                bast.json.BatfishJson.from_dict(output)
-                print("Successfully parsed Batfish AST!")
-            finally:
-                match tl:
-                    case [] | ["-d"]:
-                        # use Path to sanitize the string
-                        out_path = Path(p).with_suffix(".json").name
-                    case ["-d", q]:
-                        out_path = q
-                    case _:
-                        out_path = tl[0]
-                save_json(output, out_path)
+            print("Completed Batfish JSON queries.")
+            match tl:
+                case [] | ["-d"]:
+                    # use Path to sanitize the string
+                    out_path = Path(p).with_suffix(".json").name
+                case ["-d", q]:
+                    out_path = q
+                case _:
+                    out_path = tl[0]
+            save_json(output, out_path)
         case [p, *tl] if os.path.isfile(p):
             with open(p) as fp:
                 output = json.load(fp)
             bf_ast = bast.json.BatfishJson.from_dict(output)
+            print("Successfully parsed Batfish AST!")
             match tl:
                 case []:
                     in_path = Path(p)
