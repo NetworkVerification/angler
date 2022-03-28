@@ -43,6 +43,7 @@ class QueryType(Enum):
 
 def vf_reachable(address: IPv4Address, with_time: bool) -> Query:
     dest = prog.Dest(address)
+    # FIXME: need to specify the tags when calling isValidTags
     predicates = {
         "isValidTags": prop.isValidTags(),
         "isNull": prop.isNull(),
