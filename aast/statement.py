@@ -111,7 +111,7 @@ class IfStatement(
         self.ty = f"{self.ty}({self.ty_arg.value})"
 
     def returns(self) -> bool:
-        # NOTE: we can't use type information on what T is here, so this is at best an approximation
+        # NOTE: we can't use type information on what T is here, so this is at best an approximation:
         # as of Python 3.10, it does not appear possible to use the type information to determine whether
         # the IfStatement will be correctly constructed at runtime.
         # See https://stackoverflow.com/a/60984681

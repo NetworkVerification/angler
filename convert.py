@@ -193,7 +193,7 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
             # the other must as well
             if true_stmt.returns() and false_stmt.returns():
                 ty_arg = atys.TypeAnnotation.PAIR
-            if true_stmt.returns() and not false_stmt.returns():
+            elif true_stmt.returns() and not false_stmt.returns():
                 false_stmt = astmt.SeqStatement(false_stmt, accept())
                 ty_arg = atys.TypeAnnotation.PAIR
             elif not true_stmt.returns() and false_stmt.returns():

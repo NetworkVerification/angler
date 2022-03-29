@@ -479,8 +479,8 @@ class LiteralString(
 
 
 @dataclass
-class EmptySet(Expression[set], Serialize, ty=Field("$type", str, "Set")):
-    ty: str = field(default="Set", init=False)
+class EmptySet(Expression[set], Serialize, ty=Field("$type", str, "EmptySet")):
+    ty: str = field(default="EmptySet", init=False)
 
 
 @dataclass
