@@ -69,8 +69,8 @@ class SeqStatement(
     Statement[T],
     Generic[T],
     Serialize,
-    first=Field("first", Statement[NoneType]),
-    second=Field("second", Statement[T]),
+    first=Field("First", Statement[NoneType]),
+    second=Field("Second", Statement[T]),
     ty=Field("$type", str, "Seq"),
 ):
     """Two statements in sequence (cf. semi-colon operator in C)."""
@@ -92,10 +92,10 @@ class IfStatement(
     Statement[T],
     Generic[T],
     Serialize,
-    comment="comment",
-    guard=Field("guard", expr.Expression[bool]),
-    true_stmt=Field("trueStatements", Statement[T]),
-    false_stmt=Field("falseStatements", Statement[T]),
+    comment="Comment",
+    guard=Field("Guard", expr.Expression[bool]),
+    true_stmt=Field("TrueStatement", Statement[T]),
+    false_stmt=Field("FalseStatement", Statement[T]),
     ty=Field("$type", str, "If"),
 ):
     """If statement allowing branching control flow."""
@@ -123,8 +123,8 @@ class AssignStatement(
     Statement[NoneType],
     Generic[E],
     Serialize,
-    lhs=Field("lhs", expr.Var),
-    rhs=Field("rhs", expr.Expression[E]),
+    lhs=Field("Var", expr.Var),
+    rhs=Field("Expr", expr.Expression[E]),
     ty=Field("$type", str, "Assign"),
 ):
     """Assignment binding an expression to a variable."""
@@ -146,7 +146,7 @@ class ReturnStatement(
     Statement[E],
     Generic[E],
     Serialize,
-    return_value=Field("return_value", expr.Expression[E]),
+    return_value=Field("Expr", expr.Expression[E]),
     ty=Field("$type", str, "Return"),
 ):
     return_value: expr.Expression[E]

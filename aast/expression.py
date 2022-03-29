@@ -234,7 +234,7 @@ ROUTE = Expression[tuple[bool, dict[str, Any]]]
 
 @dataclass
 class CallExpr(
-    Expression[T], Serialize, policy="calledPolicyName", ty=Field("$type", str, "Call")
+    Expression[T], Serialize, policy="CalledPolicyName", ty=Field("$type", str, "Call")
 ):
     """
     Call the given policy.
@@ -246,7 +246,7 @@ class CallExpr(
 
 @dataclass
 class Var(
-    Expression[T], Serialize, _name=Field("name", str), ty=Field("$type", str, "Var")
+    Expression[T], Serialize, _name=Field("Name", str), ty=Field("$type", str, "Var")
 ):
     _name: str
     ty: str = field(default="Var", init=False)
@@ -277,7 +277,7 @@ class Havoc(Expression[bool], Serialize, ty=Field("$type", str, "Havoc")):
 class Conjunction(
     Expression[bool],
     Serialize,
-    conjuncts=Field("conjuncts", list[Expression[bool]]),
+    conjuncts=Field("Conjuncts", list[Expression[bool]]),
     ty=Field("$type", str, "And"),
 ):
     conjuncts: list[Expression[bool]]
@@ -288,7 +288,7 @@ class Conjunction(
 class ConjunctionChain(
     Expression[bool],
     Serialize,
-    subroutines=Field("subroutines", list[Expression]),
+    subroutines=Field("Subroutines", list[Expression]),
 ):
     """
     DEPRECATED?
@@ -301,7 +301,7 @@ class ConjunctionChain(
 class Disjunction(
     Expression[bool],
     Serialize,
-    disjuncts=Field("disjuncts", list[Expression[bool]]),
+    disjuncts=Field("Disjuncts", list[Expression[bool]]),
     ty=Field("$type", str, "Or"),
 ):
     disjuncts: list[Expression[bool]]
@@ -312,7 +312,7 @@ class Disjunction(
 class Not(
     Expression[bool],
     Serialize,
-    expr=Field("expr", Expression[bool]),
+    expr=Field("Expr", Expression[bool]),
     ty=Field("$type", str, "Not"),
 ):
     expr: Expression[bool]
@@ -323,7 +323,7 @@ class Not(
 class LiteralInt(
     Expression[int],
     Serialize,
-    value=Field("value", int),
+    value=Field("Value", int),
     ty=Field("$type", str, "Int32"),
 ):
     value: int
@@ -338,8 +338,8 @@ class LiteralInt(
 class Add(
     Expression[int],
     Serialize,
-    operand1=Field("operand1", Expression[int]),
-    operand2=Field("operand2", Expression[int]),
+    operand1=Field("Operand1", Expression[int]),
+    operand2=Field("Operand2", Expression[int]),
     ty=Field("$type", str, "Plus32"),
 ):
     operand1: Expression[int]
@@ -355,8 +355,8 @@ class Add(
 class Sub(
     Expression[int],
     Serialize,
-    operand1=Field("operand1", Expression[int]),
-    operand2=Field("operand2", Expression[int]),
+    operand1=Field("Operand1", Expression[int]),
+    operand2=Field("Operand2", Expression[int]),
     ty=Field("$type", str, "Sub32"),
 ):
     operand1: Expression[int]
@@ -372,8 +372,8 @@ class Sub(
 class Equal(
     Expression[bool],
     Serialize,
-    operand1=Field("operand1", Expression[int]),
-    operand2=Field("operand2", Expression[int]),
+    operand1=Field("Operand1", Expression[int]),
+    operand2=Field("Operand2", Expression[int]),
     ty=Field("$type", str, "Equals32"),
 ):
     operand1: Expression[int]
@@ -389,8 +389,8 @@ class Equal(
 class NotEqual(
     Expression[bool],
     Serialize,
-    operand1=Field("operand1", Expression[int]),
-    operand2=Field("operand2", Expression[int]),
+    operand1=Field("Operand1", Expression[int]),
+    operand2=Field("Operand2", Expression[int]),
     ty=Field("$type", str, "NotEqual32"),
 ):
     operand1: Expression[int]
@@ -406,8 +406,8 @@ class NotEqual(
 class LessThan(
     Expression[bool],
     Serialize,
-    operand1=Field("operand1", Expression[int]),
-    operand2=Field("operand2", Expression[int]),
+    operand1=Field("Operand1", Expression[int]),
+    operand2=Field("Operand2", Expression[int]),
     ty=Field("$type", str, "LessThan32"),
 ):
     operand1: Expression[int]
@@ -423,8 +423,8 @@ class LessThan(
 class LessThanEqual(
     Expression[bool],
     Serialize,
-    operand1=Field("operand1", Expression[int]),
-    operand2=Field("operand2", Expression[int]),
+    operand1=Field("Operand1", Expression[int]),
+    operand2=Field("Operand2", Expression[int]),
     ty=Field("$type", str, "LessThanEqual32"),
 ):
     operand1: Expression[int]
@@ -440,8 +440,8 @@ class LessThanEqual(
 class GreaterThan(
     Expression[bool],
     Serialize,
-    operand1=Field("operand1", Expression[int]),
-    operand2=Field("operand2", Expression[int]),
+    operand1=Field("Operand1", Expression[int]),
+    operand2=Field("Operand2", Expression[int]),
     ty=Field("$type", str, "GreaterThan32"),
 ):
     operand1: Expression[int]
@@ -457,8 +457,8 @@ class GreaterThan(
 class GreaterThanEqual(
     Expression[bool],
     Serialize,
-    operand1=Field("operand1", Expression[int]),
-    operand2=Field("operand2", Expression[int]),
+    operand1=Field("Operand1", Expression[int]),
+    operand2=Field("Operand2", Expression[int]),
     ty=Field("$type", str, "GreaterThanEqual32"),
 ):
     operand1: Expression[int]
@@ -472,7 +472,7 @@ class GreaterThanEqual(
 
 @dataclass
 class LiteralString(
-    Expression[str], Serialize, value="value", ty=Field("$type", str, "String")
+    Expression[str], Serialize, value="Value", ty=Field("$type", str, "String")
 ):
     value: str
     ty: str = field(default="String", init=False)
@@ -487,8 +487,8 @@ class EmptySet(Expression[set], Serialize, ty=Field("$type", str, "EmptySet")):
 class SetAdd(
     Expression[set],
     Serialize,
-    to_add=Field("expr", Expression[str]),
-    _set=Field("set", Expression[set]),
+    to_add=Field("Expr", Expression[str]),
+    _set=Field("Set", Expression[set]),
     ty=Field("$type", str, "SetAdd"),
 ):
     to_add: Expression[str]
@@ -500,7 +500,7 @@ class SetAdd(
 class SetUnion(
     Expression[set],
     Serialize,
-    sets=Field("sets", list[Expression[set]]),
+    sets=Field("Sets", list[Expression[set]]),
     ty=Field("$type", str, "SetUnion"),
 ):
     sets: list[Expression[set]]
@@ -511,8 +511,8 @@ class SetUnion(
 class SetRemove(
     Expression[set],
     Serialize,
-    to_remove=Field("expr", Expression[str]),
-    _set=Field("set", Expression[set]),
+    to_remove=Field("Expr", Expression[str]),
+    _set=Field("Set", Expression[set]),
     ty=Field("$type", str, "SetRemove"),
 ):
     to_remove: Expression[str]
@@ -524,8 +524,8 @@ class SetRemove(
 class SetContains(
     Expression[bool],
     Serialize,
-    search=Field("search", Expression[str]),
-    _set=Field("set", Expression[set]),
+    search=Field("Search", Expression[str]),
+    _set=Field("Set", Expression[set]),
     ty=Field("$type", str, "SetContains"),
 ):
     search: Expression[str]
@@ -537,7 +537,7 @@ class SetContains(
 class CreateRecord(
     Expression[dict[str, Expression[X]]],
     Serialize,
-    _fields=Field("fields", dict[str, Expression[X]]),
+    _fields=Field("Fields", dict[str, Expression[X]]),
     ty=Field("$type", str, "CreateRecord"),
 ):
     _fields: dict[str, Expression[X]]
@@ -548,8 +548,8 @@ class CreateRecord(
 class GetField(
     Expression[X],
     Serialize,
-    rec=Field("record", Expression[dict[str, Expression[X]]]),
-    field_name=Field("fieldName", str),
+    rec=Field("Record", Expression[dict[str, Expression[X]]]),
+    field_name=Field("FieldName", str),
     ty=Field("$type", str, "GetField"),
 ):
     rec: Expression[dict[str, Expression[X]]]
@@ -567,9 +567,9 @@ class GetField(
 class WithField(
     Expression[dict[str, Expression[X]]],
     Serialize,
-    rec=Field("record", Expression[dict[str, Expression[X]]]),
-    field_name=Field("fieldName", str),
-    field_val=Field("fieldVal", Expression[X]),
+    rec=Field("Record", Expression[dict[str, Expression[X]]]),
+    field_name=Field("FieldName", str),
+    field_val=Field("FieldVal", Expression[X]),
     ty=Field("$type", str, "WithField"),
 ):
     rec: Expression[dict[str, Expression[X]]]
@@ -588,8 +588,8 @@ class WithField(
 class Pair(
     Expression[tuple[A, B]],
     Serialize,
-    first=Field("first", Expression[A]),
-    second=Field("second", Expression[B]),
+    first=Field("First", Expression[A]),
+    second=Field("Second", Expression[B]),
     ty=Field("$type", str, "Pair"),
 ):
     first: Expression[A]
@@ -608,7 +608,7 @@ class First(
     Expression[A],
     Generic[A, B],
     Serialize,
-    pair=Field("pair", Expression[tuple[A, B]]),
+    pair=Field("Pair", Expression[tuple[A, B]]),
     ty=Field("$type", str, "First"),
 ):
     pair: Expression[tuple[A, B]]
@@ -626,7 +626,7 @@ class Second(
     Expression[B],
     Generic[A, B],
     Serialize,
-    pair=Field("pair", Expression[tuple[A, B]]),
+    pair=Field("Pair", Expression[tuple[A, B]]),
     ty=Field("$type", str, "Second"),
 ):
     pair: Expression[tuple[A, B]]
@@ -643,7 +643,7 @@ class Second(
 class IpAddress(
     Expression[IPv4Address],
     Serialize,
-    ip=Field("ip", IPv4Address),
+    ip=Field("Ip", IPv4Address),
     ty=Field("$type", str, "IpAddress"),
 ):
     ip: IPv4Address
@@ -654,7 +654,7 @@ class IpAddress(
 class IpPrefix(
     Expression[IPv4Network],
     Serialize,
-    ip=Field("ip", IPv4Network),
+    ip=Field("Ip", IPv4Network),
     ty=Field("$type", str, "IpAddress"),
 ):
     ip: IPv4Network
@@ -665,8 +665,8 @@ class IpPrefix(
 class PrefixContains(
     Expression[bool],
     Serialize,
-    addr=Field("addr", Expression[IPv4Address]),
-    prefix=Field("prefix", Expression[IPv4Network]),
+    addr=Field("Addr", Expression[IPv4Address]),
+    prefix=Field("Prefix", Expression[IPv4Network]),
     ty=Field("$type", str, "PrefixContains"),
 ):
     addr: Expression[IPv4Address]
@@ -678,8 +678,8 @@ class PrefixContains(
 class PrefixMatches(
     Expression[bool],
     Serialize,
-    ip_wildcard=Field("ip_wildcard", IPv4Interface),
-    prefix_length_range="prefix_length_range",
+    ip_wildcard=Field("IpWildcard", IPv4Interface),
+    prefix_length_range="PrefixLengthRange",
     ty=Field("$type", str, "PrefixMatches"),
 ):
     ip_wildcard: IPv4Interface
@@ -691,7 +691,7 @@ class PrefixMatches(
 class CommunityMatches(
     Expression[bool],
     Serialize,
-    community=Field("community", LiteralString),
+    community=Field("Community", LiteralString),
     ty=Field("$type", str, "CommunityMatches"),
 ):
     community: LiteralString
@@ -702,8 +702,8 @@ class CommunityMatches(
 class MatchSet(
     Expression[bool],
     Serialize,
-    permit=Field("permit", Expression[bool]),
-    deny=Field("deny", Expression[bool]),
+    permit=Field("Permit", Expression[bool]),
+    deny=Field("Deny", Expression[bool]),
     ty=Field("$type", str, "MatchSet"),
 ):
     permit: Expression[bool]
@@ -715,8 +715,8 @@ class MatchSet(
 class Match(
     Expression[bool],
     Serialize,
-    match_key=Field("match_key", Expression),
-    match_set=Field("match_set", MatchSet),
+    match_key=Field("MatchKey", Expression),
+    match_set=Field("MatchSet", MatchSet),
 ):
     match_key: Expression
     match_set: MatchSet
