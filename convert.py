@@ -24,9 +24,11 @@ import aast.program as prog
 import aast.temporal as temp
 from query import Query
 
-ARG = aexpr.Var("pair", ty_arg=atys.TypeAnnotation.PAIR)
+ARG = "pair"
+ROUTE = "route"
+ARG_VAR = aexpr.Var(ARG, ty_arg=atys.TypeAnnotation.PAIR)
 # the route record passed through the transfer
-ROUTE = aexpr.Var("route", ty_arg=atys.TypeAnnotation.ROUTE)
+ROUTE_VAR = aexpr.Var(ROUTE, ty_arg=atys.TypeAnnotation.ROUTE)
 
 FIELDS = {
     "prefix": atys.TypeAnnotation.IP_ADDRESS,
@@ -41,7 +43,7 @@ def accept() -> astmt.ReturnStatement:
     """Default accept return."""
     pair = aexpr.Pair(
         aexpr.LiteralTrue(),
-        ROUTE,
+        ROUTE_VAR,
         ty_args=(atys.TypeAnnotation.BOOL, atys.TypeAnnotation.ROUTE),
     )
     return astmt.ReturnStatement(pair, ty_arg=atys.TypeAnnotation.PAIR)
@@ -109,7 +111,7 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             return aexpr.SetContains(cvar, convert_expr(_comms))
         case bcomms.InputCommunities():
             return aexpr.GetField(
-                ROUTE,
+                ROUTE_VAR,
                 "communities",
                 ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.SET),
             )
@@ -125,7 +127,7 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             x = aexpr.LiteralInt(addend)
             return aexpr.Add(
                 aexpr.GetField(
-                    ROUTE,
+                    ROUTE_VAR,
                     "lp",
                     ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.INT32),
                 ),
@@ -135,7 +137,7 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             x = aexpr.LiteralInt(subtrahend)
             return aexpr.Sub(
                 aexpr.GetField(
-                    ROUTE,
+                    ROUTE_VAR,
                     "lp",
                     ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.INT32),
                 ),
@@ -143,7 +145,7 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             )
         case prefix.DestinationNetwork():
             return aexpr.GetField(
-                ROUTE,
+                ROUTE_VAR,
                 "prefix",
                 ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.IP_ADDRESS),
             )
@@ -153,7 +155,7 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             return aexpr.PrefixContains(convert_expr(_prefix), convert_expr(_prefixes))
         case bools.MatchTag(cmp, tag):
             route_tag = aexpr.GetField(
-                ROUTE,
+                ROUTE_VAR,
                 "tag",
                 ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.INT32),
             )
@@ -211,7 +213,7 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
 
         case bstmt.SetCommunities(comm_set=comms):
             wf = aexpr.WithField(
-                ROUTE,
+                ROUTE_VAR,
                 "communities",
                 convert_expr(comms),
                 ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.SET),
@@ -220,7 +222,7 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
 
         case bstmt.SetLocalPreference(lp=lp):
             wf = aexpr.WithField(
-                ROUTE,
+                ROUTE_VAR,
                 "lp",
                 convert_expr(lp),
                 ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.SET),
@@ -229,7 +231,7 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
 
         case bstmt.SetMetric(metric=metric):
             wf = aexpr.WithField(
-                ROUTE,
+                ROUTE_VAR,
                 "metric",
                 convert_expr(metric),
                 ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.INT32),
@@ -239,7 +241,7 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
         case bstmt.SetNextHop():
             # TODO: for now, ignore nexthop
             # return astmt.AssignStatement(
-            #     ROUTE, aexpr.WithField(ROUTE, "nexthop", convert_expr(nexthop_expr))
+            #     ROUTE, aexpr.WithField(ROUTE_VAR, "nexthop", convert_expr(nexthop_expr))
             # )
             return astmt.SkipStatement()
         case bstmt.StaticStatement(ty=ty):
@@ -251,7 +253,7 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
                     fst = aexpr.LiteralFalse()
                 case bstmt.StaticStatementType.LOCAL_DEF | bstmt.StaticStatementType.RETURN | bstmt.StaticStatementType.FALL_THROUGH:
                     fst = aexpr.GetField(
-                        ROUTE,
+                        ROUTE_VAR,
                         "LocalDefaultAction",
                         ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.BOOL),
                     )
@@ -262,7 +264,7 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
             # return a bool * route pair
             pair = aexpr.Pair(
                 fst,
-                ROUTE,
+                ROUTE_VAR,
                 ty_args=(atys.TypeAnnotation.BOOL, atys.TypeAnnotation.ROUTE),
             )
             return astmt.ReturnStatement(pair, ty_arg=atys.TypeAnnotation.PAIR)
@@ -304,17 +306,17 @@ def bind_stmt(body: astmt.Statement[tuple[bool, T]]) -> astmt.Statement[tuple[bo
     where the pair is returned unchanged if the bool is false.
     """
     guard = aexpr.First(
-        ARG, ty_args=(atys.TypeAnnotation.BOOL, atys.TypeAnnotation.ROUTE)
+        ARG_VAR, ty_args=(atys.TypeAnnotation.BOOL, atys.TypeAnnotation.ROUTE)
     )
     # assign ROUTE from the second element of the pair
     assign_route = astmt.AssignStatement(
         ROUTE,
         aexpr.Second(
-            ARG, ty_args=(atys.TypeAnnotation.BOOL, atys.TypeAnnotation.ROUTE)
+            ARG_VAR, ty_args=(atys.TypeAnnotation.BOOL, atys.TypeAnnotation.ROUTE)
         ),
         ty_arg=atys.TypeAnnotation.ROUTE,
     )
-    return_pair = astmt.ReturnStatement(ARG, ty_arg=atys.TypeAnnotation.PAIR)
+    return_pair = astmt.ReturnStatement(ARG_VAR, ty_arg=atys.TypeAnnotation.PAIR)
     return astmt.IfStatement(
         "bind",
         guard,
@@ -418,7 +420,7 @@ def convert_structure(
             # the semantics of potentially dropping the route
             body = bind_stmt(convert_stmts(stmts))
             struct_name = name
-            value = prog.Func(ARG._name, body)
+            value = prog.Func(ARG, body)
         case bacl.RouteFilterList(_name=name, lines=lines):
             print(f"Route filter list {b.struct_name}")
             permit_disjuncts = []

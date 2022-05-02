@@ -569,7 +569,7 @@ class WithField(
     Serialize,
     rec=Field("Record", Expression[dict[str, Expression[X]]]),
     field_name=Field("FieldName", str),
-    field_val=Field("FieldVal", Expression[X]),
+    field_val=Field("FieldValue", Expression[X]),
     ty=Field("$type", str, "WithField"),
 ):
     rec: Expression[dict[str, Expression[X]]]

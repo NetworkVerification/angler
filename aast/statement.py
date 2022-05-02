@@ -69,8 +69,8 @@ class SeqStatement(
     Statement[T],
     Generic[T],
     Serialize,
-    first=Field("First", Statement[NoneType]),
-    second=Field("Second", Statement[T]),
+    first=Field("S1", Statement[NoneType]),
+    second=Field("S2", Statement[T]),
     ty=Field("$type", str, "Seq"),
 ):
     """Two statements in sequence (cf. semi-colon operator in C)."""
@@ -123,13 +123,13 @@ class AssignStatement(
     Statement[NoneType],
     Generic[E],
     Serialize,
-    lhs=Field("Var", expr.Var),
+    lhs=Field("Var", str),
     rhs=Field("Expr", expr.Expression[E]),
     ty=Field("$type", str, "Assign"),
 ):
     """Assignment binding an expression to a variable."""
 
-    lhs: expr.Var
+    lhs: str
     rhs: expr.Expression[E]
     ty: str = field(default="Assign", init=False)
     ty_arg: TypeAnnotation = field(default=TypeAnnotation.UNKNOWN, kw_only=True)
