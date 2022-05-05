@@ -20,8 +20,7 @@ class ExprType(Variant):
     VAR = "Variable"
     STR = "String"
     # Boolean expressions
-    TRUE = "True"
-    FALSE = "False"
+    BOOL = "Bool"
     HAVOC = "Havoc"
     CONJUNCTION = "Conjunction"
     DISJUNCTION = "Disjunction"
@@ -66,10 +65,8 @@ class ExprType(Variant):
             case ExprType.STR:
                 return LiteralString
             # booleans
-            case ExprType.TRUE:
-                return LiteralTrue
-            case ExprType.FALSE:
-                return LiteralFalse
+            case ExprType.BOOL:
+                return LiteralBool
             case ExprType.HAVOC:
                 return Havoc
             case ExprType.CONJUNCTION:
@@ -152,82 +149,6 @@ class Expression(
     ty: str = field(default="Expression", init=False)
 
 
-def from_class(e: Expression) -> ExprType:
-    match e:
-        case CallExpr():
-            return ExprType.CALL_EXPR
-        case Var():
-            return ExprType.VAR
-        case LiteralString():
-            return ExprType.STR
-        # booleans
-        case LiteralTrue():
-            return ExprType.TRUE
-        case LiteralFalse():
-            return ExprType.FALSE
-        case Havoc():
-            return ExprType.HAVOC
-        case Conjunction():
-            return ExprType.CONJUNCTION
-        case Disjunction():
-            return ExprType.DISJUNCTION
-        case Not():
-            return ExprType.NOT
-        # integers
-        case LiteralInt():
-            return ExprType.INT
-        case Add():
-            return ExprType.ADD
-        case Sub():
-            return ExprType.SUB
-        case Equal():
-            return ExprType.EQ
-        case NotEqual():
-            return ExprType.NEQ
-        case LessThan():
-            return ExprType.LT
-        case LessThanEqual():
-            return ExprType.LE
-        case GreaterThan():
-            return ExprType.GT
-        case GreaterThanEqual():
-            return ExprType.GE
-        # sets
-        case EmptySet():
-            return ExprType.EMPTY_SET
-        case SetAdd():
-            return ExprType.SET_ADD
-        case SetRemove():
-            return ExprType.SET_REMOVE
-        case SetUnion():
-            return ExprType.SET_UNION
-        case SetContains():
-            return ExprType.SET_CONTAINS
-        # records
-        case CreateRecord():
-            return ExprType.CREATE
-        case GetField():
-            return ExprType.GET_FIELD
-        case WithField():
-            return ExprType.WITH_FIELD
-        # pair
-        case Pair():
-            return ExprType.PAIR
-        case First():
-            return ExprType.FIRST
-        case Second():
-            return ExprType.SECOND
-        # ip addresses
-        case IpAddress():
-            return ExprType.IP_ADDRESS
-        case IpPrefix():
-            return ExprType.IP_PREFIX
-        case PrefixContains():
-            return ExprType.PREFIX_CONTAINS
-        case _:
-            raise ValueError(f"No ExprType associated with {e.__class__}.")
-
-
 # The type alias for route expressions
 ROUTE = Expression[tuple[bool, dict[str, Any]]]
 
@@ -259,13 +180,14 @@ class Var(
 
 
 @dataclass
-class LiteralTrue(Expression[bool], Serialize, ty=Field("$type", str, "True")):
-    ty: str = field(default="True", init=False)
-
-
-@dataclass
-class LiteralFalse(Expression[bool], Serialize, ty=Field("$type", str, "False")):
-    ty: str = field(default="False", init=False)
+class LiteralBool(
+    Expression[bool],
+    Serialize,
+    value=Field("value", bool),
+    ty=Field("$type", str, "Bool"),
+):
+    value: bool
+    ty: str = field(default="Bool", init=False)
 
 
 @dataclass

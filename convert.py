@@ -42,7 +42,7 @@ FIELDS = {
 def accept() -> astmt.ReturnStatement:
     """Default accept return."""
     pair = aexpr.Pair(
-        aexpr.LiteralTrue(),
+        aexpr.LiteralBool(True),
         ROUTE_VAR,
         ty_args=(atys.TypeAnnotation.BOOL, atys.TypeAnnotation.ROUTE),
     )
@@ -57,9 +57,9 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
         case bexpr.CallExpr(policy):
             return aexpr.CallExpr(policy)
         case bools.StaticBooleanExpr(ty=bools.StaticBooleanExprType.TRUE):
-            return aexpr.LiteralTrue()
+            return aexpr.LiteralBool(True)
         case bools.StaticBooleanExpr(ty=bools.StaticBooleanExprType.FALSE):
-            return aexpr.LiteralFalse()
+            return aexpr.LiteralBool(False)
         case bools.StaticBooleanExpr(ty=bools.StaticBooleanExprType.CALLCONTEXT):
             # NOTE: not supported
             return aexpr.Havoc()
@@ -76,10 +76,10 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             return aexpr.Not(convert_expr(e))
         case bools.MatchIpv4():
             # NOTE: for now, we assume ipv4
-            return aexpr.LiteralTrue()
+            return aexpr.LiteralBool(True)
         case bools.MatchIpv6() | bools.MatchPrefix6Set():
             # NOTE: not supported (for now, we assume ipv4)
-            return aexpr.LiteralFalse()
+            return aexpr.LiteralBool(False)
         case bools.LegacyMatchAsPath():
             # NOTE: not supported
             return aexpr.Havoc()
@@ -173,9 +173,9 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
         case bools.MatchProtocol(protocols):
             # TODO: for now, return true if Protocol.BGP is in protocols, and false otherwise
             if Protocol.BGP in protocols:
-                return aexpr.LiteralTrue()
+                return aexpr.LiteralBool(True)
             else:
-                return aexpr.LiteralFalse()
+                return aexpr.LiteralBool(False)
         case _:
             raise NotImplementedError(f"No convert case for {b} found.")
 
@@ -248,9 +248,9 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
             match ty:
                 case bstmt.StaticStatementType.TRUE | bstmt.StaticStatementType.EXIT_ACCEPT:
                     # TODO: should EXIT_ACCEPT skip any successive policies?
-                    fst = aexpr.LiteralTrue()
+                    fst = aexpr.LiteralBool(True)
                 case bstmt.StaticStatementType.FALSE | bstmt.StaticStatementType.EXIT_REJECT:
-                    fst = aexpr.LiteralFalse()
+                    fst = aexpr.LiteralBool(False)
                 case bstmt.StaticStatementType.LOCAL_DEF | bstmt.StaticStatementType.RETURN | bstmt.StaticStatementType.FALL_THROUGH:
                     fst = aexpr.GetField(
                         ROUTE_VAR,
