@@ -94,16 +94,16 @@ class IfStatement(
     Serialize,
     comment="Comment",
     guard=Field("Guard", expr.Expression[bool]),
-    true_stmt=Field("TrueStatement", Statement[T]),
-    false_stmt=Field("FalseStatement", Statement[T]),
+    true_stmt=Field("ThenCase", list[Statement]),
+    false_stmt=Field("ElseCase", list[Statement]),
     ty=Field("$type", str, "If"),
 ):
     """If statement allowing branching control flow."""
 
     comment: str
     guard: expr.Expression[bool]
-    true_stmt: Statement[T]
-    false_stmt: Statement[T]
+    true_stmt: list[Statement]
+    false_stmt: list[Statement]
     ty: str = field(default="If", init=False)
     ty_arg: TypeAnnotation = field(default=TypeAnnotation.UNKNOWN, kw_only=True)
 
@@ -115,7 +115,9 @@ class IfStatement(
         # as of Python 3.10, it does not appear possible to use the type information to determine whether
         # the IfStatement will be correctly constructed at runtime.
         # See https://stackoverflow.com/a/60984681
-        return self.true_stmt.returns() and self.false_stmt.returns()
+        return any(s.returns() for s in self.true_stmt) and any(
+            s.returns() for s in self.false_stmt
+        )
 
 
 @dataclass

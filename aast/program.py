@@ -28,7 +28,7 @@ class Predicate(Serialize, arg="arg", expr="expr"):
     @staticmethod
     def default():
         """Return a predicate that always holds."""
-        return Predicate("_", expr.LiteralTrue())
+        return Predicate("_", expr.LiteralBool(True))
 
 
 @dataclass
@@ -39,7 +39,7 @@ class Func(Serialize, arg="arg", body="body"):
     """
 
     arg: str
-    body: stmt.Statement
+    body: list[stmt.Statement]
 
 
 @dataclass

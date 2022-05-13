@@ -154,9 +154,7 @@ ROUTE = Expression[tuple[bool, dict[str, Any]]]
 
 
 @dataclass
-class CallExpr(
-    Expression[T], Serialize, policy="CalledPolicyName", ty=Field("$type", str, "Call")
-):
+class CallExpr(Expression[T], Serialize, policy="Name", ty=Field("$type", str, "Call")):
     """
     Call the given policy.
     """
@@ -183,7 +181,7 @@ class Var(
 class LiteralBool(
     Expression[bool],
     Serialize,
-    value=Field("value", bool),
+    value=Field("Value", bool),
     ty=Field("$type", str, "Bool"),
 ):
     value: bool
@@ -199,7 +197,7 @@ class Havoc(Expression[bool], Serialize, ty=Field("$type", str, "Havoc")):
 class Conjunction(
     Expression[bool],
     Serialize,
-    conjuncts=Field("Conjuncts", list[Expression[bool]]),
+    conjuncts=Field("Exprs", list[Expression[bool]]),
     ty=Field("$type", str, "And"),
 ):
     conjuncts: list[Expression[bool]]
@@ -223,7 +221,7 @@ class ConjunctionChain(
 class Disjunction(
     Expression[bool],
     Serialize,
-    disjuncts=Field("Disjuncts", list[Expression[bool]]),
+    disjuncts=Field("Exprs", list[Expression[bool]]),
     ty=Field("$type", str, "Or"),
 ):
     disjuncts: list[Expression[bool]]
@@ -409,8 +407,8 @@ class EmptySet(Expression[set], Serialize, ty=Field("$type", str, "EmptySet")):
 class SetAdd(
     Expression[set],
     Serialize,
-    to_add=Field("Expr", Expression[str]),
-    _set=Field("Set", Expression[set]),
+    to_add=Field("Operand1", Expression[str]),
+    _set=Field("Operand2", Expression[set]),
     ty=Field("$type", str, "SetAdd"),
 ):
     to_add: Expression[str]
@@ -422,7 +420,7 @@ class SetAdd(
 class SetUnion(
     Expression[set],
     Serialize,
-    sets=Field("Sets", list[Expression[set]]),
+    sets=Field("Exprs", list[Expression[set]]),
     ty=Field("$type", str, "SetUnion"),
 ):
     sets: list[Expression[set]]
@@ -433,8 +431,8 @@ class SetUnion(
 class SetRemove(
     Expression[set],
     Serialize,
-    to_remove=Field("Expr", Expression[str]),
-    _set=Field("Set", Expression[set]),
+    to_remove=Field("Operand1", Expression[str]),
+    _set=Field("Operand2", Expression[set]),
     ty=Field("$type", str, "SetRemove"),
 ):
     to_remove: Expression[str]
@@ -446,8 +444,8 @@ class SetRemove(
 class SetContains(
     Expression[bool],
     Serialize,
-    search=Field("Search", Expression[str]),
-    _set=Field("Set", Expression[set]),
+    search=Field("Operand1", Expression[str]),
+    _set=Field("Operand2", Expression[set]),
     ty=Field("$type", str, "SetContains"),
 ):
     search: Expression[str]
@@ -473,6 +471,8 @@ class GetField(
     rec=Field("Record", Expression[dict[str, Expression[X]]]),
     field_name=Field("FieldName", str),
     ty=Field("$type", str, "GetField"),
+    record_ty=Field("RecordType", str),
+    field_ty=Field("FieldType", str),
 ):
     rec: Expression[dict[str, Expression[X]]]
     field_name: str
@@ -483,6 +483,8 @@ class GetField(
 
     def __post_init__(self, ty_args: tuple[TypeAnnotation, TypeAnnotation]):
         self.ty = f"{self.ty}({ty_args[0].value};{ty_args[1].value})"
+        self.record_ty = ty_args[0].value
+        self.field_ty = ty_args[1].value
 
 
 @dataclass
@@ -493,6 +495,8 @@ class WithField(
     field_name=Field("FieldName", str),
     field_val=Field("FieldValue", Expression[X]),
     ty=Field("$type", str, "WithField"),
+    record_ty=Field("RecordType", str),
+    field_ty=Field("FieldType", str),
 ):
     rec: Expression[dict[str, Expression[X]]]
     field_name: str
@@ -504,6 +508,8 @@ class WithField(
 
     def __post_init__(self, ty_args: tuple[TypeAnnotation, TypeAnnotation]):
         self.ty = f"{self.ty}({ty_args[0].value};{ty_args[1].value})"
+        self.record_ty = ty_args[0].value
+        self.field_ty = ty_args[1].value
 
 
 @dataclass
@@ -513,6 +519,8 @@ class Pair(
     first=Field("First", Expression[A]),
     second=Field("Second", Expression[B]),
     ty=Field("$type", str, "Pair"),
+    first_ty=Field("FirstType", str),
+    second_ty=Field("SecondType", str),
 ):
     first: Expression[A]
     second: Expression[B]
@@ -523,6 +531,8 @@ class Pair(
 
     def __post_init__(self, ty_args: tuple[TypeAnnotation, TypeAnnotation]):
         self.ty = f"{self.ty}({ty_args[0].value};{ty_args[1].value})"
+        self.first_ty = ty_args[0].value
+        self.second_ty = ty_args[1].value
 
 
 @dataclass
@@ -532,6 +542,8 @@ class First(
     Serialize,
     pair=Field("Pair", Expression[tuple[A, B]]),
     ty=Field("$type", str, "First"),
+    first_ty=Field("FirstType", str),
+    second_ty=Field("SecondType", str),
 ):
     pair: Expression[tuple[A, B]]
     ty: str = field(default="First", init=False)
@@ -541,6 +553,8 @@ class First(
 
     def __post_init__(self, ty_args: tuple[TypeAnnotation, TypeAnnotation]):
         self.ty = f"{self.ty}({ty_args[0].value};{ty_args[1].value})"
+        self.first_ty = ty_args[0].value
+        self.second_ty = ty_args[1].value
 
 
 @dataclass
@@ -550,6 +564,8 @@ class Second(
     Serialize,
     pair=Field("Pair", Expression[tuple[A, B]]),
     ty=Field("$type", str, "Second"),
+    first_ty=Field("FirstType", str),
+    second_ty=Field("SecondType", str),
 ):
     pair: Expression[tuple[A, B]]
     ty: str = field(default="Second", init=False)
@@ -559,6 +575,8 @@ class Second(
 
     def __post_init__(self, ty_args: tuple[TypeAnnotation, TypeAnnotation]):
         self.ty = f"{self.ty}({ty_args[0].value};{ty_args[1].value})"
+        self.first_ty = ty_args[0].value
+        self.second_ty = ty_args[1].value
 
 
 @dataclass

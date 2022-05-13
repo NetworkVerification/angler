@@ -3,7 +3,7 @@
 Conversion tools to transform Batfish AST terms to Angler AST terms.
 """
 from ipaddress import IPv4Address, IPv4Network
-from typing import Optional, TypeVar
+from typing import Optional, TypeVar, cast
 import igraph
 import bast.json as json
 import bast.topology as topology
@@ -180,7 +180,7 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             raise NotImplementedError(f"No convert case for {b} found.")
 
 
-def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
+def convert_stmt(b: bstmt.Statement) -> list[astmt.Statement]:
     """
     Convert a Batfish AST statement into an Angler AST statement.
     """
@@ -193,23 +193,25 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
             false_stmt = convert_stmts(f_stmts)
             # check that the types coincide: if either true_stmt or false_stmt ends in a return,
             # the other must as well
-            if true_stmt.returns() and false_stmt.returns():
-                ty_arg = atys.TypeAnnotation.PAIR
-            elif true_stmt.returns() and not false_stmt.returns():
-                false_stmt = astmt.SeqStatement(false_stmt, accept())
-                ty_arg = atys.TypeAnnotation.PAIR
-            elif not true_stmt.returns() and false_stmt.returns():
-                true_stmt = astmt.SeqStatement(true_stmt, accept())
-                ty_arg = atys.TypeAnnotation.PAIR
-            else:
-                ty_arg = atys.TypeAnnotation.UNIT
-            return astmt.IfStatement(
-                comment=comment,
-                guard=convert_expr(guard),
-                true_stmt=true_stmt,
-                false_stmt=false_stmt,
-                ty_arg=ty_arg,
-            )
+            # if true_stmt.returns() and false_stmt.returns():
+            #     ty_arg = atys.TypeAnnotation.PAIR
+            # elif true_stmt.returns() and not false_stmt.returns():
+            #     false_stmt = astmt.SeqStatement(false_stmt, accept())
+            #     ty_arg = atys.TypeAnnotation.PAIR
+            # elif not true_stmt.returns() and false_stmt.returns():
+            #     true_stmt = astmt.SeqStatement(true_stmt, accept())
+            #     ty_arg = atys.TypeAnnotation.PAIR
+            # else:
+            #     ty_arg = atys.TypeAnnotation.UNIT
+            return [
+                astmt.IfStatement(
+                    comment=comment,
+                    guard=convert_expr(guard),
+                    true_stmt=true_stmt,
+                    false_stmt=false_stmt,
+                    # ty_arg=ty_arg,
+                )
+            ]
 
         case bstmt.SetCommunities(comm_set=comms):
             wf = aexpr.WithField(
@@ -218,7 +220,7 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
                 convert_expr(comms),
                 ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.SET),
             )
-            return astmt.AssignStatement(ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE)
+            return [astmt.AssignStatement(ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE)]
 
         case bstmt.SetLocalPreference(lp=lp):
             wf = aexpr.WithField(
@@ -227,7 +229,7 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
                 convert_expr(lp),
                 ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.SET),
             )
-            return astmt.AssignStatement(ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE)
+            return [astmt.AssignStatement(ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE)]
 
         case bstmt.SetMetric(metric=metric):
             wf = aexpr.WithField(
@@ -236,14 +238,15 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
                 convert_expr(metric),
                 ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.INT32),
             )
-            return astmt.AssignStatement(ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE)
+            return [astmt.AssignStatement(ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE)]
 
-        case bstmt.SetNextHop():
-            # TODO: for now, ignore nexthop
-            # return astmt.AssignStatement(
-            #     ROUTE, aexpr.WithField(ROUTE_VAR, "nexthop", convert_expr(nexthop_expr))
-            # )
-            return astmt.SkipStatement()
+        case bstmt.SetNextHop(expr=nexthop_expr):
+            return [
+                astmt.AssignStatement(
+                    ROUTE,
+                    aexpr.WithField(ROUTE_VAR, "nexthop", convert_expr(nexthop_expr)),
+                )
+            ]
         case bstmt.StaticStatement(ty=ty):
             match ty:
                 case bstmt.StaticStatementType.TRUE | bstmt.StaticStatementType.EXIT_ACCEPT:
@@ -267,30 +270,33 @@ def convert_stmt(b: bstmt.Statement) -> astmt.Statement:
                 ROUTE_VAR,
                 ty_args=(atys.TypeAnnotation.BOOL, atys.TypeAnnotation.ROUTE),
             )
-            return astmt.ReturnStatement(pair, ty_arg=atys.TypeAnnotation.PAIR)
+            return [astmt.ReturnStatement(pair, ty_arg=atys.TypeAnnotation.PAIR)]
         case bstmt.PrependAsPath():
-            return astmt.SkipStatement()
+            # return astmt.SkipStatement()
+            return []
         case bstmt.TraceableStatement(inner=inner):
             return convert_stmts(inner)
         case _:
             raise NotImplementedError(f"No convert_stmt case for statement {b} found.")
 
 
-def convert_stmts(stmts: list[bstmt.Statement]) -> astmt.Statement:
+def convert_stmts(stmts: list[bstmt.Statement]) -> list[astmt.Statement]:
     """Convert a list of Batfish statements into an Angler statement."""
     match stmts:
         case []:
-            return astmt.SkipStatement()
+            # return astmt.SkipStatement()
+            return []
         case [hd, *tl]:
-            hd1 = convert_stmt(hd)
-            tl1 = convert_stmts(tl)
-            if isinstance(hd1, astmt.SkipStatement):
-                return tl1
-            elif isinstance(tl1, astmt.SkipStatement):
-                return hd1
-            else:
-                # all non-skip statements set a type arg, so this should work
-                return astmt.SeqStatement(hd1, tl1, ty_arg=tl1.ty_arg)
+            return convert_stmt(hd) + convert_stmts(tl)
+            # hd1 = convert_stmt(hd)
+            # tl1 = convert_stmts(tl)
+            # if isinstance(hd1, astmt.SkipStatement):
+            #     return tl1
+            # elif isinstance(tl1, astmt.SkipStatement):
+            #     return hd1
+            # else:
+            #     # all non-skip statements set a type arg, so this should work
+            #     return astmt.SeqStatement(hd1, tl1, ty_arg=tl1.ty_arg)
         case _:
             raise Exception("unreachable")
 
@@ -298,7 +304,9 @@ def convert_stmts(stmts: list[bstmt.Statement]) -> astmt.Statement:
 T = TypeVar("T")
 
 
-def bind_stmt(body: astmt.Statement[tuple[bool, T]]) -> astmt.Statement[tuple[bool, T]]:
+def bind_stmt(
+    body: list[astmt.Statement[tuple[bool, T]]]
+) -> list[astmt.Statement[tuple[bool, T]]]:
     """
     Return a new statement which maps the old statement onto the second
     element of a (bool, T) pair, which is only executed if the bool is true.
@@ -317,13 +325,16 @@ def bind_stmt(body: astmt.Statement[tuple[bool, T]]) -> astmt.Statement[tuple[bo
         ty_arg=atys.TypeAnnotation.ROUTE,
     )
     return_pair = astmt.ReturnStatement(ARG_VAR, ty_arg=atys.TypeAnnotation.PAIR)
-    return astmt.IfStatement(
-        "bind",
-        guard,
-        astmt.SeqStatement(assign_route, body, ty_arg=atys.TypeAnnotation.PAIR),
-        return_pair,
-        ty_arg=atys.TypeAnnotation.PAIR,
-    )
+    return [
+        astmt.IfStatement(
+            "bind",
+            guard,
+            # astmt.SeqStatement(assign_route, body, ty_arg=atys.TypeAnnotation.PAIR),
+            cast(list[astmt.Statement], [assign_route]) + body,
+            [return_pair],
+            ty_arg=atys.TypeAnnotation.PAIR,
+        )
+    ]
 
 
 def convert_batfish(
