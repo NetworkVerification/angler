@@ -121,6 +121,9 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             _name
         ) | bcomms.CommunityMatchExprReference(_name):
             return aexpr.Var(_name)
+        case bcomms.CommunityMatchRegex(_):
+            # NOTE: for now, we treat regexes as havoc
+            return aexpr.Havoc()
         case longs.LiteralLong(value):
             return aexpr.LiteralInt(value)
         case longs.IncrementLocalPref(addend):
@@ -241,12 +244,13 @@ def convert_stmt(b: bstmt.Statement) -> list[astmt.Statement]:
             return [astmt.AssignStatement(ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE)]
 
         case bstmt.SetNextHop(expr=nexthop_expr):
-            return [
-                astmt.AssignStatement(
-                    ROUTE,
-                    aexpr.WithField(ROUTE_VAR, "nexthop", convert_expr(nexthop_expr)),
-                )
-            ]
+            # FIXME: ignored for now, fix later
+            return []  # [
+            #     astmt.AssignStatement(
+            #         ROUTE,
+            #         aexpr.WithField(ROUTE_VAR, "nexthop", convert_expr(nexthop_expr)),
+            #     )
+            # ]
         case bstmt.StaticStatement(ty=ty):
             match ty:
                 case bstmt.StaticStatementType.TRUE | bstmt.StaticStatementType.EXIT_ACCEPT:
@@ -355,10 +359,17 @@ def convert_batfish(
         if name not in nodes:
             nodes[name] = prog.Properties()
         # look up the neighbor of node whose edge has the associated remote IP
-        edge: igraph.Edge = g.es[g.incident(node)].find(
+        incident_edge_ids = g.incident(node)
+        # search for an edge which is incident to this node with the same ip as
+        # the peer_conf's remote ip
+        possible_edges: list[igraph.Edge] = g.es.select(incident_edge_ids).select(
             lambda e: peer_conf.remote_ip.value in e["ips"][1]
         )
-        nbr = g.vs[edge.target]["name"]
+        if len(possible_edges) == 0:
+            # skip this peer config
+            continue
+        # otherwise, we found a possible edge
+        nbr = g.vs[possible_edges[0].target]["name"]
         nodes[name].policies[nbr] = pol
     # add constants, declarations and prefixes for each of the nodes
     for s in bf.declarations:

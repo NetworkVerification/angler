@@ -46,6 +46,7 @@ class StructureType(ast.Variant):
     def as_class(self) -> type:
         match self:
             case StructureType.COMMS_MATCH:
+                # FIXME: need to have an additional case in case the type is a list of comm exprs
                 return comms.HasCommunity
             case StructureType.IP_ACCESS_LIST:
                 return acl.Acl
