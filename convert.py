@@ -367,6 +367,9 @@ def convert_batfish(
         )
         if len(possible_edges) == 0:
             # skip this peer config
+            print(
+                f"Could not find a neighbor with remote IP {peer_conf.remote_ip.value}"
+            )
             continue
         # otherwise, we found a possible edge
         nbr = g.vs[possible_edges[0].target]["name"]
@@ -380,7 +383,10 @@ def convert_batfish(
             case aexpr.Expression():
                 nodes[n].consts[k] = v
             case IPv4Address():
-                nodes[n].prefixes.add(IPv4Network((v, 24)))
+                # add a /24 prefix based on the given address
+                # strict=False causes this to mask the last 8 bits
+                ip_net = IPv4Network((v, 24), strict=False)
+                nodes[n].prefixes.add(ip_net)
             case None:
                 pass
     destination = None
@@ -475,6 +481,12 @@ def convert_structure(
 
             # TODO: What is the default action if no rule matches?
 
+        case bcomms.HasCommunity(None):
+            print(f"HasCommunity {b.struct_name} (BROKEN)")
+            # FIXME: this should not happen in practice, but may right now due to
+            # the incomplete support for Community_Set_Match_Exprs.
+            # This case should eventually be removed
+            value = None
         case bcomms.HasCommunity(e):
             print(f"HasCommunity {b.struct_name}")
             value = convert_expr(e)
