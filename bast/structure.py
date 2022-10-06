@@ -32,7 +32,7 @@ class StructureDef(ast.ASTNode, Serialize, value=Field("value", dict)):
     TODO: perhaps we can flatten this?
     """
 
-    value: vrf.Vrf | acl.RouteFilterList | RoutingPolicy | acl.Acl | comms.HasCommunity
+    value: vrf.Vrf | acl.RouteFilterList | RoutingPolicy | acl.Acl | comms.CommunitySetMatchExpr
 
 
 class StructureType(ast.Variant):
@@ -46,8 +46,7 @@ class StructureType(ast.Variant):
     def as_class(self) -> type:
         match self:
             case StructureType.COMMS_MATCH:
-                # FIXME: need to have an additional case in case the type is a list of comm exprs
-                return comms.HasCommunity
+                return comms.CommunitySetMatchExpr
             case StructureType.IP_ACCESS_LIST:
                 return acl.Acl
             case StructureType.ROUTE_FILTER_LIST:
@@ -87,6 +86,31 @@ class Structure(
         """
         cls = self.ty.as_class()
         if issubclass(cls, Serialize) and isinstance(self.definition.value, dict):
+            # special case: distinguish Community_Set_Match_Expr subclass
+            if cls == comms.CommunitySetMatchExpr:
+                cls = _infer_community_set_match_expr_class(self.definition.value)
             self.definition.value = cast(
                 type(cls), cls.from_dict(self.definition.value)
             )
+
+
+def _infer_community_set_match_expr_class(value):
+    """
+    As a hack, guess what the community set match expr should be
+    based on the form of the given structure.
+    We've seen only 2 kinds of expression: a single HasCommunity
+    and (what we assume is) a CommunitySetMatchAll.
+    The distinguishing feature between the two is whether the
+    value contains an "expr" field (the former) or an "exprs" field
+    (the latter).
+    NOTE: This reasoning may not be sound if we ever encounter a case
+    where the Batfish IR represents a CommunitySetMatchAny: we can't
+    distinguish, based only on the "exprs" field, between ...Any and
+    ...All.
+    """
+    if "expr" in value:
+        return comms.HasCommunity
+    elif "exprs" in value:
+        return comms.CommunitySetMatchAll
+    else:
+        raise KeyError(f"Unable to infer CommunitySetMatchExpr subclass for {value}")

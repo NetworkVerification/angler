@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 """
 BGP communities in the Batfish AST.
+A community is a 32-bit field composed of two parts:
+a 16-bit AS number (the community's originator) and a 16-bit unique number
+assigned by the AS.
+QUESTION(tim): how would communities be used if we have 32-bit AS numbers?
+
+Batfish distinguishes at least three classes representing communities.
+- CommunitySetExpr: represents a literal set of BGP communities;
+- CommunityMatchExpr: represents a matching condition (predicate) over a single BGP community;
+- CommunitySetMatchExpr: represents a matching condition (predicate)  over a community set.
 """
 from dataclasses import dataclass
 from serialize import Serialize, Field
@@ -34,7 +43,6 @@ class CommunitySetExprType(ast.Variant):
 class CommunityMatchExprType(ast.Variant):
     COMMUNITY_MATCH_REF = "CommunityMatchExprReference"
     COMMUNITY_IS = "CommunityIs"
-    HAS_COMMUNITY = "HasCommunity"
     COMMUNITY_MATCH_REGEX = "CommunityMatchRegex"
     ALL_STANDARD = "AllStandardCommunities"
 
@@ -44,8 +52,6 @@ class CommunityMatchExprType(ast.Variant):
                 return CommunityMatchExprReference
             case CommunityMatchExprType.COMMUNITY_IS:
                 return CommunityIs
-            case CommunityMatchExprType.HAS_COMMUNITY:
-                return HasCommunity
             case CommunityMatchExprType.COMMUNITY_MATCH_REGEX:
                 return CommunityMatchRegex
             case CommunityMatchExprType.ALL_STANDARD:
@@ -56,11 +62,17 @@ class CommunityMatchExprType(ast.Variant):
 
 class CommunitySetMatchExprType(ast.Variant):
     COMMUNITIES_MATCH_REF = "CommunitySetMatchExprReference"
+    COMMUNITY_SET_MATCH_ALL = "CommunitySetMatchAll"
+    HAS_COMMUNITY = "HasCommunity"
 
     def as_class(self) -> type:
         match self:
             case CommunitySetMatchExprType.COMMUNITIES_MATCH_REF:
                 return CommunitySetMatchExprReference
+            case CommunitySetMatchExprType.COMMUNITY_SET_MATCH_ALL:
+                return CommunitySetMatchAll
+            case CommunitySetMatchExprType.HAS_COMMUNITY:
+                return HasCommunity
             case _:
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
@@ -128,6 +140,28 @@ class CommunitySetMatchExpr(
 
 
 @dataclass
+class HasCommunity(
+    CommunitySetMatchExpr, Serialize, expr=Field("expr", CommunityMatchExpr)
+):
+    """Match a community set iff it has a community that is matched by expr."""
+
+    expr: CommunityMatchExpr
+
+
+@dataclass
+class CommunitySetMatchAll(
+    CommunitySetMatchExpr, Serialize, exprs=Field("exprs", list[CommunitySetMatchExpr])
+):
+    """
+    A list of community set match expressions.
+    Semantically, this is a logical AND of all the given match expressions:
+    see https://www.juniper.net/documentation/us/en/software/junos/bgp/topics/topic-map/routing-policies-communities.html
+    """
+
+    exprs: list[CommunitySetMatchExpr]
+
+
+@dataclass
 class CommunitySetUnion(
     CommunitySetExpr, Serialize, exprs=Field("exprs", list[CommunitySetExpr])
 ):
@@ -146,6 +180,11 @@ class CommunitySetDifference(
 
 
 @dataclass
+class InputCommunities(CommunitySetExpr, Serialize):
+    ...
+
+
+@dataclass
 class LiteralCommunitySet(
     CommunitySetExpr, Serialize, comms=Field("communitySet", list[str])
 ):
@@ -157,15 +196,6 @@ class LiteralCommunitySet(
 class CommunityIs(CommunityMatchExpr, Serialize, community="community"):
     # TODO parse the community set: it appears to be two integers separated by a colon
     community: str
-
-
-@dataclass
-class HasCommunity(
-    CommunityMatchExpr, Serialize, expr=Field("expr", CommunityMatchExpr)
-):
-    """Match a community set iff it has a community that is matched by expr."""
-
-    expr: CommunityMatchExpr
 
 
 @dataclass
@@ -183,20 +213,15 @@ class AllStandardCommunities(CommunityMatchExpr, Serialize):
 
 
 @dataclass
-class InputCommunities(CommunitySetExpr, Serialize):
-    ...
-
-
-@dataclass
 class CommunitySetReference(CommunitySetExpr, Serialize, _name="name"):
     _name: str
 
 
 @dataclass
-class CommunitySetMatchExprReference(CommunitySetMatchExpr, Serialize, _name="name"):
+class CommunityMatchExprReference(CommunityMatchExpr, Serialize, _name="name"):
     _name: str
 
 
 @dataclass
-class CommunityMatchExprReference(CommunityMatchExpr, Serialize, _name="name"):
+class CommunitySetMatchExprReference(CommunitySetMatchExpr, Serialize, _name="name"):
     _name: str

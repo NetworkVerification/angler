@@ -121,6 +121,9 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             _name
         ) | bcomms.CommunityMatchExprReference(_name):
             return aexpr.Var(_name)
+        case bcomms.HasCommunity(e):
+            # extract the underlying community
+            return convert_expr(e)
         case bcomms.CommunityMatchRegex(_):
             # NOTE: for now, we treat regexes as havoc
             return aexpr.Havoc()
@@ -365,6 +368,8 @@ def convert_batfish(
         possible_edges: list[igraph.Edge] = g.es.select(incident_edge_ids).select(
             lambda e: peer_conf.remote_ip.value in e["ips"][1]
         )
+        # FIXME: rather than skipping this peer, we should assume it is external instead
+        # this should then involve updating the graph g with the neighbor
         if len(possible_edges) == 0:
             # skip this peer config
             print(
@@ -481,13 +486,14 @@ def convert_structure(
 
             # TODO: What is the default action if no rule matches?
 
-        case bcomms.HasCommunity(None):
-            print(f"HasCommunity {b.struct_name} (BROKEN)")
-            # FIXME: this should not happen in practice, but may right now due to
-            # the incomplete support for Community_Set_Match_Exprs.
-            # This case should eventually be removed
-            value = None
+        case bcomms.CommunitySetMatchAll(es):
+            # convert the internal CommunityMatchExprs
+            print(f"CommunitySetMatchAll {b.struct_name}")
+            # FIXME: needs to be a conjunction over a SetContains,
+            # rather than a conjunction over communities
+            value = aexpr.Conjunction([convert_expr(e) for e in es])
         case bcomms.HasCommunity(e):
+            # convert the internal CommunityMatchExpr
             print(f"HasCommunity {b.struct_name}")
             value = convert_expr(e)
         case bacl.Acl(name=name):
