@@ -51,6 +51,7 @@ class Policies(Serialize, imp="import", exp="export"):
 @dataclass
 class Properties(
     Serialize,
+    asnum="ASNumber",
     prefixes="Prefixes",
     policies="Policies",
     consts="Constants",
@@ -58,6 +59,7 @@ class Properties(
     stable="Stable",
     temporal="Temporal",
 ):
+    asnum: int
     prefixes: set[IPv4Network] = field(default_factory=set)
     policies: dict[str, Policies] = field(default_factory=dict)
     consts: dict[str, expr.Expression] = field(default_factory=dict)

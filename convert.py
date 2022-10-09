@@ -86,29 +86,27 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
         case bcomms.CommunityIs(community):
             return aexpr.LiteralString(community)
         case bcomms.LiteralCommunitySet(comms):
-            # add each community to the set one-by-one
-            e = aexpr.EmptySet()
-            for comm in comms:
-                e = aexpr.SetAdd(aexpr.LiteralString(comm), e)
-            return e
+            return aexpr.LiteralSet([aexpr.LiteralString(comm) for comm in comms])
         case bcomms.CommunitySetUnion(exprs):
             aes = [convert_expr(expr) for expr in exprs]
             return aexpr.SetUnion(aes)
         case bcomms.CommunitySetDifference(initial, bcomms.AllStandardCommunities()):
             # NOTE: assuming all communities are standard communities
             # remove all communities
-            return aexpr.EmptySet()
+            return aexpr.LiteralSet([])
         case bcomms.CommunitySetDifference(initial, to_remove):
             # remove a single community from the set
             return aexpr.SetRemove(convert_expr(to_remove), convert_expr(initial))
         case bools.MatchCommunities(_comms, bcomms.HasCommunity(expr)):
             # check if community is in _comms
-            return aexpr.SetContains(convert_expr(expr), convert_expr(_comms))
+            return aexpr.Subset(
+                aexpr.LiteralSet([convert_expr(expr)]), convert_expr(_comms)
+            )
         case bools.MatchCommunities(
             _comms, bcomms.CommunitySetMatchExprReference(_name)
         ):
             cvar = aexpr.Var(_name, ty_arg=atys.TypeAnnotation.STRING)
-            return aexpr.SetContains(cvar, convert_expr(_comms))
+            return aexpr.Subset(cvar, convert_expr(_comms))
         case bcomms.InputCommunities():
             return aexpr.GetField(
                 ROUTE_VAR,
@@ -197,27 +195,20 @@ def convert_stmt(b: bstmt.Statement) -> list[astmt.Statement]:
             # convert the arms of the if
             true_stmt = convert_stmts(t_stmts)
             false_stmt = convert_stmts(f_stmts)
-            # check that the types coincide: if either true_stmt or false_stmt ends in a return,
-            # the other must as well
-            # if true_stmt.returns() and false_stmt.returns():
-            #     ty_arg = atys.TypeAnnotation.PAIR
-            # elif true_stmt.returns() and not false_stmt.returns():
-            #     false_stmt = astmt.SeqStatement(false_stmt, accept())
-            #     ty_arg = atys.TypeAnnotation.PAIR
-            # elif not true_stmt.returns() and false_stmt.returns():
-            #     true_stmt = astmt.SeqStatement(true_stmt, accept())
-            #     ty_arg = atys.TypeAnnotation.PAIR
-            # else:
-            #     ty_arg = atys.TypeAnnotation.UNIT
-            return [
-                astmt.IfStatement(
-                    comment=comment,
-                    guard=convert_expr(guard),
-                    true_stmt=true_stmt,
-                    false_stmt=false_stmt,
-                    # ty_arg=ty_arg,
-                )
-            ]
+            # check if both arms are the same; if so, we can simplify the resulting
+            # expression
+            if true_stmt == false_stmt:
+                return true_stmt
+            else:
+                return [
+                    astmt.IfStatement(
+                        comment=comment,
+                        guard=convert_expr(guard),
+                        true_stmt=true_stmt,
+                        false_stmt=false_stmt,
+                        # ty_arg=ty_arg,
+                    )
+                ]
 
         case bstmt.SetCommunities(comm_set=comms):
             wf = aexpr.WithField(
@@ -355,29 +346,47 @@ def convert_batfish(
     nodes: dict[str, prog.Properties] = {}
     # add import and export policies from the BGP peer configs
     for peer_conf in bf.bgp:
+        print(f"BGP peer configuration for {peer_conf.desc}")
         pol = prog.Policies(imp=peer_conf.import_policy, exp=peer_conf.export_policy)
         # look up the node in g
         name = peer_conf.node.nodename
         node: igraph.Vertex = g.vs.find(name)
         if name not in nodes:
-            nodes[name] = prog.Properties()
-        # look up the neighbor of node whose edge has the associated remote IP
-        incident_edge_ids = g.incident(node)
-        # search for an edge which is incident to this node with the same ip as
-        # the peer_conf's remote ip
-        possible_edges: list[igraph.Edge] = g.es.select(incident_edge_ids).select(
-            lambda e: peer_conf.remote_ip.value in e["ips"][1]
-        )
-        # FIXME: rather than skipping this peer, we should assume it is external instead
-        # this should then involve updating the graph g with the neighbor
-        if len(possible_edges) == 0:
-            # skip this peer config
-            print(
-                f"Could not find a neighbor with remote IP {peer_conf.remote_ip.value}"
+            # add the node if it has not been seen before
+            nodes[name] = prog.Properties(peer_conf.local_as)
+        elif nodes[name].asnum != peer_conf.local_as:
+            # throw an error if the node's AS number is different from the others
+            raise ConvertException(f"Found multiple AS numbers for node {name}")
+        if peer_conf.local_as == peer_conf.remote_as:
+            # The peer config is for an internal connection
+            # look up the neighbor of node whose edge has the associated remote IP
+            incident_edge_ids = g.incident(node)
+            # search for an edge which is incident to this node with the same ip as
+            # the peer_conf's remote ip
+            possible_edges: list[igraph.Edge] = g.es.select(incident_edge_ids).select(
+                lambda e: peer_conf.remote_ip.value in e["ips"][1]
             )
-            continue
-        # otherwise, we found a possible edge
-        nbr = g.vs[possible_edges[0].target]["name"]
+            # throw an error if the neighbor can't be found
+            if len(possible_edges) == 0:
+                print(
+                    f"Could not find a neighbor with remote IP {peer_conf.remote_ip.value}"
+                )
+                if len(peer_conf.export_policy) + len(peer_conf.import_policy) > 0:
+                    print(
+                        f"The following policies may be lost: "
+                        + ", ".join(peer_conf.export_policy + peer_conf.import_policy)
+                    )
+                continue
+            # otherwise, we found a possible edge
+            nbr = g.vs[possible_edges[0].target]["name"]
+        else:
+            # The peer config is for an external connection
+            nbr = str(peer_conf.remote_as)
+            if nbr not in g.vs:
+                g.add_vertex(name=nbr)
+            g.add_edge(
+                name, nbr, ips=([peer_conf.local_ip], [peer_conf.remote_ip.value])
+            )
         nodes[name].policies[nbr] = pol
     # add constants, declarations and prefixes for each of the nodes
     for s in bf.declarations:
@@ -488,10 +497,9 @@ def convert_structure(
 
         case bcomms.CommunitySetMatchAll(es):
             # convert the internal CommunityMatchExprs
+            # into a literal set to match against
             print(f"CommunitySetMatchAll {b.struct_name}")
-            # FIXME: needs to be a conjunction over a SetContains,
-            # rather than a conjunction over communities
-            value = aexpr.Conjunction([convert_expr(e) for e in es])
+            value = aexpr.LiteralSet([convert_expr(e) for e in es])
         case bcomms.HasCommunity(e):
             # convert the internal CommunityMatchExpr
             print(f"HasCommunity {b.struct_name}")
@@ -507,3 +515,7 @@ def convert_structure(
         case _:
             raise NotImplementedError(f"No convert case for {b} found.")
     return node_name, struct_name, value
+
+
+class ConvertException(Exception):
+    ...

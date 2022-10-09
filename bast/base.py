@@ -88,6 +88,7 @@ class RemoteIpAddress(
 class BgpPeerConfig(
     ASTNode,
     Serialize,
+    desc=Field("Description", str),
     node=Field("Node", topology.Node),
     local_as=Field("Local_AS", int),
     local_ip=Field("Local_IP", IPv4Address),
@@ -96,6 +97,7 @@ class BgpPeerConfig(
     import_policy=Field("Import_Policy", list[str]),
     export_policy=Field("Export_Policy", list[str]),
 ):
+    desc: str
     node: topology.Node
     local_as: int
     local_ip: IPv4Address

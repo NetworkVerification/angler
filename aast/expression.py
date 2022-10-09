@@ -34,11 +34,10 @@ class ExprType(Variant):
     FIRST = "First"
     SECOND = "Second"
     # Set expressions
-    EMPTY_SET = "EmptySet"
+    LITERAL_SET = "LiteralSet"
     SET_UNION = "SetUnion"
-    SET_ADD = "SetAdd"
     SET_REMOVE = "SetRemove"
-    SET_CONTAINS = "SetContains"
+    SUBSET = "Subset"
     # Arithmetic expressions
     INT = "Int"
     ADD = "Add"
@@ -95,16 +94,14 @@ class ExprType(Variant):
             case ExprType.GE:
                 return GreaterThanEqual
             # sets
-            case ExprType.EMPTY_SET:
-                return EmptySet
-            case ExprType.SET_ADD:
-                return SetAdd
+            case ExprType.LITERAL_SET:
+                return LiteralSet
             case ExprType.SET_REMOVE:
                 return SetRemove
             case ExprType.SET_UNION:
                 return SetUnion
-            case ExprType.SET_CONTAINS:
-                return SetContains
+            case ExprType.SUBSET:
+                return Subset
             # records
             case ExprType.CREATE:
                 return CreateRecord
@@ -417,6 +414,17 @@ class SetAdd(
 
 
 @dataclass
+class LiteralSet(
+    Expression[set],
+    Serialize,
+    elements=Field("elements", list[Expression[str]]),
+    ty=Field("$type", str, "LiteralSet"),
+):
+    elements: list[Expression[str]]
+    ty: str = field(default="LiteralSet", init=False)
+
+
+@dataclass
 class SetUnion(
     Expression[set],
     Serialize,
@@ -441,16 +449,16 @@ class SetRemove(
 
 
 @dataclass
-class SetContains(
+class Subset(
     Expression[bool],
     Serialize,
-    search=Field("Operand1", Expression[str]),
+    search=Field("Operand1", Expression[set]),
     _set=Field("Operand2", Expression[set]),
-    ty=Field("$type", str, "SetContains"),
+    ty=Field("$type", str, "Subset"),
 ):
-    search: Expression[str]
+    search: Expression[set]
     _set: Expression[set]
-    ty: str = field(default="SetContains", init=False)
+    ty: str = field(default="Subset", init=False)
 
 
 @dataclass
