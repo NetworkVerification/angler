@@ -5,6 +5,7 @@ Conversion tools to transform Batfish AST terms to Angler AST terms.
 from ipaddress import IPv4Address, IPv4Network
 from typing import Optional, TypeVar, cast
 import igraph
+from bast.base import OwnedIP
 import bast.json as json
 import bast.topology as topology
 import bast.expression as bexpr
@@ -335,6 +336,15 @@ def bind_stmt(
     ]
 
 
+def get_ip_node_mapping(ips: list[OwnedIP]) -> dict[IPv4Address, str]:
+    """
+    Return the mapping from IP addresses to nodes
+    according to the given IP information.
+    """
+    # TODO: should we also include the mask & interface here?
+    return {ip.ip: ip.node.nodename for ip in ips if ip.active}
+
+
 def convert_batfish(
     bf: json.BatfishJson, query: Optional[Query] = None
 ) -> prog.Program:
@@ -343,6 +353,7 @@ def convert_batfish(
     """
     # generate a graph of the topology
     g = topology.edges_to_graph(bf.topology)
+    ips = get_ip_node_mapping(bf.ips)
     nodes: dict[str, prog.Properties] = {}
     # add import and export policies from the BGP peer configs
     for peer_conf in bf.bgp:
@@ -381,7 +392,7 @@ def convert_batfish(
             nbr = g.vs[possible_edges[0].target]["name"]
         else:
             # The peer config is for an external connection
-            nbr = str(peer_conf.remote_as)
+            nbr = str(peer_conf.remote_ip.value)
             if nbr not in g.vs:
                 g.add_vertex(name=nbr)
             g.add_edge(

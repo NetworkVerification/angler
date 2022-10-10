@@ -105,3 +105,22 @@ class BgpPeerConfig(
     remote_ip: RemoteIpAddress
     import_policy: list[str]
     export_policy: list[str]
+
+
+@dataclass
+class OwnedIP(
+    ASTNode,
+    Serialize,
+    active=Field("Active", bool),
+    ip=Field("IP", IPv4Address),
+    interface=Field("Interface", str),
+    mask=Field("Mask", int),
+    node=Field("Node", topology.Node),
+):
+    """Representation of a row returned by the ipOwners() query."""
+
+    active: bool
+    ip: IPv4Address
+    interface: str
+    mask: int
+    node: topology.Node

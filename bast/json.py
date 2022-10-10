@@ -21,6 +21,7 @@ def collect_rows(answer: answer.TableAnswer) -> list[dict[str, Any]]:
 
 def query_session(session: session.Session) -> dict[str, list[dict]]:
     topology = collect_rows(session.q.layer3Edges().answer())
+    ips = collect_rows(session.q.ipOwners().answer())
     policy = collect_rows(session.q.nodeProperties().answer())
     structures = collect_rows(session.q.namedStructures().answer())
     bgp_peers = collect_rows(session.q.bgpPeerConfiguration().answer())
@@ -30,6 +31,7 @@ def query_session(session: session.Session) -> dict[str, list[dict]]:
     # connected_routes = collect_rows(session.q.routes(protocols="connected").answer())
     return {
         "topology": topology,
+        "ips": ips,
         "policy": policy,
         "declarations": structures,
         "bgp": bgp_peers,
@@ -42,12 +44,14 @@ class BatfishJson(
     ast.ASTNode,
     Serialize,
     topology=Field("topology", list[topology.Edge]),
+    ips=Field("ips", list[ast.OwnedIP]),
     policy=Field("policy", list[dict]),
     bgp=Field("bgp", list[ast.BgpPeerConfig]),
     declarations=Field("declarations", list[struct.Structure]),
     issues=Field("issues", list[dict]),
 ):
     topology: list[topology.Edge]
+    ips: list[ast.OwnedIP]
     policy: list[dict]
     bgp: list[ast.BgpPeerConfig]
     declarations: list[struct.Structure]
