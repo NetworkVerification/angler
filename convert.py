@@ -31,12 +31,21 @@ ARG_VAR = aexpr.Var(ARG, ty_arg=atys.TypeAnnotation.PAIR)
 # the route record passed through the transfer
 ROUTE_VAR = aexpr.Var(ROUTE, ty_arg=atys.TypeAnnotation.ROUTE)
 
+PREFIX_FIELD = "Prefix"
+LP_FIELD = "Lp"
+METRIC_FIELD = "Metric"
+COMMS_FIELD = "Communities"
+NEXTHOP_FIELD = "NextHop"
+TAG_FIELD = "Tag"
+LOCAL_DEFAULT_ACTION_FIELD = "LocalDefaultAction"
+
 FIELDS = {
-    "prefix": atys.TypeAnnotation.IP_ADDRESS,
-    "lp": atys.TypeAnnotation.INT32,
-    "metric": atys.TypeAnnotation.INT32,
-    "communities": atys.TypeAnnotation.SET,
-    "tag": atys.TypeAnnotation.INT32,
+    PREFIX_FIELD: atys.TypeAnnotation.IP_PREFIX,
+    LP_FIELD: atys.TypeAnnotation.INT32,
+    METRIC_FIELD: atys.TypeAnnotation.INT32,
+    COMMS_FIELD: atys.TypeAnnotation.SET,
+    TAG_FIELD: atys.TypeAnnotation.INT32,
+    LOCAL_DEFAULT_ACTION_FIELD: atys.TypeAnnotation.BOOL,
 }
 
 
@@ -111,8 +120,8 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
         case bcomms.InputCommunities():
             return aexpr.GetField(
                 ROUTE_VAR,
-                "communities",
-                ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.SET),
+                COMMS_FIELD,
+                ty_args=(atys.TypeAnnotation.ROUTE, FIELDS[COMMS_FIELD]),
             )
         case bcomms.CommunitySetReference(_name):
             return aexpr.Var(_name, ty_arg=atys.TypeAnnotation.SET)
@@ -133,8 +142,8 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             return aexpr.Add(
                 aexpr.GetField(
                     ROUTE_VAR,
-                    "lp",
-                    ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.INT32),
+                    LP_FIELD,
+                    ty_args=(atys.TypeAnnotation.ROUTE, FIELDS[LP_FIELD]),
                 ),
                 x,
             )
@@ -143,16 +152,16 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             return aexpr.Sub(
                 aexpr.GetField(
                     ROUTE_VAR,
-                    "lp",
-                    ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.INT32),
+                    LP_FIELD,
+                    ty_args=(atys.TypeAnnotation.ROUTE, FIELDS[LP_FIELD]),
                 ),
                 x,
             )
         case prefix.DestinationNetwork():
             return aexpr.GetField(
                 ROUTE_VAR,
-                "prefix",
-                ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.IP_ADDRESS),
+                PREFIX_FIELD,
+                ty_args=(atys.TypeAnnotation.ROUTE, FIELDS[PREFIX_FIELD]),
             )
         case prefix.NamedPrefixSet(_name):
             return aexpr.Var(_name, ty_arg=atys.TypeAnnotation.PREFIX_SET)
@@ -161,8 +170,8 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
         case bools.MatchTag(cmp, tag):
             route_tag = aexpr.GetField(
                 ROUTE_VAR,
-                "tag",
-                ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.INT32),
+                TAG_FIELD,
+                ty_args=(atys.TypeAnnotation.ROUTE, FIELDS[TAG_FIELD]),
             )
             match cmp:
                 case Comparator.EQ:
@@ -214,27 +223,27 @@ def convert_stmt(b: bstmt.Statement) -> list[astmt.Statement]:
         case bstmt.SetCommunities(comm_set=comms):
             wf = aexpr.WithField(
                 ROUTE_VAR,
-                "communities",
+                COMMS_FIELD,
                 convert_expr(comms),
-                ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.SET),
+                ty_args=(atys.TypeAnnotation.ROUTE, FIELDS[COMMS_FIELD]),
             )
             return [astmt.AssignStatement(ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE)]
 
         case bstmt.SetLocalPreference(lp=lp):
             wf = aexpr.WithField(
                 ROUTE_VAR,
-                "lp",
+                LP_FIELD,
                 convert_expr(lp),
-                ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.INT32),
+                ty_args=(atys.TypeAnnotation.ROUTE, FIELDS[LP_FIELD]),
             )
             return [astmt.AssignStatement(ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE)]
 
         case bstmt.SetMetric(metric=metric):
             wf = aexpr.WithField(
                 ROUTE_VAR,
-                "metric",
+                METRIC_FIELD,
                 convert_expr(metric),
-                ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.INT32),
+                ty_args=(atys.TypeAnnotation.ROUTE, FIELDS[METRIC_FIELD]),
             )
             return [astmt.AssignStatement(ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE)]
 
@@ -243,7 +252,7 @@ def convert_stmt(b: bstmt.Statement) -> list[astmt.Statement]:
             return []  # [
             #     astmt.AssignStatement(
             #         ROUTE,
-            #         aexpr.WithField(ROUTE_VAR, "nexthop", convert_expr(nexthop_expr)),
+            #         aexpr.WithField(ROUTE_VAR, NEXTHOP_FIELD, convert_expr(nexthop_expr)),
             #     )
             # ]
         case bstmt.StaticStatement(ty=ty):
@@ -256,8 +265,11 @@ def convert_stmt(b: bstmt.Statement) -> list[astmt.Statement]:
                 case bstmt.StaticStatementType.LOCAL_DEF | bstmt.StaticStatementType.RETURN | bstmt.StaticStatementType.FALL_THROUGH:
                     fst = aexpr.GetField(
                         ROUTE_VAR,
-                        "LocalDefaultAction",
-                        ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.BOOL),
+                        LOCAL_DEFAULT_ACTION_FIELD,
+                        ty_args=(
+                            atys.TypeAnnotation.ROUTE,
+                            FIELDS[LOCAL_DEFAULT_ACTION_FIELD],
+                        ),
                     )
                 case _:
                     raise NotImplementedError(
@@ -399,6 +411,11 @@ def convert_batfish(
             g.add_edge(
                 name, nbr, ips=([peer_conf.local_ip], [peer_conf.remote_ip.value])
             )
+            # add external neighbor
+            if nbr not in nodes:
+                nodes[nbr] = prog.Properties(peer_conf.remote_as)
+            nodes[nbr].policies[name] = prog.Policies([], [])
+            # TODO: identify the node as symbolic
         nodes[name].policies[nbr] = pol
     # add constants, declarations and prefixes for each of the nodes
     for s in bf.declarations:

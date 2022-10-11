@@ -19,6 +19,7 @@ class TypeAnnotation(Enum):
     INT2 = "TInt2"
     STRING = "TString"
     IP_ADDRESS = "TIpAddress"
+    IP_PREFIX = "TIpPrefix"
     PREFIX_SET = "TPrefixSet"
     SET = "TSet"
     ROUTE = "TRoute"
