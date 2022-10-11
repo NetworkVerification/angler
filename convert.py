@@ -146,7 +146,7 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
                     "lp",
                     ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.INT32),
                 ),
-                aexpr.LiteralInt(subtrahend),
+                x,
             )
         case prefix.DestinationNetwork():
             return aexpr.GetField(
@@ -225,7 +225,7 @@ def convert_stmt(b: bstmt.Statement) -> list[astmt.Statement]:
                 ROUTE_VAR,
                 "lp",
                 convert_expr(lp),
-                ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.SET),
+                ty_args=(atys.TypeAnnotation.ROUTE, atys.TypeAnnotation.INT32),
             )
             return [astmt.AssignStatement(ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE)]
 
@@ -374,6 +374,7 @@ def convert_batfish(
             incident_edge_ids = g.incident(node)
             # search for an edge which is incident to this node with the same ip as
             # the peer_conf's remote ip
+            # TODO: check the ips dict?
             possible_edges: list[igraph.Edge] = g.es.select(incident_edge_ids).select(
                 lambda e: peer_conf.remote_ip.value in e["ips"][1]
             )
@@ -392,7 +393,7 @@ def convert_batfish(
             nbr = g.vs[possible_edges[0].target]["name"]
         else:
             # The peer config is for an external connection
-            nbr = str(peer_conf.remote_ip.value)
+            nbr = ips.get(peer_conf.remote_ip.value, str(peer_conf.remote_ip.value))
             if nbr not in g.vs:
                 g.add_vertex(name=nbr)
             g.add_edge(

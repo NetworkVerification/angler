@@ -35,8 +35,10 @@ class ExprType(Variant):
     SECOND = "Second"
     # Set expressions
     LITERAL_SET = "LiteralSet"
+    SET_ADD = "SetAdd"
     SET_UNION = "SetUnion"
     SET_REMOVE = "SetRemove"
+    SET_DIFFERENCE = "SetDifference"
     SUBSET = "Subset"
     # Arithmetic expressions
     INT = "Int"
@@ -96,6 +98,10 @@ class ExprType(Variant):
             # sets
             case ExprType.LITERAL_SET:
                 return LiteralSet
+            case ExprType.SET_ADD:
+                return SetAdd
+            case ExprType.SET_DIFFERENCE:
+                return SetDifference
             case ExprType.SET_REMOVE:
                 return SetRemove
             case ExprType.SET_UNION:
@@ -396,24 +402,6 @@ class LiteralString(
 
 
 @dataclass
-class EmptySet(Expression[set], Serialize, ty=Field("$type", str, "EmptySet")):
-    ty: str = field(default="EmptySet", init=False)
-
-
-@dataclass
-class SetAdd(
-    Expression[set],
-    Serialize,
-    to_add=Field("Operand1", Expression[str]),
-    _set=Field("Operand2", Expression[set]),
-    ty=Field("$type", str, "SetAdd"),
-):
-    to_add: Expression[str]
-    _set: Expression[set]
-    ty: str = field(default="SetAdd", init=False)
-
-
-@dataclass
 class LiteralSet(
     Expression[set],
     Serialize,
@@ -422,6 +410,21 @@ class LiteralSet(
 ):
     elements: list[Expression[str]]
     ty: str = field(default="LiteralSet", init=False)
+
+
+@dataclass
+class SetAdd(
+    Expression[set],
+    Serialize,
+    operand1=Field("Operand1", Expression[str]),
+    operand2=Field("Operand2", Expression[set]),
+    ty=Field("$type", str, "SetAdd"),
+):
+    # expression to add
+    operand1: Expression[str]
+    # original set
+    operand2: Expression[set]
+    ty: str = field(default="SetAdd", init=False)
 
 
 @dataclass
@@ -439,13 +442,28 @@ class SetUnion(
 class SetRemove(
     Expression[set],
     Serialize,
-    to_remove=Field("Operand1", Expression[str]),
-    _set=Field("Operand2", Expression[set]),
+    operand1=Field("Operand1", Expression[str]),
+    operand2=Field("Operand2", Expression[set]),
     ty=Field("$type", str, "SetRemove"),
 ):
-    to_remove: Expression[str]
-    _set: Expression[set]
+    # expression to remove
+    operand1: Expression[str]
+    # original set
+    operand2: Expression[set]
     ty: str = field(default="SetRemove", init=False)
+
+
+@dataclass
+class SetDifference(
+    Expression[set],
+    Serialize,
+    operand1=Field("Operand1", Expression[set]),
+    operand2=Field("Operand2", Expression[set]),
+    ty=Field("$type", str, "SetDifference"),
+):
+    operand1: Expression[set]
+    operand2: Expression[set]
+    ty: str = field(default="SetDifference", init=False)
 
 
 @dataclass
