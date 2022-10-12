@@ -432,6 +432,19 @@ def convert_batfish(
                 nodes[n].prefixes.add(ip_net)
             case None:
                 pass
+    # inline constants
+    print("Inlining constants for...")
+    for node, properties in nodes.items():
+        print(node)
+        for func in properties.declarations.values():
+            for stmt in func.body:
+                # NOTE: stmt substitution returns None, but expr substitution
+                # returns an expression
+                stmt.subst(properties.consts)
+        # delete the constants
+        properties.consts = {}
+    print("Adding verification elements...")
+    # set up verification tooling
     destination = None
     predicates = {}
     ghost = None
@@ -517,9 +530,14 @@ def convert_structure(
                 prev_conds.append(cond)
 
             struct_name = name
+            # if the disjuncts are empty, simply use False
             value = aexpr.MatchSet(
-                permit=aexpr.Disjunction(permit_disjuncts),
-                deny=aexpr.Disjunction(deny_disjuncts),
+                permit=aexpr.Disjunction(permit_disjuncts)
+                if len(permit_disjuncts) > 0
+                else aexpr.LiteralBool(False),
+                deny=aexpr.Disjunction(deny_disjuncts)
+                if len(deny_disjuncts) > 0
+                else aexpr.LiteralBool(False),
             )
 
             # TODO: What is the default action if no rule matches?

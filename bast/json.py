@@ -23,7 +23,8 @@ def query_session(session: session.Session) -> dict[str, list[dict]]:
     topology = collect_rows(session.q.layer3Edges().answer())
     ips = collect_rows(session.q.ipOwners().answer())
     policy = collect_rows(session.q.nodeProperties().answer())
-    structures = collect_rows(session.q.namedStructures().answer())
+    # we need to set ignoreGenerated to False to get the auto-generated structures
+    structures = collect_rows(session.q.namedStructures(ignoreGenerated=False).answer())
     bgp_peers = collect_rows(session.q.bgpPeerConfiguration().answer())
     issues = collect_rows(session.q.initIssues().answer())
     # TODO: include static and connected routes

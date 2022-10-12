@@ -53,6 +53,13 @@ class Statement(
         """Return True if this statement returns, and False otherwise."""
         raise NotImplementedError("Don't call returns() from Statement directly.")
 
+    def subst(self, _environment: dict[str, expr.Expression]):
+        """
+        Substitute all variable references to elements in the given environment
+        in the statement.
+        """
+        ...
+
 
 @dataclass
 class SkipStatement(Statement[NoneType], Serialize, ty=Field("$type", str, "Skip")):
@@ -85,6 +92,10 @@ class SeqStatement(
 
     def returns(self) -> bool:
         return self.second.returns()
+
+    def subst(self, environment: dict[str, expr.Expression]):
+        self.first.subst(environment)
+        self.second.subst(environment)
 
 
 @dataclass
@@ -119,6 +130,13 @@ class IfStatement(
             s.returns() for s in self.false_stmt
         )
 
+    def subst(self, environment: dict[str, expr.Expression]):
+        self.guard.subst(environment)
+        for s in self.true_stmt:
+            s.subst(environment)
+        for s in self.false_stmt:
+            s.subst(environment)
+
 
 @dataclass
 class AssignStatement(
@@ -142,6 +160,9 @@ class AssignStatement(
     def returns(self) -> bool:
         return False
 
+    def subst(self, environment: dict[str, expr.Expression]):
+        self.rhs.subst(environment)
+
 
 @dataclass
 class ReturnStatement(
@@ -160,3 +181,6 @@ class ReturnStatement(
 
     def returns(self) -> bool:
         return True
+
+    def subst(self, environment: dict[str, expr.Expression]):
+        self.return_value.subst(environment)

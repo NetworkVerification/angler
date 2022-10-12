@@ -151,9 +151,12 @@ class Expression(
 
     ty: str = field(default="Expression", init=False)
 
-
-# The type alias for route expressions
-ROUTE = Expression[tuple[bool, dict[str, Any]]]
+    def subst(self, _environment: dict[str, "Expression"]) -> "Expression":
+        """
+        Substitute all variable references to elements in the given environment
+        in the expression.
+        """
+        return self
 
 
 @dataclass
@@ -178,6 +181,12 @@ class Var(
 
     def __post_init__(self, ty_arg: TypeAnnotation):
         self.ty = f"{self.ty}({ty_arg.value})"
+
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        if self._name in environment:
+            return environment[self._name]
+        else:
+            return self
 
 
 @dataclass
@@ -206,6 +215,10 @@ class Conjunction(
     conjuncts: list[Expression[bool]]
     ty: str = field(default="And", init=False)
 
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.conjuncts = [e.subst(environment) for e in self.conjuncts]
+        return self
+
 
 @dataclass
 class ConjunctionChain(
@@ -219,6 +232,10 @@ class ConjunctionChain(
 
     subroutines: list[Expression]
 
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.subroutines = [e.subst(environment) for e in self.subroutines]
+        return self
+
 
 @dataclass
 class Disjunction(
@@ -230,6 +247,10 @@ class Disjunction(
     disjuncts: list[Expression[bool]]
     ty: str = field(default="Or", init=False)
 
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.disjuncts = [e.subst(environment) for e in self.disjuncts]
+        return self
+
 
 @dataclass
 class Not(
@@ -240,6 +261,10 @@ class Not(
 ):
     expr: Expression[bool]
     ty: str = field(default="Not", init=False)
+
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.expr = self.expr.subst(environment)
+        return self
 
 
 @dataclass
@@ -273,6 +298,11 @@ class Add(
     def __post_init__(self, width: int):
         self.ty = f"{self.ty}{width}"
 
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.operand1 = self.operand1.subst(environment)
+        self.operand2 = self.operand2.subst(environment)
+        return self
+
 
 @dataclass
 class Sub(
@@ -289,6 +319,11 @@ class Sub(
 
     def __post_init__(self, width: int):
         self.ty = f"{self.ty}{width}"
+
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.operand1 = self.operand1.subst(environment)
+        self.operand2 = self.operand2.subst(environment)
+        return self
 
 
 @dataclass
@@ -307,6 +342,11 @@ class Equal(
     def __post_init__(self, width: int):
         self.ty = f"{self.ty}{width}"
 
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.operand1 = self.operand1.subst(environment)
+        self.operand2 = self.operand2.subst(environment)
+        return self
+
 
 @dataclass
 class NotEqual(
@@ -323,6 +363,11 @@ class NotEqual(
 
     def __post_init__(self, width: int):
         self.ty = f"{self.ty}{width}"
+
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.operand1 = self.operand1.subst(environment)
+        self.operand2 = self.operand2.subst(environment)
+        return self
 
 
 @dataclass
@@ -341,6 +386,11 @@ class LessThan(
     def __post_init__(self, width: int):
         self.ty = f"{self.ty}{width}"
 
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.operand1 = self.operand1.subst(environment)
+        self.operand2 = self.operand2.subst(environment)
+        return self
+
 
 @dataclass
 class LessThanEqual(
@@ -357,6 +407,11 @@ class LessThanEqual(
 
     def __post_init__(self, width: int):
         self.ty = f"{self.ty}{width}"
+
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.operand1 = self.operand1.subst(environment)
+        self.operand2 = self.operand2.subst(environment)
+        return self
 
 
 @dataclass
@@ -375,6 +430,11 @@ class GreaterThan(
     def __post_init__(self, width: int):
         self.ty = f"{self.ty}{width}"
 
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.operand1 = self.operand1.subst(environment)
+        self.operand2 = self.operand2.subst(environment)
+        return self
+
 
 @dataclass
 class GreaterThanEqual(
@@ -391,6 +451,11 @@ class GreaterThanEqual(
 
     def __post_init__(self, width: int):
         self.ty = f"{self.ty}{width}"
+
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.operand1 = self.operand1.subst(environment)
+        self.operand2 = self.operand2.subst(environment)
+        return self
 
 
 @dataclass
@@ -411,6 +476,10 @@ class LiteralSet(
     elements: list[Expression[str]]
     ty: str = field(default="LiteralSet", init=False)
 
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.elements = [e.subst(environment) for e in self.elements]
+        return self
+
 
 @dataclass
 class SetAdd(
@@ -426,6 +495,11 @@ class SetAdd(
     operand2: Expression[set]
     ty: str = field(default="SetAdd", init=False)
 
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.operand1 = self.operand1.subst(environment)
+        self.operand2 = self.operand2.subst(environment)
+        return self
+
 
 @dataclass
 class SetUnion(
@@ -436,6 +510,10 @@ class SetUnion(
 ):
     sets: list[Expression[set]]
     ty: str = field(default="SetUnion", init=False)
+
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.sets = [e.subst(environment) for e in self.sets]
+        return self
 
 
 @dataclass
@@ -452,6 +530,11 @@ class SetRemove(
     operand2: Expression[set]
     ty: str = field(default="SetRemove", init=False)
 
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.operand1 = self.operand1.subst(environment)
+        self.operand2 = self.operand2.subst(environment)
+        return self
+
 
 @dataclass
 class SetDifference(
@@ -465,18 +548,28 @@ class SetDifference(
     operand2: Expression[set]
     ty: str = field(default="SetDifference", init=False)
 
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.operand1 = self.operand1.subst(environment)
+        self.operand2 = self.operand2.subst(environment)
+        return self
+
 
 @dataclass
 class Subset(
     Expression[bool],
     Serialize,
-    search=Field("Operand1", Expression[set]),
-    _set=Field("Operand2", Expression[set]),
+    operand1=Field("Operand1", Expression[set]),
+    operand2=Field("Operand2", Expression[set]),
     ty=Field("$type", str, "Subset"),
 ):
-    search: Expression[set]
-    _set: Expression[set]
+    operand1: Expression[set]
+    operand2: Expression[set]
     ty: str = field(default="Subset", init=False)
+
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.operand1 = self.operand1.subst(environment)
+        self.operand2 = self.operand2.subst(environment)
+        return self
 
 
 @dataclass
@@ -488,6 +581,12 @@ class CreateRecord(
 ):
     _fields: dict[str, Expression[X]]
     ty: str = field(default="CreateRecord", init=False)
+
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self._fields = {
+            fname: e.subst(environment) for fname, e in self._fields.items()
+        }
+        return self
 
 
 @dataclass
@@ -511,6 +610,10 @@ class GetField(
         self.ty = f"{self.ty}({ty_args[0].value};{ty_args[1].value})"
         self.record_ty = ty_args[0].value
         self.field_ty = ty_args[1].value
+
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.rec = self.rec.subst(environment)
+        return self
 
 
 @dataclass
@@ -537,6 +640,11 @@ class WithField(
         self.record_ty = ty_args[0].value
         self.field_ty = ty_args[1].value
 
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.rec = self.rec.subst(environment)
+        self.field_val = self.field_val.subst(environment)
+        return self
+
 
 @dataclass
 class Pair(
@@ -560,6 +668,11 @@ class Pair(
         self.first_ty = ty_args[0].value
         self.second_ty = ty_args[1].value
 
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.first = self.first.subst(environment)
+        self.second = self.second.subst(environment)
+        return self
+
 
 @dataclass
 class First(
@@ -582,6 +695,10 @@ class First(
         self.first_ty = ty_args[0].value
         self.second_ty = ty_args[1].value
 
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.pair = self.pair.subst(environment)
+        return self
+
 
 @dataclass
 class Second(
@@ -603,6 +720,10 @@ class Second(
         self.ty = f"{self.ty}({ty_args[0].value};{ty_args[1].value})"
         self.first_ty = ty_args[0].value
         self.second_ty = ty_args[1].value
+
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.pair = self.pair.subst(environment)
+        return self
 
 
 @dataclass
@@ -638,6 +759,11 @@ class PrefixContains(
     addr: Expression[IPv4Address]
     prefix: Expression[IPv4Network]
     ty: str = field(default="PrefixContains", init=False)
+
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.addr = self.addr.subst(environment)
+        self.prefix = self.prefix.subst(environment)
+        return self
 
 
 @dataclass
