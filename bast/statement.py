@@ -11,6 +11,8 @@ import bast.communities as comms
 import bast.nexthop as hop
 import bast.ases as ases
 import bast.longexprs as longs
+import bast.intexprs as ints
+import bast.origin as origin
 
 
 class StatementType(ast.Variant):
@@ -20,6 +22,9 @@ class StatementType(ast.Variant):
     SET_LP = "SetLocalPreference"
     SET_METRIC = "SetMetric"
     SET_NEXT_HOP = "SetNextHop"
+    SET_DEFAULT_POLICY = "SetDefaultPolicy"
+    SET_ORIGIN = "SetOrigin"
+    SET_WEIGHT = "SetWeight"
     STATIC = "StaticStatement"
     TRACEABLE = "TraceableStatement"
 
@@ -37,6 +42,12 @@ class StatementType(ast.Variant):
                 return SetMetric
             case StatementType.SET_NEXT_HOP:
                 return SetNextHop
+            case StatementType.SET_ORIGIN:
+                return SetOrigin
+            case StatementType.SET_WEIGHT:
+                return SetWeight
+            case StatementType.SET_DEFAULT_POLICY:
+                return SetDefaultPolicy
             case StatementType.STATIC:
                 return StaticStatement
             case StatementType.TRACEABLE:
@@ -46,9 +57,13 @@ class StatementType(ast.Variant):
 
 
 class StaticStatementType(Enum):
-    TRUE = "ReturnTrue"
-    FALSE = "ReturnFalse"
+    RETURN_TRUE = "ReturnTrue"
+    RETURN_FALSE = "ReturnFalse"
     LOCAL_DEF = "ReturnLocalDefaultAction"
+    SET_ACCEPT = "SetDefaultActionAccept"
+    SET_REJECT = "SetDefaultActionReject"
+    SET_LOCAL_ACCEPT = "SetLocalDefaultActionAccept"
+    SET_LOCAL_REJECT = "SetLocalDefaultActionReject"
     EXIT_ACCEPT = "ExitAccept"
     EXIT_REJECT = "ExitReject"
     RETURN = "Return"
@@ -134,3 +149,18 @@ class SetMetric(Statement, Serialize, metric=Field("metric", longs.LongExpr)):
 @dataclass
 class SetNextHop(Statement, Serialize, expr=Field("expr", hop.NextHopExpr)):
     expr: hop.NextHopExpr
+
+
+@dataclass
+class SetOrigin(Statement, Serialize, expr=Field("originType", origin.OriginExpr)):
+    expr: origin.OriginExpr
+
+
+@dataclass
+class SetWeight(Statement, Serialize, expr=Field("weight", ints.IntExpr)):
+    expr: ints.IntExpr
+
+
+@dataclass
+class SetDefaultPolicy(Statement, Serialize, policy=Field("defaultPolicy", str)):
+    policy: str

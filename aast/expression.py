@@ -2,7 +2,7 @@
 """
 from ipaddress import IPv4Address, IPv4Interface, IPv4Network
 from dataclasses import InitVar, dataclass, field
-from typing import Generic, TypeVar, Any
+from typing import Generic, TypeVar
 from serialize import Serialize, Field
 from aast.base import Variant, ASTNode
 from aast.types import TypeAnnotation
@@ -54,6 +54,7 @@ class ExprType(Variant):
     IP_ADDRESS = "IpAddress"  # string e.g. 10.0.1.0
     IP_PREFIX = "IpPrefix"  # tuple (ipaddress, prefix width)
     PREFIX_CONTAINS = "PrefixContains"
+    PREFIX_SET = "PrefixSet"
     MATCH_SET = "MatchSet"
     MATCH = "Match"
 
@@ -129,6 +130,8 @@ class ExprType(Variant):
                 return IpPrefix
             case ExprType.PREFIX_CONTAINS:
                 return PrefixContains
+            case ExprType.PREFIX_SET:
+                return PrefixSet
             case ExprType.MATCH_SET:
                 return MatchSet
             case ExprType.MATCH:
@@ -777,6 +780,17 @@ class PrefixMatches(
     ip_wildcard: IPv4Interface
     prefix_length_range: str
     ty: str = field(default="PrefixMatches", init=False)
+
+
+@dataclass
+class PrefixSet(
+    Expression[set[IPv4Interface]],
+    Serialize,
+    prefix_space=Field("PrefixSpace", list[IPv4Interface]),
+    ty=Field("$type", str, "PrefixSet"),
+):
+    prefix_space: list[IPv4Interface]
+    ty: str = field(default="PrefixSet", init=False)
 
 
 @dataclass

@@ -3,7 +3,8 @@
 Prefix expressions in the Batfish AST.
 """
 from dataclasses import dataclass
-from serialize import Serialize
+from ipaddress import IPv4Interface
+from serialize import Serialize, Field
 import bast.base as ast
 import bast.expression as expr
 
@@ -25,6 +26,7 @@ class PrefixExprType(ast.Variant):
 class PrefixSetExprType(ast.Variant):
     NAMED_PREFIX_SET = "NamedPrefixSet"
     NAMED_PREFIX6_SET = "NamedPrefix6Set"
+    EXPLICIT_PREFIX_SET = "ExplicitPrefixSet"
 
     def as_class(self) -> type:
         match self:
@@ -32,6 +34,8 @@ class PrefixSetExprType(ast.Variant):
                 return NamedPrefixSet
             case PrefixSetExprType.NAMED_PREFIX6_SET:
                 return NamedPrefix6Set
+            case PrefixSetExprType.EXPLICIT_PREFIX_SET:
+                return ExplicitPrefixSet
             case _:
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
@@ -68,3 +72,10 @@ class NamedPrefixSet(PrefixSetExpr, Serialize, _name="name"):
 @dataclass
 class NamedPrefix6Set(PrefixSetExpr, Serialize, _name="name"):
     _name: str
+
+
+@dataclass
+class ExplicitPrefixSet(
+    PrefixSetExpr, Serialize, prefix_space=Field("prefixSpace", list[IPv4Interface])
+):
+    prefix_space: list[IPv4Interface]

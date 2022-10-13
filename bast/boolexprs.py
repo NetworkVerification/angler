@@ -2,7 +2,7 @@
 """
 Boolean expressions in the Batfish AST.
 """
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from serialize import Serialize, Field
 import bast.base as ast
@@ -34,6 +34,8 @@ class BooleanExprType(ast.Variant):
     LEGACY_MATCH_AS_PATH = "LegacyMatchAsPath"
     MATCH_TAG = "MatchTag"
     MATCH_COMMUNITIES = "MatchCommunities"
+    FIRST_MATCH_CHAIN = "FirstMatchChain"
+    CALL_EXPR = "CallExpr"
 
     def as_class(self) -> type:
         match self:
@@ -63,6 +65,10 @@ class BooleanExprType(ast.Variant):
                 return MatchIpv4
             case BooleanExprType.MATCH_IPV6:
                 return MatchIpv6
+            case BooleanExprType.FIRST_MATCH_CHAIN:
+                return FirstMatchChain
+            case BooleanExprType.CALL_EXPR:
+                return CallExpr
             case _:
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
@@ -91,9 +97,19 @@ class Conjunction(
 
 @dataclass
 class ConjunctionChain(
-    BooleanExpr, Serialize, subroutines=Field("subroutines", list[expr.Expression])
+    BooleanExpr, Serialize, subroutines=Field("subroutines", list[BooleanExpr])
 ):
-    subroutines: list[expr.Expression]
+    """
+    From the Batfish docs:
+    Juniper subroutine chain. Evaluates a route against a series of routing policies in order.
+    Returns a {@link Result} with a boolean value of true if all of the top-level policies accept the
+    route.
+
+    See more info on chains:
+    https://www.juniper.net/documentation/en_US/junos/topics/concept/policy-routing-policies-chain-evaluation-method.html
+    """
+
+    subroutines: list[BooleanExpr]
 
 
 @dataclass
@@ -184,3 +200,33 @@ class MatchTag(
 ):
     cmp: types.Comparator
     tag: longs.LongExpr
+
+
+@dataclass
+class FirstMatchChain(
+    BooleanExpr,
+    Serialize,
+    subroutines=Field("subroutines", list[BooleanExpr], default=[]),
+):
+    """
+    From the Batfish docs:
+    Juniper subroutine chain. Evaluates a route against a series of routing policies in order.
+    Returns a {@link Result} corresponding to the first policy that matches the route, with a boolean
+    value of true if that policy accepts it or false if that policy rejects it. If none of the
+    policies match the route, returns the result of evaluating the environment's default policy.
+
+    See more info on chains:
+    https://www.juniper.net/documentation/en_US/junos/topics/concept/policy-routing-policies-chain-evaluation-method.html
+    """
+
+    # defaults to empty if the field is not provided
+    subroutines: list[BooleanExpr] = field(default_factory=list)
+
+
+@dataclass
+class CallExpr(BooleanExpr, Serialize, policy="calledPolicyName"):
+    """
+    Call the given policy.
+    """
+
+    policy: str

@@ -4,20 +4,14 @@ General expressions in the Batfish AST.
 """
 from dataclasses import dataclass
 import bast.base as ast
-from serialize import Serialize, Field
+from serialize import Serialize
 
 
 class ExprType(ast.Variant):
     """A type of expression."""
 
-    CALL_EXPR = "CallExpr"
-
     def as_class(self) -> type:
-        match self:
-            case ExprType.CALL_EXPR:
-                return CallExpr
-            case _:
-                raise NotImplementedError(f"{self} conversion not implemented.")
+        raise NotImplementedError(f"{self} conversion not implemented.")
 
 
 @dataclass
@@ -31,12 +25,3 @@ class Expression(
     """
 
     ...
-
-
-@dataclass
-class CallExpr(Expression, Serialize, policy="calledPolicyName"):
-    """
-    Call the given policy.
-    """
-
-    policy: str
