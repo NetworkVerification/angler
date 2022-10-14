@@ -135,7 +135,9 @@ class IfStatement(
         )
 
     def subst(self, environment: dict[str, expr.Expression]):
-        self.guard.subst(environment)
+        # NOTE: subst returns an expression when used for expressions, but None when used
+        # for statements
+        self.guard = self.guard.subst(environment)
         for s in self.true_stmt:
             s.subst(environment)
         for s in self.false_stmt:

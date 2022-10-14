@@ -592,6 +592,11 @@ class SetContains(
     operand2: Expression[set]
     ty: str = field(default="SetContains", init=False)
 
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.operand1 = self.operand1.subst(environment)
+        self.operand2 = self.operand2.subst(environment)
+        return self
+
 
 @dataclass
 class Subset(
@@ -854,13 +859,23 @@ class MatchSet(
     deny: Expression[bool]
     ty: str = field(default="MatchSet", init=False)
 
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.permit = self.permit.subst(environment)
+        self.deny = self.deny.subst(environment)
+        return self
+
 
 @dataclass
 class Match(
     Expression[bool],
     Serialize,
     match_key=Field("MatchKey", Expression),
-    match_set=Field("MatchSet", MatchSet),
+    match_set=Field("MatchSet", Expression[bool]),
 ):
-    match_key: Expression
-    match_set: MatchSet
+    match_key: Expression[bool]
+    match_set: Expression[bool]
+
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.match_key = self.match_key.subst(environment)
+        self.match_set = self.match_set.subst(environment)
+        return self

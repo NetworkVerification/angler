@@ -44,8 +44,15 @@ def annotate(cls: type, tys: list[TypeAnnotation]) -> str:
 
 
 class TypeEnum(Enum):
+    """
+    Base class for using enums to declare fields for record types.
+    Implements a fields() class method that generates a dictionary
+    from field names to field types
+    (requires that the Enum elements have string values).
+    """
+
     @classmethod
-    def fields(cls) -> dict:
+    def fields(cls) -> dict[str, TypeAnnotation]:
         return {mem.value: mem.field_type() for mem in cls.__members__.values()}
 
     def field_type(self) -> TypeAnnotation:
@@ -54,9 +61,9 @@ class TypeEnum(Enum):
 
 class ResultType(TypeEnum):
     VALUE = "Value"
-    EXIT = "Exit"
+    EXIT = "Exited"
     FALLTHRU = "FallThrough"
-    RETURN = "Return"
+    RETURN = "Returned"
 
     def field_type(self) -> TypeAnnotation:
         match self:
@@ -111,14 +118,14 @@ class EnvironmentType(TypeEnum):
     """
 
     RESULT_VALUE = "Value"
-    RESULT_EXIT = "Exit"
+    RESULT_EXIT = "Exited"
     RESULT_FALLTHRU = "FallThrough"
-    RESULT_RETURN = "Return"
+    RESULT_RETURN = "Returned"
     PREFIX = "Prefix"
     LP = "Lp"
     METRIC = "Metric"
     COMMS = "Communities"
-    ORIGIN = "Origin"
+    ORIGIN = "OriginType"
     TAG = "Tag"
     WEIGHT = "Weight"
     LOCAL_DEFAULT_ACTION = "LocalDefaultAction"

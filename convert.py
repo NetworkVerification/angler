@@ -153,7 +153,7 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             _comms, bcomms.CommunitySetMatchExprReference(_name)
         ):
             cvar = aexpr.Var(_name)
-            return aexpr.Subset(cvar, convert_expr(_comms))
+            return aexpr.SetContains(cvar, convert_expr(_comms))
         case bcomms.InputCommunities():
             return aexpr.GetField(
                 ARG_VAR,
@@ -610,6 +610,7 @@ def convert_batfish(
                         t = query.with_time(d)
                     nodes[name].temporal = t
 
+    print("Conversion complete!")
     return prog.Program(
         route=atys.EnvironmentType.fields(),
         nodes=nodes,
