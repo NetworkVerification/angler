@@ -67,11 +67,12 @@ def save_json(output: Any, path: Path | str):
 USAGE = f"""
 {os.path.basename(__file__)} : wrapper around pybatfish to extract ast components
 
-Usage: {os.path.basename(__file__)} [-h] [dir|file] [-d] [-q query] [-t] [outfile]
+Usage: {os.path.basename(__file__)} [-h] [dir|file] [-d] [-q query ipaddr] [-t] [outfile]
 
 -h          Print usage
 -d          Request local diagnostics when initializing pybatfish session
 -q query    Add query information based on the given query ("reachable", "valleyfree", "hijack")
+            and the given ip address of the destination.
 -t          Add temporal interfaces
 dir         A snapshot directory to provide to pybatfish
 file        A JSON file to parse the AST of

@@ -106,8 +106,7 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             return convert_expr(subroutines[0])
         case bools.FirstMatchChain(subroutines):
             # FIXME: handle this properly
-            matched = False
-            for subroutine in subroutines:
+            for _ in subroutines:
                 # evaluate the subroutine
                 ...
             return aexpr.GetField(
@@ -346,7 +345,7 @@ def convert_stmt(b: bstmt.Statement) -> list[astmt.Statement]:
             )
             return [astmt.AssignStatement(ARG, wf)]
 
-        case bstmt.SetNextHop(expr=nexthop_expr):
+        case bstmt.SetNextHop(expr=_):
             # FIXME: ignored for now, fix later
             return []  # [
             #     astmt.AssignStatement(
@@ -582,18 +581,10 @@ def convert_batfish(
 
         # determine the destination for routing
         if query.dest and query.with_time:
-            srcs = []
-            for n, p in nodes.items():
-                if any([query.dest.address in prefix for prefix in p.prefixes]):
-                    srcs.append(n)
-                    default_env = default_value(atys.TypeAnnotation.ENVIRONMENT)
-                    p.initial = aexpr.WithField(
-                        default_env,
-                        atys.EnvironmentType.PREFIX.value,
-                        aexpr.IpPrefix(IPv4Network(query.dest.address)),
-                    )
             # compute shortest paths: produces a matrix with a row for each source
-            distances: list[list[int]] = g.shortest_paths(source=srcs, mode="all")
+            distances: list[list[int]] = g.shortest_paths(
+                source=destinations, mode="all"
+            )
             # we want the minimum distance to any source for each node
             best_distances = [
                 min([distances[src][v.index] for src in range(len(distances))])
