@@ -1,4 +1,6 @@
+#!/usr/bin/env python3
 """
+Angler expressions.
 """
 from ipaddress import IPv4Address, IPv4Interface, IPv4Network
 from dataclasses import InitVar, dataclass, field
@@ -39,9 +41,11 @@ class ExprType(Variant):
     SET_UNION = "SetUnion"
     SET_REMOVE = "SetRemove"
     SET_DIFFERENCE = "SetDifference"
+    SET_CONTAINS = "SetContains"
     SUBSET = "Subset"
     # Arithmetic expressions
     INT = "Int"
+    UINT = "UInt"
     ADD = "Add"
     SUB = "Sub"
     EQ = "Equal"
@@ -80,6 +84,8 @@ class ExprType(Variant):
             # integers
             case ExprType.INT:
                 return LiteralInt
+            case ExprType.UINT:
+                return LiteralUInt
             case ExprType.ADD:
                 return Add
             case ExprType.SUB:
@@ -107,6 +113,8 @@ class ExprType(Variant):
                 return SetRemove
             case ExprType.SET_UNION:
                 return SetUnion
+            case ExprType.SET_CONTAINS:
+                return SetContains
             case ExprType.SUBSET:
                 return Subset
             # records
@@ -268,6 +276,21 @@ class Not(
     def subst(self, environment: dict[str, Expression]) -> Expression:
         self.expr = self.expr.subst(environment)
         return self
+
+
+@dataclass
+class LiteralUInt(
+    Expression[int],
+    Serialize,
+    value=Field("Value", int),
+    ty=Field("$type", str, "UInt32"),
+):
+    value: int
+    ty: str = field(default="UInt", init=False)
+    width: InitVar[int] = field(default=32, kw_only=True)
+
+    def __post_init__(self, width: int):
+        self.ty = f"{self.ty}{width}"
 
 
 @dataclass
@@ -558,6 +581,19 @@ class SetDifference(
 
 
 @dataclass
+class SetContains(
+    Expression[bool],
+    Serialize,
+    operand1=Field("Operand1", Expression[str]),
+    operand2=Field("Operand2", Expression[set]),
+    ty=Field("$type", str, "SetContains"),
+):
+    operand1: Expression[str]
+    operand2: Expression[set]
+    ty: str = field(default="SetContains", init=False)
+
+
+@dataclass
 class Subset(
     Expression[bool],
     Serialize,
@@ -577,12 +613,14 @@ class Subset(
 
 @dataclass
 class CreateRecord(
-    Expression[dict[str, Expression[X]]],
+    Expression[dict[str, Expression]],
     Serialize,
-    _fields=Field("Fields", dict[str, Expression[X]]),
+    _fields=Field("Fields", dict[str, Expression]),
+    record_ty=Field("RecordType", TypeAnnotation),
     ty=Field("$type", str, "CreateRecord"),
 ):
-    _fields: dict[str, Expression[X]]
+    _fields: dict[str, Expression]
+    record_ty: TypeAnnotation
     ty: str = field(default="CreateRecord", init=False)
 
     def subst(self, environment: dict[str, Expression]) -> Expression:
@@ -621,18 +659,18 @@ class GetField(
 
 @dataclass
 class WithField(
-    Expression[dict[str, Expression[X]]],
+    Expression[dict[str, Expression]],
     Serialize,
-    rec=Field("Record", Expression[dict[str, Expression[X]]]),
+    rec=Field("Record", Expression[dict[str, Expression]]),
     field_name=Field("FieldName", str),
-    field_val=Field("FieldValue", Expression[X]),
+    field_val=Field("FieldValue", Expression),
     ty=Field("$type", str, "WithField"),
     record_ty=Field("RecordType", str),
     field_ty=Field("FieldType", str),
 ):
-    rec: Expression[dict[str, Expression[X]]]
+    rec: Expression[dict[str, Expression]]
     field_name: str
-    field_val: Expression[X]
+    field_val: Expression
     ty: str = field(default="WithField", init=False)
     ty_args: InitVar[tuple[TypeAnnotation, TypeAnnotation]] = field(
         default=(TypeAnnotation.UNKNOWN, TypeAnnotation.UNKNOWN), kw_only=True
@@ -744,8 +782,8 @@ class IpAddress(
 class IpPrefix(
     Expression[IPv4Network],
     Serialize,
-    ip=Field("Ip", IPv4Network),
-    ty=Field("$type", str, "IpAddress"),
+    ip=Field("Prefix", IPv4Network),
+    ty=Field("$type", str, "IpPrefix"),
 ):
     ip: IPv4Network
     ty: str = field(default="IpPrefix", init=False)

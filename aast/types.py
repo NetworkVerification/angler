@@ -13,8 +13,9 @@ class TypeAnnotation(Enum):
     """
 
     UNKNOWN = "_"
-    UNIT = "TUnit"
     BOOL = "TBool"
+    UINT32 = "TUInt32"
+    UINT2 = "TUInt2"
     INT32 = "TInt32"
     INT2 = "TInt2"
     STRING = "TString"
@@ -25,6 +26,7 @@ class TypeAnnotation(Enum):
     RESULT = "TResult"
     ROUTE = "TRoute"
     RESULT_ROUTE = "TPair(TResult;TRoute)"
+    ENVIRONMENT = "TEnvironment"
 
 
 def annotate(cls: type, tys: list[TypeAnnotation]) -> str:
@@ -41,20 +43,20 @@ def annotate(cls: type, tys: list[TypeAnnotation]) -> str:
             return f"{name}({args})"
 
 
-class ResultType(Enum):
+class TypeEnum(Enum):
+    @classmethod
+    def fields(cls) -> dict:
+        return {mem.value: mem.field_type() for mem in cls.__members__.values()}
+
+    def field_type(self) -> TypeAnnotation:
+        raise NotImplementedError(f"field_type() not implemented for {self}")
+
+
+class ResultType(TypeEnum):
     VALUE = "Value"
     EXIT = "Exit"
     FALLTHRU = "FallThrough"
     RETURN = "Return"
-
-    @staticmethod
-    def fields() -> dict[str, TypeAnnotation]:
-        return {
-            ResultType.VALUE.value: ResultType.VALUE.field_type(),
-            ResultType.EXIT.value: ResultType.EXIT.field_type(),
-            ResultType.FALLTHRU.value: ResultType.FALLTHRU.field_type(),
-            ResultType.RETURN.value: ResultType.RETURN.field_type(),
-        }
 
     def field_type(self) -> TypeAnnotation:
         match self:
@@ -70,47 +72,85 @@ class ResultType(Enum):
                 raise NotImplementedError(f"{self} field type not implemented.")
 
 
-class RouteType(Enum):
+class RouteType(TypeEnum):
     PREFIX = "Prefix"
     LP = "Lp"
     METRIC = "Metric"
     COMMS = "Communities"
-    NEXT_HOP = "NextHop"
     ORIGIN = "Origin"
     TAG = "Tag"
     WEIGHT = "Weight"
     LOCAL_DEFAULT_ACTION = "LocalDefaultAction"
-
-    @staticmethod
-    def fields() -> dict[str, TypeAnnotation]:
-        return {
-            RouteType.PREFIX.value: RouteType.PREFIX.field_type(),
-            RouteType.LP.value: RouteType.LP.field_type(),
-            RouteType.METRIC.value: RouteType.METRIC.field_type(),
-            RouteType.COMMS.value: RouteType.COMMS.field_type(),
-            RouteType.ORIGIN.value: RouteType.ORIGIN.field_type(),
-            RouteType.TAG.value: RouteType.TAG.field_type(),
-            RouteType.WEIGHT.value: RouteType.WEIGHT.field_type(),
-            RouteType.LOCAL_DEFAULT_ACTION.value: RouteType.LOCAL_DEFAULT_ACTION.field_type(),
-        }
 
     def field_type(self) -> TypeAnnotation:
         match self:
             case RouteType.PREFIX:
                 return TypeAnnotation.IP_PREFIX
             case RouteType.LP:
-                return TypeAnnotation.INT32
+                return TypeAnnotation.UINT32
             case RouteType.METRIC:
-                return TypeAnnotation.INT32
+                return TypeAnnotation.UINT32
             case RouteType.COMMS:
                 return TypeAnnotation.SET
             case RouteType.ORIGIN:
-                return TypeAnnotation.INT2
+                return TypeAnnotation.UINT2
             case RouteType.TAG:
-                return TypeAnnotation.INT32
+                return TypeAnnotation.UINT32
             case RouteType.WEIGHT:
-                return TypeAnnotation.INT32
+                return TypeAnnotation.UINT32
             case RouteType.LOCAL_DEFAULT_ACTION:
                 return TypeAnnotation.BOOL
+            case _:
+                raise NotImplementedError(f"{self} field type not implemented.")
+
+
+class EnvironmentType(TypeEnum):
+    """
+    A type representing the result of transferring a route.
+    Combines the data of a Result with a Route.
+    """
+
+    RESULT_VALUE = "Value"
+    RESULT_EXIT = "Exit"
+    RESULT_FALLTHRU = "FallThrough"
+    RESULT_RETURN = "Return"
+    PREFIX = "Prefix"
+    LP = "Lp"
+    METRIC = "Metric"
+    COMMS = "Communities"
+    ORIGIN = "Origin"
+    TAG = "Tag"
+    WEIGHT = "Weight"
+    LOCAL_DEFAULT_ACTION = "LocalDefaultAction"
+    DEFAULT_POLICY = "DefaultPolicy"
+
+    def field_type(self) -> TypeAnnotation:
+        match self:
+            case EnvironmentType.RESULT_VALUE:
+                return TypeAnnotation.BOOL
+            case EnvironmentType.RESULT_EXIT:
+                return TypeAnnotation.BOOL
+            case EnvironmentType.RESULT_FALLTHRU:
+                return TypeAnnotation.BOOL
+            case EnvironmentType.RESULT_RETURN:
+                return TypeAnnotation.BOOL
+            case EnvironmentType.PREFIX:
+                return TypeAnnotation.IP_PREFIX
+            case EnvironmentType.LP:
+                return TypeAnnotation.UINT32
+            case EnvironmentType.METRIC:
+                return TypeAnnotation.UINT32
+            case EnvironmentType.COMMS:
+                return TypeAnnotation.SET
+            case EnvironmentType.ORIGIN:
+                return TypeAnnotation.UINT2
+            case EnvironmentType.TAG:
+                return TypeAnnotation.UINT32
+            case EnvironmentType.WEIGHT:
+                return TypeAnnotation.UINT32
+            case EnvironmentType.LOCAL_DEFAULT_ACTION:
+                return TypeAnnotation.BOOL
+            case EnvironmentType.DEFAULT_POLICY:
+                return TypeAnnotation.STRING
             case _:
                 raise NotImplementedError(f"{self} field type not implemented.")

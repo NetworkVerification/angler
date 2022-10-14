@@ -46,6 +46,7 @@ class AstEncoder(json.JSONEncoder):
                 # drop down to the IPv4Address case
                 return obj.ip
             case IPv4Network():
+                # TODO: add prefix length?
                 return {
                     "Begin": str(obj[0]),
                     "End": str(obj[-1]),

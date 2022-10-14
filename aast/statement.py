@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+"""
+Angler statements.
+"""
 from dataclasses import dataclass, field
 from types import NoneType
 from typing import Generic, TypeVar

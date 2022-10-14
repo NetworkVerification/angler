@@ -54,6 +54,7 @@ class Properties(
     asnum="ASNumber",
     prefixes="Prefixes",
     policies="Policies",
+    initial="Initial",
     consts="Constants",
     declarations="Declarations",
     stable="Stable",
@@ -62,6 +63,7 @@ class Properties(
     asnum: int
     prefixes: set[IPv4Network] = field(default_factory=set)
     policies: dict[str, Policies] = field(default_factory=dict)
+    initial: Optional[expr.Expression] = None
     consts: dict[str, expr.Expression] = field(default_factory=dict)
     declarations: dict[str, Func] = field(default_factory=dict)
     # asserts over a route
@@ -77,7 +79,6 @@ class Program(
     ghost="Ghost",
     predicates="Predicates",
     symbolics="Symbolics",
-    destination="Destination",
     converge_time="ConvergeTime",
 ):
     route: dict[str, ty.TypeAnnotation]
@@ -85,5 +86,4 @@ class Program(
     ghost: Optional[dict[str, ty.TypeAnnotation]] = None
     predicates: dict[str, Predicate] = field(default_factory=dict)
     symbolics: dict[str, Predicate] = field(default_factory=dict)
-    destination: Optional[Dest] = None
     converge_time: Optional[int] = None

@@ -3,7 +3,7 @@
 Conversion tools to transform Batfish AST terms to Angler AST terms.
 """
 from ipaddress import IPv4Address, IPv4Network
-from typing import Optional, TypeVar, cast
+from typing import Optional, TypeVar
 import igraph
 from bast.base import OwnedIP
 import bast.json as json
@@ -18,7 +18,6 @@ import bast.prefix as prefix
 import bast.acl as bacl
 import bast.vrf as bvrf
 import bast.origin as borigin
-import bast.result as bresult
 from bast.btypes import Comparator, Protocol, Action
 import bast.structure as bstruct
 import aast.expression as aexpr
@@ -28,45 +27,61 @@ import aast.program as prog
 import aast.temporal as temp
 from query import Query
 
-ARG = "pair"
-RESULT = "result"
-ROUTE = "route"
-ARG_VAR = aexpr.Var(ARG, ty_arg=atys.TypeAnnotation.RESULT_ROUTE)
-RESULT_VAR = aexpr.Var(RESULT, ty_arg=atys.TypeAnnotation.RESULT)
-# the route record passed through the transfer
-ROUTE_VAR = aexpr.Var(ROUTE, ty_arg=atys.TypeAnnotation.ROUTE)
+# the transfer argument
+ARG = "env"
+ARG_VAR = aexpr.Var(ARG)
 
 
-def return_result_route(result: aexpr.Expression) -> astmt.ReturnStatement:
+def default_value(ty: atys.TypeAnnotation) -> aexpr.Expression:
     """
-    Return a return statement that attaches the given result to a (result, route) pair
-    with the global route argument.
+    Return the default value for the given type.
+    Note that not all types have default values.
     """
-    pair = aexpr.Pair(
-        result,
-        ROUTE_VAR,
-        ty_args=(atys.TypeAnnotation.BOOL, atys.TypeAnnotation.ROUTE),
-    )
-    return astmt.ReturnStatement(pair, ty_arg=atys.TypeAnnotation.RESULT_ROUTE)
-
-
-def default_return(action: Action | bool | aexpr.Expression) -> astmt.ReturnStatement:
-    """Default return: return a pair which either accepts or rejects the route based on the given action."""
-    match action:
-        case Action.PERMIT | True:
-            fst = aexpr.LiteralBool(True)
-        case Action.DENY | False:
-            fst = aexpr.LiteralBool(False)
-        case aexpr.Expression():
-            fst = action
+    match ty:
+        case atys.TypeAnnotation.BOOL:
+            return aexpr.LiteralBool(False)
+        case atys.TypeAnnotation.INT2:
+            return aexpr.LiteralInt(0, width=2)
+        case atys.TypeAnnotation.INT32:
+            return aexpr.LiteralInt(0, width=32)
+        case atys.TypeAnnotation.UINT2:
+            return aexpr.LiteralUInt(0, width=2)
+        case atys.TypeAnnotation.UINT32:
+            return aexpr.LiteralUInt(0, width=32)
+        case atys.TypeAnnotation.SET:
+            return aexpr.LiteralSet([])
+        case atys.TypeAnnotation.STRING:
+            return aexpr.LiteralString("")
+        case atys.TypeAnnotation.IP_ADDRESS:
+            return aexpr.IpAddress(IPv4Address(0))
+        case atys.TypeAnnotation.IP_PREFIX:
+            return aexpr.IpPrefix(IPv4Network(0))
+        case atys.TypeAnnotation.ROUTE:
+            return aexpr.CreateRecord(
+                {
+                    field_name: default_value(field_ty)
+                    for field_name, field_ty in atys.EnvironmentType.fields().items()
+                },
+                atys.TypeAnnotation.ROUTE,
+            )
+        case atys.TypeAnnotation.RESULT:
+            return aexpr.CreateRecord(
+                {
+                    field_name: default_value(field_ty)
+                    for field_name, field_ty in atys.ResultType.fields().items()
+                },
+                atys.TypeAnnotation.RESULT,
+            )
+        case atys.TypeAnnotation.ENVIRONMENT:
+            return aexpr.CreateRecord(
+                {
+                    field_name: default_value(field_ty)
+                    for field_name, field_ty in atys.EnvironmentType.fields().items()
+                },
+                atys.TypeAnnotation.ENVIRONMENT,
+            )
         case _:
-            raise ValueError(f"default_return received invalid argument {action}.")
-    pair = aexpr.Pair(
-        fst,
-        ROUTE_VAR,
-        ty_args=(atys.TypeAnnotation.BOOL, atys.TypeAnnotation.ROUTE),
-    )
-    return astmt.ReturnStatement(pair, ty_arg=atys.TypeAnnotation.RESULT_ROUTE)
+            raise ValueError(f"Cannot produce a default value for type {ty}")
 
 
 def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
@@ -96,11 +111,11 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
                 # evaluate the subroutine
                 ...
             return aexpr.GetField(
-                ROUTE_VAR,
-                atys.RouteType.LOCAL_DEFAULT_ACTION.value,
+                ARG_VAR,
+                atys.EnvironmentType.LOCAL_DEFAULT_ACTION.value,
                 ty_args=(
-                    atys.TypeAnnotation.ROUTE,
-                    atys.RouteType.LOCAL_DEFAULT_ACTION.field_type(),
+                    atys.TypeAnnotation.ENVIRONMENT,
+                    atys.EnvironmentType.LOCAL_DEFAULT_ACTION.field_type(),
                 ),
             )
         case bools.Disjunction(disjuncts):
@@ -133,22 +148,23 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             return aexpr.SetRemove(convert_expr(to_remove), convert_expr(initial))
         case bools.MatchCommunities(_comms, bcomms.HasCommunity(expr)):
             # check if community is in _comms
-            return aexpr.Subset(
-                aexpr.LiteralSet([convert_expr(expr)]), convert_expr(_comms)
-            )
+            return aexpr.SetContains(convert_expr(expr), convert_expr(_comms))
         case bools.MatchCommunities(
             _comms, bcomms.CommunitySetMatchExprReference(_name)
         ):
-            cvar = aexpr.Var(_name, ty_arg=atys.TypeAnnotation.STRING)
+            cvar = aexpr.Var(_name)
             return aexpr.Subset(cvar, convert_expr(_comms))
         case bcomms.InputCommunities():
             return aexpr.GetField(
-                ROUTE_VAR,
-                atys.RouteType.COMMS.value,
-                ty_args=(atys.TypeAnnotation.ROUTE, atys.RouteType.COMMS.field_type()),
+                ARG_VAR,
+                atys.EnvironmentType.COMMS.value,
+                ty_args=(
+                    atys.TypeAnnotation.ENVIRONMENT,
+                    atys.EnvironmentType.COMMS.field_type(),
+                ),
             )
         case bcomms.CommunitySetReference(_name):
-            return aexpr.Var(_name, ty_arg=atys.TypeAnnotation.SET)
+            return aexpr.Var(_name)
         case bcomms.CommunitySetMatchExprReference(
             _name
         ) | bcomms.CommunityMatchExprReference(_name):
@@ -160,59 +176,61 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             # NOTE: for now, we treat regexes as havoc
             return aexpr.Havoc()
         case ints.LiteralInt(value):
-            return aexpr.LiteralInt(value)
+            # TODO: should this be signed or unsigned?
+            return aexpr.LiteralUInt(value)
         case longs.LiteralLong(value):
-            return aexpr.LiteralInt(value)
+            # TODO: should this be signed or unsigned?
+            return aexpr.LiteralUInt(value)
         case longs.IncrementLocalPref(addend):
-            x = aexpr.LiteralInt(addend)
+            x = aexpr.LiteralUInt(addend)
             return aexpr.Add(
                 aexpr.GetField(
-                    ROUTE_VAR,
-                    atys.RouteType.LP.value,
+                    ARG_VAR,
+                    atys.EnvironmentType.LP.value,
                     ty_args=(
-                        atys.TypeAnnotation.ROUTE,
-                        atys.RouteType.LP.field_type(),
+                        atys.TypeAnnotation.ENVIRONMENT,
+                        atys.EnvironmentType.LP.field_type(),
                     ),
                 ),
                 x,
             )
         case longs.DecrementLocalPref(subtrahend):
-            x = aexpr.LiteralInt(subtrahend)
+            x = aexpr.LiteralUInt(subtrahend)
             return aexpr.Sub(
                 aexpr.GetField(
-                    ROUTE_VAR,
-                    atys.RouteType.LP.value,
+                    ARG_VAR,
+                    atys.EnvironmentType.LP.value,
                     ty_args=(
-                        atys.TypeAnnotation.ROUTE,
-                        atys.RouteType.LP.field_type(),
+                        atys.TypeAnnotation.ENVIRONMENT,
+                        atys.EnvironmentType.LP.field_type(),
                     ),
                 ),
                 x,
             )
         case prefix.DestinationNetwork():
             return aexpr.GetField(
-                ROUTE_VAR,
-                atys.RouteType.PREFIX.value,
+                ARG_VAR,
+                atys.EnvironmentType.PREFIX.value,
                 ty_args=(
-                    atys.TypeAnnotation.ROUTE,
-                    atys.RouteType.PREFIX.field_type(),
+                    atys.TypeAnnotation.ENVIRONMENT,
+                    atys.EnvironmentType.PREFIX.field_type(),
                 ),
             )
         case prefix.NamedPrefixSet(_name):
-            return aexpr.Var(_name, ty_arg=atys.TypeAnnotation.PREFIX_SET)
+            return aexpr.Var(_name)
         case prefix.ExplicitPrefixSet(prefix_space):
             return aexpr.PrefixSet(prefix_space)
         case borigin.LiteralOrigin(origin_type):
-            return aexpr.LiteralInt(origin_type.to_int(), width=2)
+            return aexpr.LiteralUInt(origin_type.to_int(), width=2)
         case bools.MatchPrefixSet(_prefix, _prefixes):
             return aexpr.PrefixContains(convert_expr(_prefix), convert_expr(_prefixes))
         case bools.MatchTag(cmp, tag):
             route_tag = aexpr.GetField(
-                ROUTE_VAR,
-                atys.RouteType.TAG.value,
+                ARG_VAR,
+                atys.EnvironmentType.TAG.value,
                 ty_args=(
-                    atys.TypeAnnotation.ROUTE,
-                    atys.RouteType.TAG.field_type(),
+                    atys.TypeAnnotation.ENVIRONMENT,
+                    atys.EnvironmentType.TAG.field_type(),
                 ),
             )
             match cmp:
@@ -236,33 +254,53 @@ def convert_expr(b: bexpr.Expression) -> aexpr.Expression:
             raise NotImplementedError(f"No convert case for {b} found.")
 
 
-def convert_result(
-    r: bresult.Result,
-    *,
-    value_expr: Optional[aexpr.Expression] = None,
-    exit_expr: Optional[aexpr.Expression] = None,
-    fallthrough_expr: Optional[aexpr.Expression] = None,
-    return_expr: Optional[aexpr.Expression] = None,
+def update_result(
+    _value: aexpr.Expression | bool | None = None,
+    _exit: aexpr.Expression | bool | None = None,
+    _fallthrough: aexpr.Expression | bool | None = None,
+    _return: aexpr.Expression | bool | None = None,
 ) -> aexpr.Expression:
     """
-    Convert the given Batfish result into an Angler record expression for constructing a result.
-    The fields of the result can be either booleans or Angler expressions.
+    Convert the given Batfish result into an Angler WithField expression to update the environment.
     """
-    fields: dict[str, aexpr.Expression] = {
-        atys.ResultType.VALUE.value: aexpr.LiteralBool(r._value)
-        if value_expr is None
-        else value_expr,
-        atys.ResultType.EXIT.value: aexpr.LiteralBool(r._exit)
-        if exit_expr is None
-        else exit_expr,
-        atys.ResultType.FALLTHRU.value: aexpr.LiteralBool(r._fallthrough)
-        if fallthrough_expr is None
-        else fallthrough_expr,
-        atys.ResultType.RETURN.value: aexpr.LiteralBool(r._return)
-        if return_expr is None
-        else return_expr,
-    }
-    return aexpr.CreateRecord(fields)
+    arg_expr = ARG_VAR
+    if _value is not None:
+        value_update = (
+            _value
+            if isinstance(_value, aexpr.Expression)
+            else aexpr.LiteralBool(_value)
+        )
+        arg_expr = aexpr.WithField(
+            arg_expr, atys.EnvironmentType.RESULT_VALUE.value, value_update
+        )
+    if _exit is not None:
+        exit_update = (
+            _exit if isinstance(_exit, aexpr.Expression) else aexpr.LiteralBool(_exit)
+        )
+        arg_expr = aexpr.WithField(
+            arg_expr, atys.EnvironmentType.RESULT_EXIT.value, exit_update
+        )
+    if _fallthrough is not None:
+        fallthrough_update = (
+            _fallthrough
+            if isinstance(_fallthrough, aexpr.Expression)
+            else aexpr.LiteralBool(_fallthrough)
+        )
+        arg_expr = aexpr.WithField(
+            arg_expr,
+            atys.EnvironmentType.RESULT_FALLTHRU.value,
+            fallthrough_update,
+        )
+    if _return is not None:
+        return_update = (
+            _return
+            if isinstance(_return, aexpr.Expression)
+            else aexpr.LiteralBool(_return)
+        )
+        arg_expr = aexpr.WithField(
+            arg_expr, atys.EnvironmentType.RESULT_RETURN.value, return_update
+        )
+    return arg_expr
 
 
 def convert_stmt(b: bstmt.Statement) -> list[astmt.Statement]:
@@ -287,156 +325,101 @@ def convert_stmt(b: bstmt.Statement) -> list[astmt.Statement]:
                         guard=convert_expr(guard),
                         true_stmt=true_stmt,
                         false_stmt=false_stmt,
-                        # ty_arg=ty_arg,
                     )
                 ]
 
         case bstmt.SetCommunities(comm_set=comms):
             wf = aexpr.WithField(
-                ROUTE_VAR,
-                atys.RouteType.COMMS.value,
-                convert_expr(comms),
-                ty_args=(
-                    atys.TypeAnnotation.ROUTE,
-                    atys.RouteType.COMMS.field_type(),
-                ),
+                ARG_VAR, atys.EnvironmentType.COMMS.value, convert_expr(comms)
             )
-            return [astmt.AssignStatement(ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE)]
+            return [astmt.AssignStatement(ARG, wf)]
 
         case bstmt.SetLocalPreference(lp=lp):
             wf = aexpr.WithField(
-                ROUTE_VAR,
-                atys.RouteType.LP.value,
-                convert_expr(lp),
-                ty_args=(
-                    atys.TypeAnnotation.ROUTE,
-                    atys.RouteType.LP.field_type(),
-                ),
+                ARG_VAR, atys.EnvironmentType.LP.value, convert_expr(lp)
             )
-            return [astmt.AssignStatement(ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE)]
+            return [astmt.AssignStatement(ARG, wf)]
 
         case bstmt.SetMetric(metric=metric):
             wf = aexpr.WithField(
-                ROUTE_VAR,
-                atys.RouteType.METRIC.value,
-                convert_expr(metric),
-                ty_args=(
-                    atys.TypeAnnotation.ROUTE,
-                    atys.RouteType.METRIC.field_type(),
-                ),
+                ARG_VAR, atys.EnvironmentType.METRIC.value, convert_expr(metric)
             )
-            return [astmt.AssignStatement(ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE)]
+            return [astmt.AssignStatement(ARG, wf)]
 
         case bstmt.SetNextHop(expr=nexthop_expr):
             # FIXME: ignored for now, fix later
             return []  # [
             #     astmt.AssignStatement(
-            #         ROUTE,
-            #         aexpr.WithField(ROUTE_VAR, atys.RouteType.NEXTHOP.value, convert_expr(nexthop_expr)),
+            #         ARG,
+            #         aexpr.WithField(ARG_VAR, atys.EnvironmentType.NEXTHOP.value, convert_expr(nexthop_expr)),
             #     )
             # ]
 
         case bstmt.SetOrigin(origin_type):
             wf = aexpr.WithField(
-                ROUTE_VAR,
-                atys.RouteType.ORIGIN.value,
-                convert_expr(origin_type),
-                ty_args=(
-                    atys.TypeAnnotation.ROUTE,
-                    atys.RouteType.ORIGIN.field_type(),
-                ),
+                ARG_VAR, atys.EnvironmentType.ORIGIN.value, convert_expr(origin_type)
             )
-            return [astmt.AssignStatement(ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE)]
+            return [astmt.AssignStatement(ARG, wf)]
 
         case bstmt.SetWeight(expr):
             wf = aexpr.WithField(
-                ROUTE_VAR,
-                atys.RouteType.WEIGHT.value,
-                convert_expr(expr),
-                ty_args=(
-                    atys.TypeAnnotation.ROUTE,
-                    atys.RouteType.WEIGHT.field_type(),
-                ),
+                ARG_VAR, atys.EnvironmentType.WEIGHT.value, convert_expr(expr)
             )
-            return [astmt.AssignStatement(ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE)]
+            return [astmt.AssignStatement(ARG, wf)]
 
-        case bstmt.SetDefaultPolicy(_):
-            # TODO: currently treated as a no-op?
-            return []
+        case bstmt.SetDefaultPolicy(name):
+            wf = aexpr.WithField(
+                ARG_VAR,
+                atys.EnvironmentType.DEFAULT_POLICY.value,
+                aexpr.LiteralString(name),
+            )
+            return [astmt.AssignStatement(ARG, wf)]
 
         case bstmt.StaticStatement(ty=ty):
             # cases based on
             # https://github.com/batfish/batfish/blob/master/projects/batfish-common-protocol/src/main/java/org/batfish/datamodel/routing_policy/statement/Statements.java
             match ty:
                 case bstmt.StaticStatementType.EXIT_ACCEPT:
-                    result = bresult.Result(_value=True, _exit=True)
-                    return [return_result_route(convert_result(result))]
+                    update = update_result(_value=True, _exit=True)
                 case bstmt.StaticStatementType.EXIT_REJECT:
-                    result = bresult.Result(_value=False, _exit=True)
-                    return [return_result_route(convert_result(result))]
+                    update = update_result(_value=False, _exit=True)
                 case bstmt.StaticStatementType.RETURN_TRUE:
-                    result = bresult.Result(_value=True, _return=True)
-                    return [return_result_route(convert_result(result))]
+                    update = update_result(_value=True, _return=True)
                 case bstmt.StaticStatementType.RETURN_FALSE:
-                    result = bresult.Result(_value=False, _return=True)
-                    return [return_result_route(convert_result(result))]
+                    update = update_result(_value=False, _return=True)
                 case bstmt.StaticStatementType.FALL_THROUGH:
-                    result = bresult.Result(_fallthrough=True, _return=True)
-                    return [return_result_route(convert_result(result))]
+                    update = update_result(_fallthrough=True, _return=True)
                 case bstmt.StaticStatementType.RETURN:
-                    result = bresult.Result(_return=True)
-                    return [return_result_route(convert_result(result))]
+                    update = update_result(_return=True)
                 case bstmt.StaticStatementType.LOCAL_DEF:
                     value_expr = aexpr.GetField(
-                        ROUTE_VAR,
-                        atys.RouteType.LOCAL_DEFAULT_ACTION.value,
+                        ARG_VAR,
+                        atys.EnvironmentType.LOCAL_DEFAULT_ACTION.value,
                         ty_args=(
-                            atys.TypeAnnotation.ROUTE,
-                            atys.RouteType.LOCAL_DEFAULT_ACTION.field_type(),
+                            atys.TypeAnnotation.ENVIRONMENT,
+                            atys.EnvironmentType.LOCAL_DEFAULT_ACTION.field_type(),
                         ),
                     )
-                    result = bresult.Result(_return=True)
-                    return [
-                        return_result_route(
-                            convert_result(result, value_expr=value_expr)
-                        )
-                    ]
+                    update = update_result(_value=value_expr)
                 case bstmt.StaticStatementType.SET_ACCEPT | bstmt.StaticStatementType.SET_LOCAL_ACCEPT:
                     # TODO: distinguish local default action and default action?
-                    wf = aexpr.WithField(
-                        ROUTE_VAR,
-                        atys.RouteType.LOCAL_DEFAULT_ACTION.value,
+                    update = aexpr.WithField(
+                        ARG_VAR,
+                        atys.EnvironmentType.LOCAL_DEFAULT_ACTION.value,
                         aexpr.LiteralBool(True),
-                        ty_args=(
-                            atys.TypeAnnotation.ROUTE,
-                            atys.RouteType.ORIGIN.field_type(),
-                        ),
                     )
-                    return [
-                        astmt.AssignStatement(
-                            ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE
-                        )
-                    ]
                 case bstmt.StaticStatementType.SET_REJECT | bstmt.StaticStatementType.SET_LOCAL_REJECT:
                     # TODO: distinguish local default action and default action?
-                    wf = aexpr.WithField(
-                        ROUTE_VAR,
-                        atys.RouteType.LOCAL_DEFAULT_ACTION.value,
+                    update = aexpr.WithField(
+                        ARG_VAR,
+                        atys.EnvironmentType.LOCAL_DEFAULT_ACTION.value,
                         aexpr.LiteralBool(False),
-                        ty_args=(
-                            atys.TypeAnnotation.ROUTE,
-                            atys.RouteType.ORIGIN.field_type(),
-                        ),
                     )
-                    return [
-                        astmt.AssignStatement(
-                            ROUTE, wf, ty_arg=atys.TypeAnnotation.ROUTE
-                        )
-                    ]
                 case _:
                     raise NotImplementedError(
                         f"No convert case for static statement {ty} found."
                     )
+            return [astmt.AssignStatement(ARG, update)]
         case bstmt.PrependAsPath():
             # return astmt.SkipStatement()
             return []
@@ -459,41 +442,6 @@ def convert_stmts(stmts: list[bstmt.Statement]) -> list[astmt.Statement]:
 
 TResult = TypeVar("TResult")
 TRoute = TypeVar("TRoute")
-
-
-def bind_stmt(
-    body: list[astmt.Statement[tuple[TResult, TRoute]]]
-) -> list[astmt.Statement[tuple[TResult, TRoute]]]:
-    """
-    Return a new statement which maps the old statement onto the second
-    element of a (bool, T) pair, which is only executed if the bool is true.
-    Its behavior is thus equivalent to Option.bind in a functional language,
-    where the pair is returned unchanged if the bool is false.
-    """
-    guard = aexpr.First(
-        ARG_VAR, ty_args=(atys.TypeAnnotation.RESULT, atys.TypeAnnotation.ROUTE)
-    )
-    # assign ROUTE from the second element of the pair
-    assign_route = astmt.AssignStatement(
-        ROUTE,
-        aexpr.Second(
-            ARG_VAR, ty_args=(atys.TypeAnnotation.RESULT, atys.TypeAnnotation.ROUTE)
-        ),
-        ty_arg=atys.TypeAnnotation.ROUTE,
-    )
-    return_pair = astmt.ReturnStatement(
-        ARG_VAR, ty_arg=atys.TypeAnnotation.RESULT_ROUTE
-    )
-    return [
-        astmt.IfStatement(
-            "bind",
-            guard,
-            # astmt.SeqStatement(assign_route, body, ty_arg=atys.TypeAnnotation.PAIR),
-            cast(list[astmt.Statement], [assign_route]) + body,
-            [return_pair],
-            ty_arg=atys.TypeAnnotation.RESULT_ROUTE,
-        )
-    ]
 
 
 def get_ip_node_mapping(ips: list[OwnedIP]) -> dict[IPv4Address, str]:
@@ -592,9 +540,32 @@ def convert_batfish(
                 stmt.subst(properties.consts)
         # delete the constants
         properties.consts = {}
+    print("Adding initial routes...")
+    destinations = []
+    default_env = default_value(atys.TypeAnnotation.ENVIRONMENT)
+    for n, p in nodes.items():
+        if (
+            query
+            and query.dest
+            and any([query.dest.address in prefix for prefix in p.prefixes])
+        ):
+            destinations.append(n)
+            # set the prefix
+            update_prefix = aexpr.WithField(
+                default_env,
+                atys.EnvironmentType.PREFIX.value,
+                aexpr.IpPrefix(IPv4Network(query.dest.address)),
+            )
+            # set the value as True
+            p.initial = aexpr.WithField(
+                update_prefix,
+                atys.EnvironmentType.RESULT_VALUE.value,
+                aexpr.LiteralBool(True),
+            )
+        else:
+            p.initial = default_env
     print("Adding verification elements...")
     # set up verification tooling
-    destination = None
     predicates = {}
     ghost = None
     symbolics = {}
@@ -610,16 +581,26 @@ def convert_batfish(
                 nodes[node].stable = query.safety_checks
 
         # determine the destination for routing
-        destination = query.dest
         if query.dest and query.with_time:
-            src = None
+            srcs = []
             for n, p in nodes.items():
                 if any([query.dest.address in prefix for prefix in p.prefixes]):
-                    src = n
-            # compute shortest paths
-            distances = g.shortest_paths(source=src, mode="all")[0]
-            converge_time = max(distances)
-            for i, d in enumerate(distances):
+                    srcs.append(n)
+                    default_env = default_value(atys.TypeAnnotation.ENVIRONMENT)
+                    p.initial = aexpr.WithField(
+                        default_env,
+                        atys.EnvironmentType.PREFIX.value,
+                        aexpr.IpPrefix(IPv4Network(query.dest.address)),
+                    )
+            # compute shortest paths: produces a matrix with a row for each source
+            distances: list[list[int]] = g.shortest_paths(source=srcs, mode="all")
+            # we want the minimum distance to any source for each node
+            best_distances = [
+                min([distances[src][v.index] for src in range(len(distances))])
+                for v in g.vs
+            ]
+            converge_time = max(best_distances)
+            for i, d in enumerate(best_distances):
                 name = g.vs[i]["name"]
                 pred = nodes[name].stable
                 if pred is not None:
@@ -630,12 +611,11 @@ def convert_batfish(
                     nodes[name].temporal = t
 
     return prog.Program(
-        route=atys.RouteType.fields(),
+        route=atys.EnvironmentType.fields(),
         nodes=nodes,
         ghost=ghost,
         predicates=predicates,
         symbolics=symbolics,
-        destination=destination,
         converge_time=converge_time,
     )
 
@@ -649,7 +629,6 @@ def convert_structure(
     match b.definition.value:
         case bstruct.RoutingPolicy(policyname=name, statements=stmts):
             print(f"Routing policy {b.struct_name}")
-            # TODO(tim): do we need to incorporate bind_stmt still here? or can we just use Result now?
             body = convert_stmts(stmts)
             struct_name = name
             value = prog.Func(ARG, body)
