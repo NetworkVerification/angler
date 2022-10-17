@@ -46,6 +46,7 @@ class ExprType(Variant):
     # Arithmetic expressions
     INT = "Int"
     UINT = "UInt"
+    BIG_INT = "BigInt"
     ADD = "Add"
     SUB = "Sub"
     EQ = "Equal"
@@ -86,6 +87,8 @@ class ExprType(Variant):
                 return LiteralInt
             case ExprType.UINT:
                 return LiteralUInt
+            case ExprType.BIG_INT:
+                return LiteralBigInt
             case ExprType.ADD:
                 return Add
             case ExprType.SUB:
@@ -276,6 +279,17 @@ class Not(
     def subst(self, environment: dict[str, Expression]) -> Expression:
         self.expr = self.expr.subst(environment)
         return self
+
+
+@dataclass
+class LiteralBigInt(
+    Expression[int],
+    Serialize,
+    value=Field("Value", int),
+    ty=Field("$type", str, "BigInt"),
+):
+    value: int
+    ty: str = field(default="BigInt", init=False)
 
 
 @dataclass

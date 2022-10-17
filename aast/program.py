@@ -17,13 +17,13 @@ class Dest(Serialize, address="address"):
 
 
 @dataclass
-class Predicate(Serialize, arg="arg", expr="expr"):
+class Predicate(Serialize, arg="arg", body="body"):
     """
     A predicate from T to bool to check on an argument "arg" of type T.
     """
 
     arg: str
-    expr: expr.Expression[bool]
+    body: expr.Expression[bool]
 
     @staticmethod
     def default():

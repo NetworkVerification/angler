@@ -48,6 +48,8 @@ def default_value(ty: atys.TypeAnnotation) -> aexpr.Expression:
             return aexpr.LiteralUInt(0, width=2)
         case atys.TypeAnnotation.UINT32:
             return aexpr.LiteralUInt(0, width=32)
+        case atys.TypeAnnotation.BIG_INT:
+            return aexpr.LiteralBigInt(0)
         case atys.TypeAnnotation.SET:
             return aexpr.LiteralSet([])
         case atys.TypeAnnotation.STRING:
@@ -439,6 +441,67 @@ def convert_stmts(stmts: list[bstmt.Statement]) -> list[astmt.Statement]:
             raise Exception("unreachable")
 
 
+def convert_routing_policy(policy_body: list[bstmt.Statement]) -> prog.Func:
+    """
+    Convert a Batfish routing policy into an Angler function.
+    We insert cases around each statement to handle possibly returning early depending on
+    the values set by the statement fields, as follows:
+
+    Statement return logic:
+    When Batfish executes an environment, it executes each statement in sequence
+    and checks the result of the statement.
+    If Exited is true, we return immediately from execution with this result.
+    If Returned is true, we return immediately from execution and set Returned to false.
+    If all statements have been executed without a return, we return a Result with
+    FallThrough = true and Value per DefaultAction.
+    See https://github.com/batfish/batfish/blob/master/projects/batfish-common-protocol/src/main/java/org/batfish/datamodel/routing_policy/RoutingPolicy.java#L120
+    """
+    body = convert_stmts(policy_body)
+    # TODO
+    new_body = []
+    for stmt in body:
+        check_returned = astmt.IfStatement(
+            "check_return",
+            aexpr.GetField(ARG_VAR, atys.EnvironmentType.RESULT_RETURN.value),
+            [
+                # end immediately and set return to false
+                astmt.AssignStatement(
+                    ARG,
+                    aexpr.WithField(
+                        ARG_VAR,
+                        atys.EnvironmentType.RESULT_RETURN.value,
+                        aexpr.LiteralBool(False),
+                    ),
+                )
+            ],
+            [],
+        )
+        check_exit = astmt.IfStatement(
+            "check_exit",
+            aexpr.GetField(ARG_VAR, atys.EnvironmentType.RESULT_EXIT.value),
+            [],
+            [check_returned],
+        )
+    assign_fallthrough = astmt.AssignStatement(
+        ARG,
+        aexpr.WithField(
+            ARG_VAR, atys.EnvironmentType.RESULT_FALLTHRU.value, aexpr.LiteralBool(True)
+        ),
+    )
+    assign_value = astmt.AssignStatement(
+        ARG,
+        aexpr.WithField(
+            ARG_VAR,
+            atys.EnvironmentType.RESULT_VALUE.value,
+            aexpr.GetField(ARG_VAR, atys.EnvironmentType.LOCAL_DEFAULT_ACTION.value),
+        ),
+    )
+    # add the end cases to new_body
+    new_body.extend([assign_fallthrough, assign_value])
+    # TODO: swap in the new body for body
+    return prog.Func(ARG, body)
+
+
 TResult = TypeVar("TResult")
 TRoute = TypeVar("TRoute")
 
@@ -621,9 +684,8 @@ def convert_structure(
     match b.definition.value:
         case bstruct.RoutingPolicy(policyname=name, statements=stmts):
             print(f"Routing policy {b.struct_name}")
-            body = convert_stmts(stmts)
             struct_name = name
-            value = prog.Func(ARG, body)
+            value = convert_routing_policy(stmts)
         case bacl.RouteFilterList(_name=name, lines=lines):
             print(f"Route filter list {b.struct_name}")
             permit_disjuncts = []

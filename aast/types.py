@@ -18,6 +18,8 @@ class TypeAnnotation(Enum):
     UINT2 = "TUInt2"
     INT32 = "TInt32"
     INT2 = "TInt2"
+    # numeric type for an unbounded integer
+    BIG_INT = "TBigInt"
     STRING = "TString"
     IP_ADDRESS = "TIpAddress"
     IP_PREFIX = "TIpPrefix"
@@ -130,6 +132,7 @@ class EnvironmentType(TypeEnum):
     WEIGHT = "Weight"
     LOCAL_DEFAULT_ACTION = "LocalDefaultAction"
     DEFAULT_POLICY = "DefaultPolicy"
+    AS_PATH_LENGTH = "AsPathLength"
 
     def field_type(self) -> TypeAnnotation:
         match self:
@@ -159,5 +162,7 @@ class EnvironmentType(TypeEnum):
                 return TypeAnnotation.BOOL
             case EnvironmentType.DEFAULT_POLICY:
                 return TypeAnnotation.STRING
+            case EnvironmentType.AS_PATH_LENGTH:
+                return TypeAnnotation.BIG_INT
             case _:
                 raise NotImplementedError(f"{self} field type not implemented.")
