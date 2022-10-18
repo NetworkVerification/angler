@@ -44,27 +44,25 @@ class Func(Serialize, arg="arg", body="body"):
 
 @dataclass
 class Policies(Serialize, imp="import", exp="export"):
-    imp: list[str] = field(default_factory=list)
-    exp: list[str] = field(default_factory=list)
+    imp: Optional[str]
+    exp: Optional[str]
 
 
 @dataclass
 class Properties(
     Serialize,
-    asnum="ASNumber",
+    # asnum="ASNumber",
     prefixes="Prefixes",
     policies="Policies",
     initial="Initial",
-    consts="Constants",
     declarations="Declarations",
     stable="Stable",
     temporal="Temporal",
 ):
-    asnum: int
+    # asnum: int
     prefixes: set[IPv4Network] = field(default_factory=set)
     policies: dict[str, Policies] = field(default_factory=dict)
     initial: Optional[expr.Expression] = None
-    consts: dict[str, expr.Expression] = field(default_factory=dict)
     declarations: dict[str, Func] = field(default_factory=dict)
     # asserts over a route
     stable: Optional[str] = None

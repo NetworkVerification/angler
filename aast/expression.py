@@ -174,12 +174,19 @@ class Expression(
 
 
 @dataclass
-class CallExpr(Expression[T], Serialize, policy="Name", ty=Field("$type", str, "Call")):
+class CallExpr(
+    Expression[T],
+    Serialize,
+    policy="Name",
+    arg="Arg",
+    ty=Field("$type", str, "Call"),
+):
     """
-    Call the given policy.
+    Call the given policy with the given argument.
     """
 
     policy: str
+    arg: str
     ty: str = field(default="Call", init=False)
 
 

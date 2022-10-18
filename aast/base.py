@@ -91,13 +91,13 @@ class BgpPeerConfig(
     local_ip=Field("Local_IP", IPv4Address),
     remote_as=Field("Remote_AS", int),
     remote_ip=Field("Remote_IP", RemoteIp),
-    import_policy=Field("Import_Policy", list[str]),
-    export_policy=Field("Export_Policy", list[str]),
+    import_policy=Field("Import_Policy", str),
+    export_policy=Field("Export_Policy", str),
 ):
     node: str
     local_as: int
     local_ip: IPv4Address
     remote_as: int
     remote_ip: RemoteIp
-    import_policy: list[str]
-    export_policy: list[str]
+    import_policy: str
+    export_policy: str

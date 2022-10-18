@@ -144,7 +144,10 @@ class Serialize:
 
     @staticmethod
     def _from_dict_aux(v: Any, fieldty: type, recurse: bool):
-        # exit immediately if the field type is any or v is None
+        # exit immediately if the field type is any or v is falsy
+        # NOTE(tim): Per the Python docs, this branch executes when v is any of:
+        # False, None, numeric zero of all types, and empty strings and containers
+        # (including strings, tuples, lists, dictionaries, sets and frozensets).
         if not v or fieldty is Any:
             return v
         # if the fieldty is not None and has a from_dict method, call that
