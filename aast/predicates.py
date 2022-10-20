@@ -40,9 +40,29 @@ def isNull() -> prog.Predicate:
     return prog.Predicate(arg=arg._name, body=body)
 
 
-def isValidTags(*comms: str) -> prog.Predicate:
+def layerToComm(node: str, pod: int) -> str:
+    """Return the community tag associated with node n's layer."""
+    if node.startswith("aggregation"):
+        return "1:" + str(pod)
+    elif node.startswith("edge"):
+        return "2:" + str(pod)
+    else:
+        return "3:0"
+
+
+def layerToComm2(node: str, pod: int) -> str:
+    """Return the community tag associated with node n's layer."""
+    if node.startswith("aggregation"):
+        return "4:" + str(pod)
+    elif node.startswith("edge"):
+        return "5:" + str(pod)
+    else:
+        return "6:0"
+
+
+def isValidTags(comms: list[str]) -> prog.Predicate:
     """
-    Return a predicate testing if the given route is valid and has appropriate tags.
+    Return a predicate testing if the given route is valid and has appropriate community tags.
     """
     arg = e.Var("route", ty_arg=t.TypeAnnotation.ENVIRONMENT)
     is_valid = isValid().body

@@ -5,17 +5,17 @@ Structure definitions in the Batfish AST.
 from dataclasses import dataclass
 from serialize import Serialize, Field
 from typing import cast
-import bast.base as ast
 import bast.statement as stmt
 import bast.communities as comms
 import bast.topology as topology
 import bast.acl as acl
 import bast.vrf as vrf
+import util
 
 
 @dataclass
 class RoutingPolicy(
-    ast.ASTNode,
+    util.ASTNode,
     Serialize,
     policyname="name",
     statements=Field("statements", list[stmt.Statement]),
@@ -25,7 +25,7 @@ class RoutingPolicy(
 
 
 @dataclass
-class StructureDef(ast.ASTNode, Serialize, value=Field("value", dict)):
+class StructureDef(util.ASTNode, Serialize, value=Field("value", dict)):
     """
     A structure definition of some particular value, based on the
     StructureType of the enclosing Structure.
@@ -35,7 +35,7 @@ class StructureDef(ast.ASTNode, Serialize, value=Field("value", dict)):
     value: vrf.Vrf | acl.RouteFilterList | RoutingPolicy | acl.Acl | comms.CommunitySetMatchExpr
 
 
-class StructureType(ast.Variant):
+class StructureType(util.Variant):
     COMMS_MATCH = "Community_Set_Match_Expr"
     IP_ACCESS_LIST = "IP_Access_List"
     ROUTE_FILTER_LIST = "Route_Filter_List"
@@ -63,7 +63,7 @@ class StructureType(ast.Variant):
 
 @dataclass
 class Structure(
-    ast.ASTNode,
+    util.ASTNode,
     Serialize,
     node=Field("Node", topology.Node),
     ty=Field("Structure_Type", StructureType),

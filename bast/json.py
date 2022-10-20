@@ -5,11 +5,12 @@ The top-level JSON AST obtained from Batfish.
 from dataclasses import dataclass
 from typing import Any
 from serialize import Serialize, Field
-import bast.base as ast
+import bast.base as base
 import bast.topology as topology
 import bast.structure as struct
 import pybatfish.client.session as session
 import pybatfish.datamodel.answer as answer
+import util
 
 
 def collect_rows(answer: answer.TableAnswer) -> list[dict[str, Any]]:
@@ -42,19 +43,19 @@ def query_session(session: session.Session) -> dict[str, list[dict]]:
 
 @dataclass
 class BatfishJson(
-    ast.ASTNode,
+    util.ASTNode,
     Serialize,
     topology=Field("topology", list[topology.Edge]),
-    ips=Field("ips", list[ast.OwnedIP]),
+    ips=Field("ips", list[base.OwnedIP]),
     policy=Field("policy", list[dict]),
-    bgp=Field("bgp", list[ast.BgpPeerConfig]),
+    bgp=Field("bgp", list[base.BgpPeerConfig]),
     declarations=Field("declarations", list[struct.Structure]),
     issues=Field("issues", list[dict]),
 ):
     topology: list[topology.Edge]
-    ips: list[ast.OwnedIP]
+    ips: list[base.OwnedIP]
     policy: list[dict]
-    bgp: list[ast.BgpPeerConfig]
+    bgp: list[base.BgpPeerConfig]
     declarations: list[struct.Structure]
     issues: list[dict]
 

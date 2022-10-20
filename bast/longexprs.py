@@ -4,11 +4,11 @@ Long expressions in the Batfish AST.
 """
 from dataclasses import dataclass
 from serialize import Serialize, Field
-import bast.base as ast
 import bast.expression as expr
+import util
 
 
-class LongExprType(ast.Variant):
+class LongExprType(util.Variant):
     LITERAL_LONG = "LiteralLong"
     DECREMENT_LOCAL_PREF = "DecrementLocalPreference"
     INCREMENT_LOCAL_PREF = "IncrementLocalPreference"

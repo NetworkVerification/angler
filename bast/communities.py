@@ -13,11 +13,11 @@ Batfish distinguishes at least three classes representing communities.
 """
 from dataclasses import dataclass
 from serialize import Serialize, Field
-import bast.base as ast
 import bast.expression as expr
+import util
 
 
-class CommunitySetExprType(ast.Variant):
+class CommunitySetExprType(util.Variant):
     INPUT_COMMUNITIES = "InputCommunities"  # variable
     LITERAL_COMMUNITIES = "LiteralCommunitySet"
     COMMUNITY_UNION = "CommunitySetUnion"
@@ -40,7 +40,7 @@ class CommunitySetExprType(ast.Variant):
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
 
-class CommunityMatchExprType(ast.Variant):
+class CommunityMatchExprType(util.Variant):
     COMMUNITY_MATCH_REF = "CommunityMatchExprReference"
     COMMUNITY_IS = "CommunityIs"
     COMMUNITY_MATCH_REGEX = "CommunityMatchRegex"
@@ -60,7 +60,7 @@ class CommunityMatchExprType(ast.Variant):
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
 
-class CommunitySetMatchExprType(ast.Variant):
+class CommunitySetMatchExprType(util.Variant):
     COMMUNITIES_MATCH_REF = "CommunitySetMatchExprReference"
     COMMUNITY_SET_MATCH_ALL = "CommunitySetMatchAll"
     HAS_COMMUNITY = "HasCommunity"
@@ -77,7 +77,7 @@ class CommunitySetMatchExprType(ast.Variant):
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
 
-class RenderingType(ast.Variant):
+class RenderingType(util.Variant):
     COLONSEP = "ColonSeparatedRendering"
     INTVAL = "IntegerValueRendering"
 
@@ -93,7 +93,7 @@ class RenderingType(ast.Variant):
 
 @dataclass
 class CommunityRendering(
-    ast.ASTNode,
+    util.ASTNode,
     Serialize,
     delegate=(
         "class",

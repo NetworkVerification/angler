@@ -100,6 +100,8 @@ if __name__ == "__main__":
             with open(p) as fp:
                 output = json.load(fp)
             bf_ast = bast.json.BatfishJson.from_dict(output)
+            dest_ip = None
+            with_time = "-t" in tl
             print("Successfully parsed Batfish AST!")
             match tl:
                 case []:
@@ -109,11 +111,12 @@ if __name__ == "__main__":
                 case ["-q", q, address, *tl]:
                     in_path = Path(p)
                     out_path = in_path.with_stem(f"{in_path.stem}.angler")
-                    query = QueryType(q).to_query(IPv4Address(address), "-t" in tl)
+                    dest_ip = IPv4Address(address)
+                    query = QueryType(q)
                 case _:
                     out_path = tl[0]
                     query = None
-            a_ast = convert_batfish(bf_ast, query)
+            a_ast = convert_batfish(bf_ast, query, dest_ip, with_time)
             save_json(a_ast, out_path)
         case _:
             print(USAGE)

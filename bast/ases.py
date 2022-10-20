@@ -4,11 +4,11 @@ AS expressions in the Batfish AST.
 """
 from dataclasses import dataclass
 from serialize import Serialize, Field
-import bast.base as ast
+import util
 import bast.expression as expr
 
 
-class AsExprType(ast.Variant):
+class AsExprType(util.Variant):
     EXPLICIT_AS = "ExplicitAs"
 
     def as_class(self) -> type:
@@ -19,7 +19,7 @@ class AsExprType(ast.Variant):
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
 
-class AsPathListExprType(ast.Variant):
+class AsPathListExprType(util.Variant):
     LITERAL_AS_LIST = "LiteralAsList"
 
     def as_class(self) -> type:
@@ -30,7 +30,7 @@ class AsPathListExprType(ast.Variant):
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
 
-class AsPathSetExprType(ast.Variant):
+class AsPathSetExprType(util.Variant):
     EXPLICIT_AS_PATH_SET = "ExplicitAsPathSet"
 
     def as_class(self) -> type:

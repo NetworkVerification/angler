@@ -43,7 +43,13 @@ class Func(Serialize, arg="arg", body="body"):
 
 
 @dataclass
-class Policies(Serialize, imp="import", exp="export"):
+class Policies(Serialize, asn="Asn", imp="Import", exp="Export"):
+    """
+    Representation of a peer with a particular defined import and export policy.
+    May optionally specify an AS number if on an inter-network connection.
+    """
+
+    asn: Optional[int]
     imp: Optional[str]
     exp: Optional[str]
 
@@ -51,7 +57,7 @@ class Policies(Serialize, imp="import", exp="export"):
 @dataclass
 class Properties(
     Serialize,
-    # asnum="ASNumber",
+    asnum="ASNumber",
     prefixes="Prefixes",
     policies="Policies",
     initial="Initial",
@@ -59,7 +65,7 @@ class Properties(
     stable="Stable",
     temporal="Temporal",
 ):
-    # asnum: int
+    asnum: Optional[int] = None
     prefixes: set[IPv4Network] = field(default_factory=set)
     policies: dict[str, Policies] = field(default_factory=dict)
     initial: Optional[expr.Expression] = None
@@ -67,6 +73,13 @@ class Properties(
     # asserts over a route
     stable: Optional[str] = None
     temporal: Optional[temp.TemporalOp] = None
+
+    def add_prefix_from_ip(self, ip: IPv4Address):
+        """
+        Add a /24 prefix to the properties based on the given address.
+        """
+        net = IPv4Network((ip, 24), strict=False)
+        self.prefixes.add(net)
 
 
 @dataclass

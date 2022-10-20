@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Representation of temporal predicates in Angler AST.
 from dataclasses import dataclass, field
-from aast.base import Variant
+from util import Variant
 from serialize import Field, Serialize
 
 

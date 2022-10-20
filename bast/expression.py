@@ -3,11 +3,11 @@
 General expressions in the Batfish AST.
 """
 from dataclasses import dataclass
-import bast.base as ast
 from serialize import Serialize
+import util
 
 
-class ExprType(ast.Variant):
+class ExprType(util.Variant):
     """A type of expression."""
 
     def as_class(self) -> type:
@@ -16,7 +16,7 @@ class ExprType(ast.Variant):
 
 @dataclass
 class Expression(
-    ast.ASTNode,
+    util.ASTNode,
     Serialize,
     delegate=("class", ExprType.parse_class),
 ):

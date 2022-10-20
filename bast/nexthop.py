@@ -5,11 +5,11 @@ Next hop in the Batfish AST.
 from dataclasses import dataclass
 from ipaddress import IPv4Address
 from serialize import Serialize, Field
-import bast.base as ast
 import bast.expression as expr
+import util
 
 
-class NextHopExprType(ast.Variant):
+class NextHopExprType(util.Variant):
     SELF_NEXT_HOP = "SelfNextHop"
     DISCARD_NEXT_HOP = "DiscardNextHop"
     IP_NEXT_HOP = "IpNextHop"

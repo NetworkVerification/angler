@@ -6,9 +6,9 @@ from dataclasses import dataclass, field
 from types import NoneType
 from typing import Generic, TypeVar
 from serialize import Serialize, Field
-from aast.base import Variant, ASTNode
 from aast.types import TypeAnnotation
 import aast.expression as expr
+from util import Variant, ASTNode
 
 T = TypeVar("T")
 E = TypeVar("E")
@@ -20,6 +20,7 @@ class StatementType(Variant):
     IF = "If"
     ASSIGN = "Assign"
     RETURN = "Return"
+    SET_DEFAULT_POLICY = "SetDefaultPolicy"
 
     def as_class(self) -> type:
         match self:
@@ -33,6 +34,8 @@ class StatementType(Variant):
                 return AssignStatement
             case StatementType.RETURN:
                 return ReturnStatement
+            case StatementType.SET_DEFAULT_POLICY:
+                return SetDefaultPolicy
             case _:
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
@@ -190,3 +193,14 @@ class ReturnStatement(
 
     def subst(self, environment: dict[str, expr.Expression]):
         self.return_value.subst(environment)
+
+
+@dataclass
+class SetDefaultPolicy(
+    Statement[NoneType],
+    Serialize,
+    policy_name="PolicyName",
+    ty=Field("$type", str, "SetDefaultPolicy"),
+):
+    policy_name: str
+    ty: str = field(default="SetDefaultPolicy", init=False)

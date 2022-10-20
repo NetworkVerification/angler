@@ -5,7 +5,6 @@ Statements in the Batfish AST.
 from enum import Enum
 from dataclasses import dataclass
 from serialize import Serialize, Field
-import bast.base as ast
 import bast.boolexprs as bools
 import bast.communities as comms
 import bast.nexthop as hop
@@ -13,9 +12,10 @@ import bast.ases as ases
 import bast.longexprs as longs
 import bast.intexprs as ints
 import bast.origin as origin
+import util
 
 
-class StatementType(ast.Variant):
+class StatementType(util.Variant):
     IF = "If"
     PREPEND_AS = "PrependAsPath"
     SET_COMMS = "SetCommunities"
@@ -72,7 +72,7 @@ class StaticStatementType(Enum):
 
 @dataclass
 class Statement(
-    ast.ASTNode,
+    util.ASTNode,
     Serialize,
     delegate=("class", StatementType.parse_class),
 ):

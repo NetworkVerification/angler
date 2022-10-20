@@ -6,8 +6,8 @@ from ipaddress import IPv4Address, IPv4Interface, IPv4Network
 from dataclasses import InitVar, dataclass, field
 from typing import Generic, TypeVar
 from serialize import Serialize, Field
-from aast.base import Variant, ASTNode
 from aast.types import TypeAnnotation
+from util import Variant, ASTNode
 
 T = TypeVar("T")
 X = TypeVar("X")
@@ -27,6 +27,9 @@ class ExprType(Variant):
     CONJUNCTION = "Conjunction"
     DISJUNCTION = "Disjunction"
     NOT = "Not"
+    # Juniper chains
+    CONJUNCTION_CHAIN = "ConjunctionChain"
+    FIRST_MATCH_CHAIN = "FirstMatchChain"
     # Record expressions
     GET_FIELD = "GetField"
     WITH_FIELD = "WithField"
@@ -82,6 +85,11 @@ class ExprType(Variant):
                 return Disjunction
             case ExprType.NOT:
                 return Not
+            # Juniper policy chains
+            case ExprType.CONJUNCTION_CHAIN:
+                return ConjunctionChain
+            case ExprType.FIRST_MATCH_CHAIN:
+                return FirstMatchChain
             # integers
             case ExprType.INT:
                 return LiteralInt
@@ -178,15 +186,13 @@ class CallExpr(
     Expression[T],
     Serialize,
     policy="Name",
-    arg="Arg",
     ty=Field("$type", str, "Call"),
 ):
     """
     Call the given policy with the given argument.
     """
 
-    policy: str
-    arg: str
+    policy: Expression[str]
     ty: str = field(default="Call", init=False)
 
 
@@ -242,16 +248,33 @@ class Conjunction(
 
 
 @dataclass
+class FirstMatchChain(
+    Expression[bool],
+    Serialize,
+    subroutines=Field("Subroutines", list[Expression]),
+    ty=Field("$type", str, "FirstMatchChain"),
+):
+    subroutines: list[Expression]
+    ty: str = field(default="FirstMatchChain", init=False)
+
+    def subst(self, environment: dict[str, Expression]) -> Expression:
+        self.subroutines = [e.subst(environment) for e in self.subroutines]
+        return self
+
+
+@dataclass
 class ConjunctionChain(
     Expression[bool],
     Serialize,
     subroutines=Field("Subroutines", list[Expression]),
+    ty=Field("$type", str, "ConjunctionChain"),
 ):
     """
-    DEPRECATED?
+    DEPRECATED? (Could we replace this with Conjunction?)
     """
 
     subroutines: list[Expression]
+    ty: str = field(default="ConjunctionChain", init=False)
 
     def subst(self, environment: dict[str, Expression]) -> Expression:
         self.subroutines = [e.subst(environment) for e in self.subroutines]

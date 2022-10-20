@@ -5,13 +5,13 @@ Boolean expressions in the Batfish AST.
 from dataclasses import dataclass, field
 from enum import Enum
 from serialize import Serialize, Field
-import bast.base as ast
 import bast.expression as expr
 import bast.communities as comms
 import bast.btypes as types
 import bast.ases as ases
 import bast.prefix as prefix
 import bast.longexprs as longs
+import util
 
 
 class StaticBooleanExprType(Enum):
@@ -20,7 +20,7 @@ class StaticBooleanExprType(Enum):
     TRUE = "True"
 
 
-class BooleanExprType(ast.Variant):
+class BooleanExprType(util.Variant):
     STATIC = "StaticBooleanExpr"
     CONJUNCTION = "Conjunction"
     CONJUNCTION_CHAIN = "ConjunctionChain"

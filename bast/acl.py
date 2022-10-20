@@ -6,12 +6,12 @@ from ipaddress import IPv4Interface, IPv6Interface
 from dataclasses import dataclass, field
 from serialize import Serialize, Field
 import bast.btypes as types
-import bast.base as ast
+import util
 
 
 @dataclass
 class RouteFilterLine(
-    ast.ASTNode,
+    util.ASTNode,
     Serialize,
     action=Field("action", types.Action),
     ip_wildcard=Field("ipWildcard", IPv4Interface),
@@ -25,7 +25,7 @@ class RouteFilterLine(
 
 @dataclass
 class Route6FilterLine(
-    ast.ASTNode,
+    util.ASTNode,
     Serialize,
     action=Field("action", types.Action),
     ip_wildcard=Field("ipWildcard", IPv6Interface),
@@ -39,7 +39,7 @@ class Route6FilterLine(
 
 @dataclass
 class RouteFilterList(
-    ast.ASTNode,
+    util.ASTNode,
     Serialize,
     _name="name",
     lines=Field("lines", list[RouteFilterLine], []),
@@ -50,7 +50,7 @@ class RouteFilterList(
 
 @dataclass
 class Route6FilterList(
-    ast.ASTNode,
+    util.ASTNode,
     Serialize,
     _name="name",
     lines=Field("lines", list[Route6FilterLine], []),
@@ -61,7 +61,7 @@ class Route6FilterList(
 
 @dataclass
 class AclLine(
-    ast.ASTNode,
+    util.ASTNode,
     Serialize,
     action=Field("action", types.Action),
     match_cond="matchCondition",
@@ -79,7 +79,7 @@ class AclLine(
 
 @dataclass
 class Acl(
-    ast.ASTNode,
+    util.ASTNode,
     Serialize,
     _name="name",
     srcname="sourceName",

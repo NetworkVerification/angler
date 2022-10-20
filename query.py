@@ -3,12 +3,21 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from ipaddress import IPv4Address
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 import aast.program as prog
 import aast.types as ty
-import aast.properties as prop
+import aast.predicates as preds
 import aast.temporal as temp
+
+
+@dataclass
+class NodeQuery:
+    """
+    Representation of a safety check and optionally a temporal check at a node.
+    """
+
+    safety_check: str
+    temporal_check: temp.TemporalOp
 
 
 @dataclass
@@ -17,13 +26,10 @@ class Query:
     Representation of a query concerning the network.
     """
 
-    dest: Optional[prog.Dest]
     predicates: dict[str, prog.Predicate]
     symbolics: dict[str, prog.Predicate]
     ghost: Optional[dict[str, ty.TypeAnnotation]]
-    # either a map from nodes to predicate names or a predicate name used by all nodes
-    safety_checks: dict[str, str] | str
-    with_time: Optional[Callable[[int], temp.TemporalOp]]
+    nodes: dict[str, NodeQuery]
 
 
 class QueryType(Enum):
@@ -31,49 +37,60 @@ class QueryType(Enum):
     FAT = "valleyfree"
     HIJACK = "hijack"
 
-    def to_query(self, address: IPv4Address, with_time: bool) -> Query:
+    def from_nodes(self, nodes: dict[str, Any]) -> Query:
         match self:
             case QueryType.SP:
-                return reachable(address, with_time)
+                return reachable(nodes)
             case QueryType.FAT:
-                return vf_reachable(address, with_time)
+                return vf_reachable(nodes)
+            case QueryType.HIJACK:
+                return hijack_safe(nodes)
             case _:
                 raise NotImplementedError("Query not yet implemented")
 
 
-def vf_reachable(address: IPv4Address, with_time: bool) -> Query:
-    dest = prog.Dest(address)
-    # FIXME: need to specify the tags when calling isValidTags
+def vf_reachable(nodes: dict[str, Any]) -> Query:
+    """
+    Return a query that checks that every node is reachable.
+    """
     predicates = {
-        "isValidTags": prop.isValidTags(),
-        "isNull": prop.isNull(),
+        f"isValidTags-{node}": preds.isValidTags(x.comms) for node, x in nodes.items()
     }
+    predicates["isValid"] = preds.isValid()
+    predicates["isNull"] = preds.isNull()
     symbolics = {}
     ghost = None
-    temporal_op = None
-    if with_time:
-        temporal_op = lambda x: temp.Until(x, "isNull", "isValidTags")
-    return Query(dest, predicates, symbolics, ghost, "isValidTags", temporal_op)
+    node_queries = {
+        node: NodeQuery("isValid", temp.Until(x.dist, "isNull", f"isValidTags-{node}"))
+        for node, x in nodes.items()
+    }
+    return Query(predicates, symbolics, ghost, node_queries)
 
 
-def reachable(address: IPv4Address, with_time: bool) -> Query:
-    dest = prog.Dest(address)
-    predicates = {"isValid": prop.isValid()}
+def reachable(nodes: dict[str, Any]) -> Query:
+    """
+    Return a query that checks that every node is reachable.
+    The data associated with each node key is used to determine the
+    time at which the node becomes reachable.
+    """
+    predicates = {"isValid": preds.isValid()}
     symbolics = {}
     ghost = None
-    temporal_op = None
-    if with_time:
-        temporal_op = lambda x: temp.Finally(x, "isValid")
-    return Query(dest, predicates, symbolics, ghost, "isValid", temporal_op)
+    node_queries = {
+        node: NodeQuery("isValid", temp.Finally(dist, "isValid"))
+        for node, dist in nodes.items()
+    }
+    return Query(predicates, symbolics, ghost, node_queries)
 
 
-def hijack_safe(address: IPv4Address, with_time: bool) -> Query:
-    dest = prog.Dest(address)
-    predicates = {"hasInternalRoute": prop.hasInternalRoute()}
+def hijack_safe(nodes: dict[str, Any]) -> Query:
+    predicates = {"hasInternalRoute": preds.hasInternalRoute()}
     # add a hijack route variable which is marked as an external route
-    symbolics = {"hijack": prop.hasExternalRoute()}
+    symbolics = {"hijack": preds.hasExternalRoute()}
     ghost = {"external": ty.TypeAnnotation.BOOL}
-    temporal_op = None
-    if with_time:
-        temporal_op = lambda x: temp.Finally(x, "hasInternalRoute")
-    return Query(dest, predicates, symbolics, ghost, "hasInternalRoute", temporal_op)
+    # TODO: fix the annotations
+    node_queries = {
+        node: NodeQuery("hasInternalRoute", temp.Finally(x, "hasInternalRoute"))
+        for node, x in nodes.items()
+    }
+    return Query(predicates, symbolics, ghost, node_queries)

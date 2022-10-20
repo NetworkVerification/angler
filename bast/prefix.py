@@ -5,11 +5,11 @@ Prefix expressions in the Batfish AST.
 from dataclasses import dataclass
 from ipaddress import IPv4Interface
 from serialize import Serialize, Field
-import bast.base as ast
 import bast.expression as expr
+import util
 
 
-class PrefixExprType(ast.Variant):
+class PrefixExprType(util.Variant):
     DESTINATION = "DestinationNetwork"  # variable
     DESTINATION6 = "DestinationNetwork6"  # variable
 
@@ -23,7 +23,7 @@ class PrefixExprType(ast.Variant):
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
 
-class PrefixSetExprType(ast.Variant):
+class PrefixSetExprType(util.Variant):
     NAMED_PREFIX_SET = "NamedPrefixSet"
     NAMED_PREFIX6_SET = "NamedPrefix6Set"
     EXPLICIT_PREFIX_SET = "ExplicitPrefixSet"

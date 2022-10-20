@@ -6,12 +6,12 @@ from typing import Optional
 from ipaddress import IPv4Address
 from dataclasses import dataclass
 from serialize import Serialize, Field
-import bast.base as ast
+import util
 
 
 @dataclass
 class Ipv4UnicastAddressFamily(
-    ast.ASTNode, Serialize, export_policy="exportPolicy", import_policy="importPolicy"
+    util.ASTNode, Serialize, export_policy="exportPolicy", import_policy="importPolicy"
 ):
     export_policy: Optional[str]
     import_policy: Optional[str]
@@ -19,7 +19,7 @@ class Ipv4UnicastAddressFamily(
 
 @dataclass
 class BgpActivePeerConfig(
-    ast.ASTNode,
+    util.ASTNode,
     Serialize,
     default_metric=Field("defaultMetric", int),
     address_family=Field("ipv4UnicastAddressFamily", Ipv4UnicastAddressFamily),
@@ -45,7 +45,7 @@ class BgpActivePeerConfig(
 
 @dataclass
 class BgpProcess(
-    ast.ASTNode,
+    util.ASTNode,
     Serialize,
     neighbors=Field("neighbors", dict[IPv4Address, BgpActivePeerConfig]),
     router=Field("routerId", IPv4Address),
@@ -56,7 +56,7 @@ class BgpProcess(
 
 @dataclass
 class OspfProcess(
-    ast.ASTNode,
+    util.ASTNode,
     Serialize,
     admin_costs="adminCosts",
     areas="areas",
@@ -68,7 +68,7 @@ class OspfProcess(
 
 @dataclass
 class Vrf(
-    ast.ASTNode,
+    util.ASTNode,
     Serialize,
     vrfname="name",
     bgp=Field("bgpProcess", BgpProcess, None),

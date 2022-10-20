@@ -2,8 +2,11 @@
 """
 Conversion tools to transform Batfish AST terms to Angler AST terms.
 """
+from dataclasses import dataclass
 from ipaddress import IPv4Address, IPv4Network
-from typing import Optional, TypeVar
+from typing import Optional, TypeVar, cast
+
+import igraph
 from bast.base import OwnedIP
 import bast.json as json
 import bast.topology as topology
@@ -23,12 +26,20 @@ import aast.expression as aex
 import aast.statement as asm
 import aast.types as aty
 import aast.program as prog
-import aast.temporal as temp
-from query import Query
+from query import QueryType
 
 # the transfer argument
 ARG = "env"
 ARG_VAR = aex.Var(ARG)
+
+
+# frozen=True means the class is immutable (and therefore also suitable for hashing)
+@dataclass(frozen=True)
+class AsnPeer:
+    local_asn: Optional[int]
+    local_ip: IPv4Address
+    remote_asn: Optional[int]
+    remote_ip: IPv4Address
 
 
 def default_value(ty: aty.TypeAnnotation) -> aex.Expression:
@@ -109,46 +120,24 @@ def convert_expr(b: bex.Expression) -> aex.Expression:
     """
     match b:
         case bools.CallExpr(policy):
-            # extract the boolean result of the call
-            # TODO: revert the Returned field back to its previous value
-            # in order to do this, we need to store the result before the call
-            # and then substitute it back in
-            return aex.GetField(
-                aex.CallExpr(policy, ARG),
-                aty.EnvironmentType.RESULT_VALUE.value,
-                ty_args=(
-                    aty.TypeAnnotation.ENVIRONMENT,
-                    aty.EnvironmentType.RESULT_VALUE.field_type(),
-                ),
-            )
+            # NOTE: handling how the call modifies the environment around it
+            # is left up to the user of angler's output
+            return aex.CallExpr(aex.LiteralString(policy))
         case bools.StaticBooleanExpr(ty=bools.StaticBooleanExprType.TRUE):
             return aex.LiteralBool(True)
         case bools.StaticBooleanExpr(ty=bools.StaticBooleanExprType.FALSE):
             return aex.LiteralBool(False)
         case bools.StaticBooleanExpr(ty=bools.StaticBooleanExprType.CALLCONTEXT):
             # NOTE: not supported
+            # TODO(tim): maybe it should be? would be easy enough to add
             return aex.Havoc()
         case bools.Conjunction(conjuncts):
             conj = [convert_expr(c) for c in conjuncts]
             return aex.Conjunction(conj)
-        case bools.ConjunctionChain(subroutines) if len(subroutines) == 1:
-            # NOTE: for now, we're just handling cases where there is only one subroutine
-            return convert_expr(subroutines[0])
+        case bools.ConjunctionChain(subroutines):
+            return aex.ConjunctionChain([convert_expr(s) for s in subroutines])
         case bools.FirstMatchChain(subroutines):
-            # FIXME: handle this properly
-            _ = [convert_expr(s) for s in subroutines]
-            # TODO: sequence the subroutines
-            # we need to embed the early-return result test at the expression level,
-            # i.e.
-            # (evaluate subroutine 1)
-            # if exit, return immediately;
-            # if not fallthrough, return result and reset value;
-            # (evaluate subroutine 2)
-            # ...
-            # call default policy
-            # (requires some tweaking, as the default policy should be a bare string)
-            # return aex.CallExpr(get_arg(aty.EnvironmentType.DEFAULT_POLICY))
-            raise NotImplementedError()
+            return aex.FirstMatchChain([convert_expr(s) for s in subroutines])
         case bools.Disjunction(disjuncts):
             disj = [convert_expr(d) for d in disjuncts]
             return aex.Disjunction(disj)
@@ -335,9 +324,9 @@ def convert_stmt(b: bsm.Statement) -> list[asm.Statement]:
             return [update_arg(convert_expr(expr), aty.EnvironmentType.WEIGHT)]
 
         case bsm.SetDefaultPolicy(name):
-            return [
-                update_arg(aex.LiteralString(name), aty.EnvironmentType.DEFAULT_POLICY)
-            ]
+            # NOTE: we treat SetDefaultPolicy specially as it represents a modification to the
+            # environment, but not the actual route.
+            return [asm.SetDefaultPolicy(name)]
 
         case bsm.StaticStatement(ty=ty):
             # cases based on
@@ -491,8 +480,21 @@ def get_ip_node_mapping(ips: list[OwnedIP]) -> dict[IPv4Address, str]:
     return {ip.ip: ip.node.nodename for ip in ips if ip.active}
 
 
+def get_node_distances(g: igraph.Graph, destinations: list[str]) -> dict[str, int]:
+    # compute shortest paths: produces a matrix with a row for each source
+    distances: list[list[int]] = g.shortest_paths(source=destinations, mode="all")
+    # we want the minimum distance to any source for each node
+    best_distances = [
+        min([distances[src][v.index] for src in range(len(distances))]) for v in g.vs
+    ]
+    return {g.vs[i]["name"]: d for i, d in enumerate(best_distances)}
+
+
 def convert_batfish(
-    bf: json.BatfishJson, query: Optional[Query] = None
+    bf: json.BatfishJson,
+    query: Optional[QueryType],
+    dest: Optional[IPv4Address],
+    with_time: bool,
 ) -> prog.Program:
     """
     Convert the Batfish JSON object to an Angler program.
@@ -516,100 +518,62 @@ def convert_batfish(
                 nodes[n].declarations[k] = v
             case aex.Expression():
                 constants[n][k] = v
-            case (address, ips_to_policies):
+            case (address, peers_to_policies):
                 # add a /24 prefix based on the given address
                 # strict=False causes this to mask the last 8 bits
-                ip_net = IPv4Network((address, 24), strict=False)
-                nodes[n].prefixes.add(ip_net)
+                nodes[n].add_prefix_from_ip(address)
                 neighbor_policies = {}
-                for ip, policy_block in ips_to_policies.items():
-                    # look up the IP's owner
-                    node_owner = ips.get(ip)
+                for peering, policy_block in peers_to_policies.items():
+                    # add the local ASN to the node
+                    if nodes[n].asnum is None:
+                        nodes[n].asnum = peering.local_asn
+                    elif peering.local_asn != nodes[n].asnum:
+                        print(
+                            f"WARNING: multiple ASNs {nodes[n].asnum} and {peering.local_asn} for node {n}"
+                        )
+                    # look up the remote IP's owner
+                    node_owner = ips.get(peering.remote_ip)
                     if node_owner is None:
                         # IP belongs to an external neighbor
-                        # TODO(tim): could we first try and use the ASN as the name, and then use the IP if
-                        # there is no ASN?
-                        external_node = str(ip)
+                        # we first try and use the ASN as the name, then use the IP if there is no ASN
+                        external_node = str(peering.remote_asn) or str(
+                            peering.remote_ip
+                        )
                         neighbor_policies[external_node] = policy_block
                         if external_node not in g.vs:
                             g.add_vertex(name=external_node)
                             # identify the external neighbor as symbolic
                             external_nodes.add(external_node)
-                        g.add_edge(n, external_node, ips=([address], [ip]))
+                        g.add_edge(
+                            n,
+                            external_node,
+                            ips=([peering.local_ip], [peering.remote_ip]),
+                        )
                         # add a reverse connection from the external neighbor to this node
                         if external_node not in nodes:
-                            nodes[external_node] = prog.Properties()
-                        nodes[external_node].policies[n] = prog.Policies(None, None)
+                            nodes[external_node] = prog.Properties(
+                                asnum=peering.remote_asn
+                            )
+                        nodes[external_node].policies[n] = prog.Policies(
+                            peering.remote_asn, None, None
+                        )
                     else:
                         neighbor_policies[node_owner] = policy_block
                 # bind the policies to the node
                 nodes[n].policies = neighbor_policies
             case None:
                 pass
-    # add import and export policies from the BGP peer configs
-    # for peer_conf in bf.bgp:
-    #     print(f"BGP peer configuration for {peer_conf.desc}")
-    #     pol = prog.Policies(imp=peer_conf.import_policy, exp=peer_conf.export_policy)
-    #     # look up the node in g
-    #     name = peer_conf.node.nodename
-    #     if name not in nodes:
-    #         # add the node if it has not been seen before
-    #         nodes[name] = prog.Properties(peer_conf.local_as)
-    #     elif nodes[name].asnum != peer_conf.local_as:
-    #         # throw an error if the node's AS number is different from the others
-    #         raise ConvertException(f"Found multiple AS numbers for node {name}")
-    #     if peer_conf.local_as == peer_conf.remote_as:
-    #         print("\tconnection is: internal")
-    #         # The peer config is for an internal connection
-    #         # look up the neighbor of node whose edge has the associated remote IP
-    #         node: igraph.Vertex = g.vs.find(name)
-    #         incident_edge_ids = g.incident(node)
-    #         # search for an edge which is incident to this node with the same ip as
-    #         # the peer_conf's remote ip
-    #         # TODO: check the ips dict?
-    #         possible_edges: list[igraph.Edge] = g.es.select(incident_edge_ids).select(
-    #             lambda e: peer_conf.remote_ip.value in e["ips"][1]
-    #         )
-    #         # throw an error if the neighbor can't be found
-    #         if len(possible_edges) == 0:
-    #             print(
-    #                 f"Could not find an internal neighbor with remote IP {peer_conf.remote_ip.value}"
-    #             )
-    #             if len(peer_conf.export_policy) + len(peer_conf.import_policy) > 0:
-    #                 print(
-    #                     f"The following policies may be lost: "
-    #                     + ", ".join(peer_conf.export_policy + peer_conf.import_policy)
-    #                 )
-    #             continue
-    #         # otherwise, we found a possible edge
-    #         nbr = g.vs[possible_edges[0].target]["name"]
-    #     else:
-    #         print("\tconnection is: external")
-    #         # The peer config is for an external connection
-    #         nbr = ips.get(peer_conf.remote_ip.value, str(peer_conf.remote_ip.value))
-    #         if nbr not in g.vs:
-    #             g.add_vertex(name=nbr)
-    #             # identify the external neighbor as symbolic
-    #             external_nodes.add(nbr)
-    #         g.add_edge(
-    #             name, nbr, ips=([peer_conf.local_ip], [peer_conf.remote_ip.value])
-    #         )
-    #         # add external neighbor
-    #         if nbr not in nodes:
-    #             nodes[nbr] = prog.Properties(peer_conf.remote_as)
-    #         nodes[nbr].policies[name] = prog.Policies(None, None)
-    #    nodes[name].policies[nbr] = pol
     # inline constants
     print("Inlining constants for...")
     for node, properties in nodes.items():
         print(node)
         for func in properties.declarations.values():
             for stmt in func.body:
-                # NOTE: stmt substitution returns None, but expr substitution
-                # returns an expression
+                # NOTE: stmt substitution returns None, but expr substitution returns an expression
                 stmt.subst(constants[node])
     print("Adding initial routes...")
-    destinations = []
+    # keep track of nodes which advertise the destination IP
+    destinations: list[str] = []
     symbolics = {}
     default_env = default_value(aty.TypeAnnotation.ENVIRONMENT)
     for n, p in nodes.items():
@@ -618,18 +582,14 @@ def convert_batfish(
             symbolic_name = f"external-route-{n}"
             symbolics[symbolic_name] = prog.Predicate.default()
             p.initial = aex.Var(symbolic_name)
-        elif (
-            query
-            and query.dest
-            and any([query.dest.address in prefix for prefix in p.prefixes])
-        ):
+        elif query and dest and any([dest in prefix for prefix in p.prefixes]):
             # internal destination node: starts with route to itself
             destinations.append(n)
             # set the prefix
             update_prefix = aex.WithField(
                 default_env,
                 aty.EnvironmentType.PREFIX.value,
-                aex.IpPrefix(IPv4Network(query.dest.address)),
+                aex.IpPrefix(IPv4Network(dest)),
             )
             # set the value as True
             p.initial = aex.WithField(
@@ -646,36 +606,25 @@ def convert_batfish(
     ghost = None
     converge_time = None
     if query:
-        # add all query predicates
-        predicates = query.predicates
-        if isinstance(query.safety_checks, dict):
-            for node, pred_name in query.safety_checks.items():
-                nodes[node].stable = pred_name
-        else:
-            for node in nodes.keys():
-                nodes[node].stable = query.safety_checks
-
-        # determine the destination for routing
-        if query.dest and query.with_time:
-            # compute shortest paths: produces a matrix with a row for each source
-            distances: list[list[int]] = g.shortest_paths(
-                source=destinations, mode="all"
-            )
-            # we want the minimum distance to any source for each node
-            best_distances = [
-                min([distances[src][v.index] for src in range(len(distances))])
-                for v in g.vs
-            ]
-            converge_time = max(best_distances)
-            for i, d in enumerate(best_distances):
-                name = g.vs[i]["name"]
-                pred = nodes[name].stable
-                if pred is not None:
-                    if d == 0:
-                        t = temp.Globally(pred)
-                    else:
-                        t = query.with_time(d)
-                    nodes[name].temporal = t
+        # determine what information we need for the node queries
+        match query:
+            case QueryType.SP if dest:
+                node_info = get_node_distances(g, destinations)
+                converge_time = max(node_info.values())
+                # add all query predicates
+                q = query.from_nodes(node_info)
+                predicates = q.predicates
+                # assign safety checks to nodes
+                for node, node_query in q.nodes.items():
+                    nodes[node].stable = node_query.safety_check
+                    if with_time:
+                        nodes[node].temporal = node_query.temporal_check
+            case QueryType.FAT if dest:
+                # TODO: get the comms
+                dist_node_info = get_node_distances(g, destinations)
+                converge_time = max(dist_node_info.values())
+            case _:
+                raise NotImplementedError("Query not yet implemented")
 
     print("Conversion complete!")
     return prog.Program(
@@ -695,7 +644,7 @@ def convert_structure(
     str,
     prog.Func
     | aex.Expression
-    | tuple[IPv4Address, dict[IPv4Address, prog.Policies]]
+    | tuple[IPv4Address, dict[AsnPeer, prog.Policies]]
     | None,
 ]:
     """
@@ -767,7 +716,10 @@ def convert_structure(
                 bgp.router,
                 # the export and import policies for each of its neighbors
                 {
-                    neighbor: prog.Policies(
+                    AsnPeer(
+                        config.local_as, config.local_ip, config.remote_as, neighbor
+                    ): prog.Policies(
+                        asn=config.remote_as,
                         imp=config.address_family.import_policy,
                         exp=config.address_family.export_policy,
                     )
