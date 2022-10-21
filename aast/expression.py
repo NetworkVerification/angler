@@ -192,7 +192,7 @@ class CallExpr(
     Call the given policy with the given argument.
     """
 
-    policy: Expression[str]
+    policy: str
     ty: str = field(default="Call", init=False)
 
 

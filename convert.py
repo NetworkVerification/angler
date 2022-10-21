@@ -4,7 +4,7 @@ Conversion tools to transform Batfish AST terms to Angler AST terms.
 """
 from dataclasses import dataclass
 from ipaddress import IPv4Address, IPv4Network
-from typing import Optional, TypeVar, cast
+from typing import Optional, TypeVar
 
 import igraph
 from bast.base import OwnedIP
@@ -122,7 +122,7 @@ def convert_expr(b: bex.Expression) -> aex.Expression:
         case bools.CallExpr(policy):
             # NOTE: handling how the call modifies the environment around it
             # is left up to the user of angler's output
-            return aex.CallExpr(aex.LiteralString(policy))
+            return aex.CallExpr(policy)
         case bools.StaticBooleanExpr(ty=bools.StaticBooleanExprType.TRUE):
             return aex.LiteralBool(True)
         case bools.StaticBooleanExpr(ty=bools.StaticBooleanExprType.FALSE):
