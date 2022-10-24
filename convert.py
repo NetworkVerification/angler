@@ -132,15 +132,27 @@ def convert_expr(b: bex.Expression) -> aex.Expression:
             # TODO(tim): maybe it should be? would be easy enough to add
             return aex.Havoc()
         case bools.Conjunction(conjuncts):
-            conj = [convert_expr(c) for c in conjuncts]
-            return aex.Conjunction(conj)
+            acc = aex.LiteralBool(True)
+            for c in conjuncts:
+                new_c = convert_expr(c)
+                if new_c == aex.LiteralBool(False):
+                    # short circuit
+                    return new_c
+                acc = aex.Conjunction(new_c, acc)
+            return acc
         case bools.ConjunctionChain(subroutines):
             return aex.ConjunctionChain([convert_expr(s) for s in subroutines])
         case bools.FirstMatchChain(subroutines):
             return aex.FirstMatchChain([convert_expr(s) for s in subroutines])
         case bools.Disjunction(disjuncts):
-            disj = [convert_expr(d) for d in disjuncts]
-            return aex.Disjunction(disj)
+            acc = aex.LiteralBool(False)
+            for c in disjuncts:
+                new_c = convert_expr(c)
+                if new_c == aex.LiteralBool(True):
+                    # short circuit
+                    return new_c
+                acc = aex.Disjunction(new_c, acc)
+            return acc
         case bools.Not(e):
             return aex.Not(convert_expr(e))
         case bools.MatchIpv4():
@@ -157,8 +169,10 @@ def convert_expr(b: bex.Expression) -> aex.Expression:
         case bcomms.LiteralCommunitySet(comms):
             return aex.LiteralSet([aex.LiteralString(comm) for comm in comms])
         case bcomms.CommunitySetUnion(exprs):
-            aes = [convert_expr(expr) for expr in exprs]
-            return aex.SetUnion(aes)
+            acc = aex.LiteralSet([])
+            for e in exprs:
+                acc = aex.SetUnion(convert_expr(e), acc)
+            return acc
         case bcomms.CommunitySetDifference(initial, bcomms.AllStandardCommunities()):
             # NOTE: assuming all communities are standard communities
             # remove all communities
@@ -389,10 +403,8 @@ def convert_stmts(stmts: list[bsm.Statement]) -> list[asm.Statement]:
 def unreachable() -> aex.Expression[bool]:
     """Return an expression that is true if the route has returned or exited."""
     return aex.Disjunction(
-        [
-            get_arg(aty.EnvironmentType.RESULT_RETURN),
-            get_arg(aty.EnvironmentType.RESULT_EXIT),
-        ]
+        get_arg(aty.EnvironmentType.RESULT_RETURN),
+        get_arg(aty.EnvironmentType.RESULT_EXIT),
     )
 
 
@@ -665,36 +677,27 @@ def convert_structure(
             value = convert_routing_policy(stmts)
         case bacl.RouteFilterList(_name=name, lines=lines):
             print(f"Route filter list {b.struct_name}")
-            permit_disjuncts = []
-            deny_disjuncts = []
+            # if the disjuncts are empty, simply use False
+            permit_disjuncts = aex.LiteralBool(False)
+            deny_disjuncts = aex.LiteralBool(False)
+            # accumulate previous conditions
             prev_conds = []
             for l in lines:
                 cond = aex.PrefixMatches(l.ip_wildcard, l.length_range)
 
-                not_prev: list[aex.Expression[bool]] = [aex.Not(c) for c in prev_conds]
-
-                if len(not_prev) > 0:
-                    curr_matches = aex.Conjunction(not_prev + [cond])
-                else:
-                    curr_matches = cond
+                curr_matches = cond
+                for c in prev_conds:
+                    curr_matches = aex.Conjunction(aex.Not(c), curr_matches)
 
                 if l.action == Action.PERMIT:
-                    permit_disjuncts.append(curr_matches)
+                    permit_disjuncts = aex.Disjunction(curr_matches, permit_disjuncts)
                 else:
-                    deny_disjuncts.append(curr_matches)
+                    deny_disjuncts = aex.Disjunction(curr_matches, deny_disjuncts)
 
                 prev_conds.append(cond)
 
             struct_name = name
-            # if the disjuncts are empty, simply use False
-            value = aex.MatchSet(
-                permit=aex.Disjunction(permit_disjuncts)
-                if len(permit_disjuncts) > 0
-                else aex.LiteralBool(False),
-                deny=aex.Disjunction(deny_disjuncts)
-                if len(deny_disjuncts) > 0
-                else aex.LiteralBool(False),
-            )
+            value = aex.MatchSet(permit=permit_disjuncts, deny=deny_disjuncts)
 
             # TODO: What is the default action if no rule matches?
 
