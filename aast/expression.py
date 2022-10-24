@@ -236,19 +236,14 @@ class Havoc(Expression[bool], Serialize, ty=Field("$type", str, "Havoc")):
 class Conjunction(
     Expression[bool],
     Serialize,
-    # conjuncts=Field("Exprs", list[Expression[bool]]),
-    operand1=Field("Operand1", Expression[bool]),
-    operand2=Field("Operand2", Expression[bool]),
+    conjuncts=Field("Exprs", list[Expression[bool]]),
     ty=Field("$type", str, "And"),
 ):
-    operand1: Expression[bool]
-    operand2: Expression[bool]
+    conjuncts: list[Expression[bool]]
     ty: str = field(default="And", init=False)
 
     def subst(self, environment: dict[str, Expression]) -> Expression:
-        self.operand1 = self.operand1.subst(environment)
-        self.operand2 = self.operand1.subst(environment)
-        # self.conjuncts = [e.subst(environment) for e in self.conjuncts]
+        self.conjuncts = [e.subst(environment) for e in self.conjuncts]
         return self
 
 
@@ -290,20 +285,14 @@ class ConjunctionChain(
 class Disjunction(
     Expression[bool],
     Serialize,
-    # disjuncts=Field("Exprs", list[Expression[bool]]),
-    operand1=Field("Operand1", Expression[bool]),
-    operand2=Field("Operand2", Expression[bool]),
+    disjuncts=Field("Exprs", list[Expression[bool]]),
     ty=Field("$type", str, "Or"),
 ):
-    # disjuncts: list[Expression[bool]]
-    operand1: Expression[bool]
-    operand2: Expression[bool]
+    disjuncts: list[Expression[bool]]
     ty: str = field(default="Or", init=False)
 
     def subst(self, environment: dict[str, Expression]) -> Expression:
-        self.operand1 = self.operand1.subst(environment)
-        self.operand2 = self.operand1.subst(environment)
-        # self.disjuncts = [e.subst(environment) for e in self.disjuncts]
+        self.disjuncts = [e.subst(environment) for e in self.disjuncts]
         return self
 
 
@@ -586,20 +575,14 @@ class SetAdd(
 class SetUnion(
     Expression[set],
     Serialize,
-    operand1=Field("Operand1", Expression[set]),
-    operand2=Field("Operand2", Expression[set]),
-    # sets=Field("Exprs", list[Expression[set]]),
+    sets=Field("Exprs", list[Expression[set]]),
     ty=Field("$type", str, "SetUnion"),
 ):
-    operand1: Expression[set]
-    operand2: Expression[set]
-    # sets: list[Expression[set]]
+    sets: list[Expression[set]]
     ty: str = field(default="SetUnion", init=False)
 
     def subst(self, environment: dict[str, Expression]) -> Expression:
-        # self.sets = [e.subst(environment) for e in self.sets]
-        self.operand1 = self.operand1.subst(environment)
-        self.operand2 = self.operand1.subst(environment)
+        self.sets = [e.subst(environment) for e in self.sets]
         return self
 
 
