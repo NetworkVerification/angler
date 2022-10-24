@@ -79,8 +79,23 @@ def isValidTags(comms: list[str]) -> prog.Predicate:
 
 
 def hasInternalRoute() -> prog.Predicate:
-    raise NotImplementedError()
+    arg = e.Var("env", ty_arg=t.TypeAnnotation.ENVIRONMENT)
+    get_origin = e.GetField(
+        arg,
+        t.EnvironmentType.ORIGIN.value,
+        ty_args=(t.TypeAnnotation.ENVIRONMENT, t.EnvironmentType.COMMS.field_type()),
+    )
+    # 2 is the int for internal
+    is_internal = e.Equal(get_origin, e.LiteralUInt(2, width=2), width=2)
+    return prog.Predicate(arg=arg._name, body=is_internal)
 
 
 def hasExternalRoute() -> prog.Predicate:
-    raise NotImplementedError()
+    arg = e.Var("env", ty_arg=t.TypeAnnotation.ENVIRONMENT)
+    get_origin = e.GetField(
+        arg,
+        t.EnvironmentType.ORIGIN.value,
+        ty_args=(t.TypeAnnotation.ENVIRONMENT, t.EnvironmentType.COMMS.field_type()),
+    )
+    is_not_internal = e.NotEqual(get_origin, e.LiteralUInt(2, width=2), width=2)
+    return prog.Predicate(arg=arg._name, body=is_not_internal)

@@ -94,3 +94,24 @@ def hijack_safe(nodes: dict[str, Any]) -> Query:
         for node, x in nodes.items()
     }
     return Query(predicates, symbolics, ghost, node_queries)
+
+
+def block_to_external(nodes: dict[str, Any]) -> Query:
+    """
+    Generate a query checking that nodes marked external never have a route
+    with origin type "internal" originated inside the network.
+    Each node has a boolean origin type associated with it.
+    """
+    predicates = {
+        "hasInternalRoute": preds.hasInternalRoute(),
+        "hasExternalRoute": preds.hasExternalRoute(),
+    }
+    # TODO: one internal node has an internal route
+    node_queries = {
+        node: NodeQuery(
+            "hasExternalRoute" if external else "hasInternalRoute",
+            temp.Globally("hasExternalRoute" if external else "hasInternalRoute"),
+        )
+        for node, external in nodes.items()
+    }
+    return Query(predicates, {}, {}, node_queries)
