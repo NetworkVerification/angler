@@ -63,8 +63,8 @@ class TypeEnum(Enum):
 
 class ResultType(TypeEnum):
     VALUE = "Value"
-    EXIT = "Exited"
-    FALLTHRU = "FallThrough"
+    EXIT = "Exit"
+    FALLTHROUGH = "Fallthrough"
     RETURN = "Returned"
 
     def field_type(self) -> TypeAnnotation:
@@ -73,7 +73,7 @@ class ResultType(TypeEnum):
                 return TypeAnnotation.BOOL
             case ResultType.EXIT:
                 return TypeAnnotation.BOOL
-            case ResultType.FALLTHRU:
+            case ResultType.FALLTHROUGH:
                 return TypeAnnotation.BOOL
             case ResultType.RETURN:
                 return TypeAnnotation.BOOL
@@ -119,10 +119,7 @@ class EnvironmentType(TypeEnum):
     Combines the data of a Result with a Route.
     """
 
-    RESULT_VALUE = "Value"
-    RESULT_EXIT = "Exited"
-    RESULT_FALLTHRU = "FallThrough"
-    RESULT_RETURN = "Returned"
+    RESULT = "Result"
     PREFIX = "Prefix"
     LP = "Lp"
     METRIC = "Metric"
@@ -131,19 +128,12 @@ class EnvironmentType(TypeEnum):
     TAG = "Tag"
     WEIGHT = "Weight"
     LOCAL_DEFAULT_ACTION = "LocalDefaultAction"
-    DEFAULT_POLICY = "DefaultPolicy"
     AS_PATH_LENGTH = "AsPathLength"
 
     def field_type(self) -> TypeAnnotation:
         match self:
-            case EnvironmentType.RESULT_VALUE:
-                return TypeAnnotation.BOOL
-            case EnvironmentType.RESULT_EXIT:
-                return TypeAnnotation.BOOL
-            case EnvironmentType.RESULT_FALLTHRU:
-                return TypeAnnotation.BOOL
-            case EnvironmentType.RESULT_RETURN:
-                return TypeAnnotation.BOOL
+            case EnvironmentType.RESULT:
+                return TypeAnnotation.RESULT
             case EnvironmentType.PREFIX:
                 return TypeAnnotation.IP_PREFIX
             case EnvironmentType.LP:
@@ -160,8 +150,6 @@ class EnvironmentType(TypeEnum):
                 return TypeAnnotation.UINT32
             case EnvironmentType.LOCAL_DEFAULT_ACTION:
                 return TypeAnnotation.BOOL
-            case EnvironmentType.DEFAULT_POLICY:
-                return TypeAnnotation.STRING
             case EnvironmentType.AS_PATH_LENGTH:
                 return TypeAnnotation.BIG_INT
             case _:

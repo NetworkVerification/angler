@@ -233,49 +233,72 @@ def convert_expr(b: bex.Expression) -> aex.Expression:
             raise NotImplementedError(f"No convert case for {b} found.")
 
 
-def update_result(
+def create_result(
     _value: aex.Expression | bool | None = None,
     _exit: aex.Expression | bool | None = None,
     _fallthrough: aex.Expression | bool | None = None,
     _return: aex.Expression | bool | None = None,
 ) -> aex.Expression:
     """
-    Convert the given Batfish result into an Angler WithField expression to update the environment.
+    Convert the given Batfish result into an Angler CreateRecord expression to return a new Result.
     """
-    arg_expr = ARG_VAR
-    if _value is not None:
-        value_update = (
-            _value if isinstance(_value, aex.Expression) else aex.LiteralBool(_value)
-        )
-        arg_expr = aex.WithField(
-            arg_expr, aty.EnvironmentType.RESULT_VALUE.value, value_update
-        )
-    if _exit is not None:
-        exit_update = (
-            _exit if isinstance(_exit, aex.Expression) else aex.LiteralBool(_exit)
-        )
-        arg_expr = aex.WithField(
-            arg_expr, aty.EnvironmentType.RESULT_EXIT.value, exit_update
-        )
-    if _fallthrough is not None:
-        fallthrough_update = (
-            _fallthrough
-            if isinstance(_fallthrough, aex.Expression)
-            else aex.LiteralBool(_fallthrough)
-        )
-        arg_expr = aex.WithField(
-            arg_expr,
-            aty.EnvironmentType.RESULT_FALLTHRU.value,
-            fallthrough_update,
-        )
-    if _return is not None:
-        return_update = (
-            _return if isinstance(_return, aex.Expression) else aex.LiteralBool(_return)
-        )
-        arg_expr = aex.WithField(
-            arg_expr, aty.EnvironmentType.RESULT_RETURN.value, return_update
-        )
-    return arg_expr
+
+    def bool_to_expr(
+        rt: aty.ResultType, v: aex.Expression | bool | None
+    ) -> aex.Expression:
+        match v:
+            case None:
+                return default_value(rt.field_type())
+            case bool():
+                return aex.LiteralBool(v)
+            case aex.Expression():
+                return v
+            case _:
+                raise Exception("unreachable")
+
+    return aex.CreateRecord(
+        {
+            aty.ResultType.VALUE.value: bool_to_expr(aty.ResultType.VALUE, _value),
+            aty.ResultType.EXIT.value: bool_to_expr(aty.ResultType.EXIT, _exit),
+            aty.ResultType.FALLTHROUGH.value: bool_to_expr(
+                aty.ResultType.FALLTHROUGH, _fallthrough
+            ),
+            aty.ResultType.RETURN.value: bool_to_expr(aty.ResultType.RETURN, _return),
+        },
+        aty.TypeAnnotation.RESULT,
+    )
+
+
+def update_arg_result(
+    _value: aex.Expression | bool | None = None,
+    _exit: aex.Expression | bool | None = None,
+    _fallthrough: aex.Expression | bool | None = None,
+    _return: aex.Expression | bool | None = None,
+) -> asm.Statement:
+    """
+    Return a new Angler statement updating the arg's result for the specified fields.
+    Unlike create_result, the previous values of the result field are preserved.
+    """
+
+    def update_field(
+        e: aex.Expression, rt: aty.ResultType, v: aex.Expression | bool | None
+    ) -> aex.Expression:
+        match v:
+            case None:
+                return e
+            case bool():
+                return aex.WithField(e, rt.value, aex.LiteralBool(v))
+            case aex.Expression():
+                return aex.WithField(e, rt.value, v)
+            case _:
+                raise Exception("unreachable")
+
+    result: aex.Expression = get_arg(aty.EnvironmentType.RESULT)
+    result = update_field(result, aty.ResultType.VALUE, _value)
+    result = update_field(result, aty.ResultType.EXIT, _exit)
+    result = update_field(result, aty.ResultType.FALLTHROUGH, _fallthrough)
+    result = update_field(result, aty.ResultType.RETURN, _return)
+    return update_arg(update=result, ty=aty.EnvironmentType.RESULT)
 
 
 def convert_stmt(b: bsm.Statement) -> list[asm.Statement]:
@@ -331,22 +354,25 @@ def convert_stmt(b: bsm.Statement) -> list[asm.Statement]:
         case bsm.StaticStatement(ty=ty):
             # cases based on
             # https://github.com/batfish/batfish/blob/master/projects/batfish-common-protocol/src/main/java/org/batfish/datamodel/routing_policy/statement/Statements.java
+            # NOTE(tim): these statements generate a fresh result type,
+            # meaning all result fields are reset to their default values and then
+            # assigned according to the type of statement
             match ty:
                 case bsm.StaticStatementType.EXIT_ACCEPT:
-                    update = update_result(_value=True, _exit=True)
+                    update = create_result(_value=True, _exit=True)
                 case bsm.StaticStatementType.EXIT_REJECT:
-                    update = update_result(_value=False, _exit=True)
+                    update = create_result(_value=False, _exit=True)
                 case bsm.StaticStatementType.RETURN_TRUE:
-                    update = update_result(_value=True, _return=True)
+                    update = create_result(_value=True, _return=True)
                 case bsm.StaticStatementType.RETURN_FALSE:
-                    update = update_result(_value=False, _return=True)
+                    update = create_result(_value=False, _return=True)
                 case bsm.StaticStatementType.FALL_THROUGH:
-                    update = update_result(_fallthrough=True, _return=True)
+                    update = create_result(_fallthrough=True, _return=True)
                 case bsm.StaticStatementType.RETURN:
-                    update = update_result(_return=True)
+                    update = create_result(_return=True)
                 case bsm.StaticStatementType.LOCAL_DEF:
                     value_expr = get_arg(aty.EnvironmentType.LOCAL_DEFAULT_ACTION)
-                    update = update_result(_value=value_expr)
+                    update = create_result(_value=value_expr)
                 case bsm.StaticStatementType.SET_ACCEPT | bsm.StaticStatementType.SET_LOCAL_ACCEPT:
                     # TODO: distinguish local default action and default action?
                     update = aex.WithField(
@@ -388,10 +414,19 @@ def convert_stmts(stmts: list[bsm.Statement]) -> list[asm.Statement]:
 
 def unreachable() -> aex.Expression[bool]:
     """Return an expression that is true if the route has returned or exited."""
+    result = get_arg(aty.EnvironmentType.RESULT)
     return aex.Disjunction(
         [
-            get_arg(aty.EnvironmentType.RESULT_RETURN),
-            get_arg(aty.EnvironmentType.RESULT_EXIT),
+            aex.GetField(
+                result,
+                aty.ResultType.RETURN.value,
+                ty_args=(aty.TypeAnnotation.RESULT, aty.TypeAnnotation.BOOL),
+            ),
+            aex.GetField(
+                result,
+                aty.ResultType.EXIT.value,
+                ty_args=(aty.TypeAnnotation.RESULT, aty.TypeAnnotation.BOOL),
+            ),
         ]
     )
 
@@ -448,17 +483,15 @@ def convert_routing_policy(body: list[bsm.Statement]) -> prog.Func:
         # get_arg(aty.EnvironmentType.RESULT_RETURN),
         unreachable(),
         [
-            # reset return to false
-            update_arg(aex.LiteralBool(False), aty.EnvironmentType.RESULT_RETURN)
+            update_arg_result(
+                _return=False,
+            )
         ],
         [
             # set fallthrough to true and the value to the local default
-            asm.AssignStatement(
-                ARG,
-                update_result(
-                    _fallthrough=True,
-                    _value=get_arg(aty.EnvironmentType.LOCAL_DEFAULT_ACTION),
-                ),
+            update_arg_result(
+                _fallthrough=True,
+                _value=get_arg(aty.EnvironmentType.LOCAL_DEFAULT_ACTION),
             ),
         ],
     )
@@ -591,11 +624,15 @@ def convert_batfish(
                 aty.EnvironmentType.PREFIX.value,
                 aex.IpPrefix(IPv4Network(dest)),
             )
-            # set the value as True
+            # set the result's value as True
             p.initial = aex.WithField(
                 update_prefix,
-                aty.EnvironmentType.RESULT_VALUE.value,
-                aex.LiteralBool(True),
+                aty.EnvironmentType.RESULT.value,
+                aex.WithField(
+                    default_value(aty.TypeAnnotation.RESULT),
+                    aty.ResultType.VALUE.value,
+                    aex.LiteralBool(True),
+                ),
             )
         else:
             # internal non-destination node: starts with no route
