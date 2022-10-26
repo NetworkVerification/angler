@@ -4,7 +4,7 @@ Conversion tools to transform Batfish AST terms to Angler AST terms.
 """
 from dataclasses import dataclass
 from ipaddress import IPv4Address, IPv4Network
-from typing import Optional, TypeVar
+from typing import Optional, TypeVar, cast
 
 import igraph
 from bast.base import OwnedIP
@@ -309,6 +309,12 @@ def convert_stmt(b: bsm.Statement) -> list[asm.Statement]:
         case bsm.IfStatement(
             comment=comment, guard=guard, true_stmts=t_stmts, false_stmts=f_stmts
         ):
+            new_guard = convert_expr(guard)
+            # simplify if the guard statically resolves to true or false
+            if new_guard == aex.LiteralBool(True):
+                return convert_stmts(t_stmts)
+            elif new_guard == aex.LiteralBool(False):
+                return convert_stmts(f_stmts)
             # convert the arms of the if
             true_stmt = convert_stmts(t_stmts)
             false_stmt = convert_stmts(f_stmts)
@@ -320,7 +326,7 @@ def convert_stmt(b: bsm.Statement) -> list[asm.Statement]:
                 return [
                     asm.IfStatement(
                         comment=comment,
-                        guard=convert_expr(guard),
+                        guard=new_guard,
                         true_stmt=true_stmt,
                         false_stmt=false_stmt,
                     )
@@ -462,15 +468,18 @@ def convert_routing_policy(body: list[bsm.Statement]) -> prog.Func:
                 if isinstance(hd, asm.IfStatement):
                     hd.true_stmt = recurse(hd.true_stmt)
                     hd.false_stmt = recurse(hd.false_stmt)
-                return [hd]
+                return cast(list[asm.Statement], [hd])
             case [hd, *tl]:
                 if isinstance(hd, asm.IfStatement):
                     hd.true_stmt = recurse(hd.true_stmt)
                     hd.false_stmt = recurse(hd.false_stmt)
-                return [
-                    hd,
-                    asm.IfStatement("early_return", unreachable(), [], recurse(tl)),
-                ]
+                return cast(
+                    list[asm.Statement],
+                    [
+                        hd,
+                        asm.IfStatement("early_return", unreachable(), [], recurse(tl)),
+                    ],
+                )
             case _:
                 raise Exception("unreachable")
 
@@ -613,7 +622,7 @@ def convert_batfish(
         if n in external_nodes:
             # external node: starts with an arbitrary route
             symbolic_name = f"external-route-{n}"
-            symbolics[symbolic_name] = prog.Predicate.default()
+            symbolics[symbolic_name] = None
             p.initial = aex.Var(symbolic_name)
         elif query and dest and any([dest in prefix for prefix in p.prefixes]):
             # internal destination node: starts with route to itself
@@ -660,6 +669,19 @@ def convert_batfish(
                 # TODO: get the comms
                 dist_node_info = get_node_distances(g, destinations)
                 converge_time = max(dist_node_info.values())
+            case QueryType.BTE if dest:
+                # update the external routes
+                for node in external_nodes:
+                    symbolics[f"external-route-{node}"] = "external-start"
+                node_info = {node: node in external_nodes for node in nodes.keys()}
+                converge_time = 5
+                q = query.from_nodes(node_info)
+                predicates = q.predicates
+                # assign safety checks to nodes
+                for node, node_query in q.nodes.items():
+                    nodes[node].stable = node_query.safety_check
+                    if with_time:
+                        nodes[node].temporal = node_query.temporal_check
             case _:
                 raise NotImplementedError("Query not yet implemented")
 

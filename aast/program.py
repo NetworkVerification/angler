@@ -96,5 +96,5 @@ class Program(
     nodes: dict[str, Properties]
     ghost: Optional[dict[str, ty.TypeAnnotation]] = None
     predicates: dict[str, Predicate] = field(default_factory=dict)
-    symbolics: dict[str, Predicate] = field(default_factory=dict)
+    symbolics: dict[str, str | None] = field(default_factory=dict)
     converge_time: Optional[int] = None

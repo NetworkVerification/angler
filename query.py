@@ -3,7 +3,7 @@
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 import aast.program as prog
 import aast.types as ty
 import aast.predicates as preds
@@ -36,6 +36,7 @@ class QueryType(Enum):
     SP = "reachable"
     FAT = "valleyfree"
     HIJACK = "hijack"
+    BTE = "bte"
 
     def from_nodes(self, nodes: dict[str, Any]) -> Query:
         match self:
@@ -45,6 +46,8 @@ class QueryType(Enum):
                 return vf_reachable(nodes)
             case QueryType.HIJACK:
                 return hijack_safe(nodes)
+            case QueryType.BTE:
+                return block_to_external(nodes)
             case _:
                 raise NotImplementedError("Query not yet implemented")
 
@@ -102,15 +105,18 @@ def block_to_external(nodes: dict[str, Any]) -> Query:
     with origin type "internal" originated inside the network.
     Each node has a boolean origin type associated with it.
     """
+    BTE_TAG = "11537:888"
     predicates = {
-        "hasInternalRoute": preds.hasInternalRoute(),
-        "hasExternalRoute": preds.hasExternalRoute(),
+        # "hasInternalRoute": preds.implies(preds.isValid(), preds.hasInternalRoute()),
+        "internal": prog.Predicate.default(),
+        "external": preds.all_predicates(preds.tags_absent([BTE_TAG])),
+        "external-start": preds.tags_absent([BTE_TAG]),
     }
     # TODO: one internal node has an internal route
     node_queries = {
         node: NodeQuery(
-            "hasExternalRoute" if external else "hasInternalRoute",
-            temp.Globally("hasExternalRoute" if external else "hasInternalRoute"),
+            "external" if external else "internal",
+            temp.Globally("external" if external else "internal"),
         )
         for node, external in nodes.items()
     }
