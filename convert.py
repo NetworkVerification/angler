@@ -58,7 +58,7 @@ def get_arg(ty: aty.EnvironmentType) -> aex.Expression:
     )
 
 
-def convert_expr(b: bex.Expression) -> aex.Expression:
+def convert_expr(b: bex.Expression, simplify: bool = False) -> aex.Expression:
     """
     Convert the given Batfish AST expression into an Angler AST expression.
     """
@@ -76,17 +76,40 @@ def convert_expr(b: bex.Expression) -> aex.Expression:
             # TODO(tim): maybe it should be? would be easy enough to add
             return aex.Havoc()
         case bools.Conjunction(conjuncts):
-            conj = [convert_expr(c) for c in conjuncts]
+            if simplify:
+                conj = []
+                for c in conjuncts:
+                    new_c = convert_expr(c)
+                    if new_c == aex.LiteralBool(False):
+                        return new_c
+                    elif new_c == aex.LiteralBool(True):
+                        continue
+                    conj.append(new_c)
+            else:
+                conj = [convert_expr(c) for c in conjuncts]
             return aex.Conjunction(conj)
         case bools.ConjunctionChain(subroutines):
             return aex.ConjunctionChain([convert_expr(s) for s in subroutines])
         case bools.FirstMatchChain(subroutines):
             return aex.FirstMatchChain([convert_expr(s) for s in subroutines])
         case bools.Disjunction(disjuncts):
-            disj = [convert_expr(d) for d in disjuncts]
+            if simplify:
+                disj = []
+                for d in disjuncts:
+                    new_d = convert_expr(d)
+                    if new_d == aex.LiteralBool(False):
+                        continue
+                    elif new_d == aex.LiteralBool(True):
+                        return new_d
+                    disj.append(new_d)
+            else:
+                disj = [convert_expr(d) for d in disjuncts]
             return aex.Disjunction(disj)
         case bools.Not(e):
-            return aex.Not(convert_expr(e))
+            inner = convert_expr(e)
+            if simplify and isinstance(inner, aex.LiteralBool):
+                return aex.LiteralBool(not inner.value)
+            return aex.Not(inner)
         case bools.MatchIpv4():
             # NOTE: for now, we assume ipv4
             return aex.LiteralBool(True)
@@ -245,23 +268,24 @@ def update_arg_result(
     return update_arg(update=result, ty=aty.EnvironmentType.RESULT)
 
 
-def convert_stmt(b: bsm.Statement) -> list[asm.Statement]:
+def convert_stmt(b: bsm.Statement, simplify: bool = False) -> list[asm.Statement]:
     """
     Convert a Batfish AST statement into an Angler AST statement.
+    If simplify is true, boolean expressions are simplified.
     """
     match b:
         case bsm.IfStatement(
             comment=comment, guard=guard, true_stmts=t_stmts, false_stmts=f_stmts
         ):
-            new_guard = convert_expr(guard)
+            new_guard = convert_expr(guard, simplify=simplify)
             # simplify if the guard statically resolves to true or false
             if new_guard == aex.LiteralBool(True):
-                return convert_stmts(t_stmts)
+                return convert_stmts(t_stmts, simplify=simplify)
             elif new_guard == aex.LiteralBool(False):
-                return convert_stmts(f_stmts)
+                return convert_stmts(f_stmts, simplify=simplify)
             # convert the arms of the if
-            true_stmt = convert_stmts(t_stmts)
-            false_stmt = convert_stmts(f_stmts)
+            true_stmt = convert_stmts(t_stmts, simplify=simplify)
+            false_stmt = convert_stmts(f_stmts, simplify=simplify)
             # check if both arms are the same; if so, we can simplify the resulting
             # expression
             if true_stmt == false_stmt:
@@ -277,13 +301,23 @@ def convert_stmt(b: bsm.Statement) -> list[asm.Statement]:
                 ]
 
         case bsm.SetCommunities(comm_set=comms):
-            return [update_arg(convert_expr(comms), aty.EnvironmentType.COMMS)]
+            return [
+                update_arg(
+                    convert_expr(comms, simplify=simplify), aty.EnvironmentType.COMMS
+                )
+            ]
 
         case bsm.SetLocalPreference(lp=lp):
-            return [update_arg(convert_expr(lp), aty.EnvironmentType.LP)]
+            return [
+                update_arg(convert_expr(lp, simplify=simplify), aty.EnvironmentType.LP)
+            ]
 
         case bsm.SetMetric(metric=metric):
-            return [update_arg(convert_expr(metric), aty.EnvironmentType.METRIC)]
+            return [
+                update_arg(
+                    convert_expr(metric, simplify=simplify), aty.EnvironmentType.METRIC
+                )
+            ]
 
         case bsm.SetNextHop(expr=_):
             # FIXME: ignored for now, fix later
@@ -291,10 +325,19 @@ def convert_stmt(b: bsm.Statement) -> list[asm.Statement]:
             # return [update_arg(convert_expr(expr), aty.EnvironmentType.NEXTHOP)]
 
         case bsm.SetOrigin(origin_type):
-            return [update_arg(convert_expr(origin_type), aty.EnvironmentType.ORIGIN)]
+            return [
+                update_arg(
+                    convert_expr(origin_type, simplify=simplify),
+                    aty.EnvironmentType.ORIGIN,
+                )
+            ]
 
         case bsm.SetWeight(expr):
-            return [update_arg(convert_expr(expr), aty.EnvironmentType.WEIGHT)]
+            return [
+                update_arg(
+                    convert_expr(expr, simplify=simplify), aty.EnvironmentType.WEIGHT
+                )
+            ]
 
         case bsm.SetDefaultPolicy(name):
             # NOTE: we treat SetDefaultPolicy specially as it represents a modification to the
@@ -346,18 +389,22 @@ def convert_stmt(b: bsm.Statement) -> list[asm.Statement]:
             # NOTE: ignored
             return []
         case bsm.TraceableStatement(inner=inner):
-            return convert_stmts(inner)
+            return convert_stmts(inner, simplify=simplify)
         case _:
             raise NotImplementedError(f"No convert_stmt case for statement {b} found.")
 
 
-def convert_stmts(stmts: list[bsm.Statement]) -> list[asm.Statement]:
+def convert_stmts(
+    stmts: list[bsm.Statement], simplify: bool = False
+) -> list[asm.Statement]:
     """Convert a list of Batfish statements into an Angler statement."""
     match stmts:
         case []:
             return []
         case [hd, *tl]:
-            return convert_stmt(hd) + convert_stmts(tl)
+            return convert_stmt(hd, simplify=simplify) + convert_stmts(
+                tl, simplify=simplify
+            )
         case _:
             raise Exception("unreachable")
 
@@ -381,7 +428,9 @@ def unreachable() -> aex.Expression[bool]:
     )
 
 
-def convert_routing_policy(body: list[bsm.Statement]) -> prog.Func:
+def convert_routing_policy(
+    body: list[bsm.Statement], simplify: bool = False
+) -> prog.Func:
     """
     Convert a Batfish routing policy into an Angler function.
     We insert cases around each statement to handle possibly returning early depending on
@@ -428,7 +477,7 @@ def convert_routing_policy(body: list[bsm.Statement]) -> prog.Func:
                 raise Exception("unreachable")
 
     # convert the body and then add the early-return tests
-    new_body = recurse(convert_stmts(body))
+    new_body = recurse(convert_stmts(body, simplify=simplify))
     check_returned = asm.IfStatement(
         "reset_return",
         # TODO(tim): should this be unreachable() or just checking if the result returned?
@@ -468,6 +517,7 @@ def get_ip_node_mapping(ips: list[OwnedIP]) -> dict[IPv4Address, str]:
 
 def convert_structure(
     b: bstruct.Structure,
+    simplify: bool = False,
 ) -> tuple[
     str,
     str,
@@ -491,7 +541,7 @@ def convert_structure(
         case bstruct.RoutingPolicy(policyname=name, statements=stmts):
             print(f"Routing policy {b.struct_name}")
             struct_name = name
-            value = convert_routing_policy(stmts)
+            value = convert_routing_policy(stmts, simplify=simplify)
         case bacl.RouteFilterList(_name=name, lines=lines):
             print(f"Route filter list {b.struct_name}")
             permit_disjuncts = []
@@ -563,7 +613,7 @@ def convert_structure(
     return node_name, struct_name, value
 
 
-def convert_batfish(bf: json.BatfishJson) -> prog.Program:
+def convert_batfish(bf: json.BatfishJson, simplify=False) -> prog.Program:
     """
     Convert the Batfish JSON object to an Angler program.
     """
@@ -578,7 +628,7 @@ def convert_batfish(bf: json.BatfishJson) -> prog.Program:
     # add constants, declarations and prefixes for each of the nodes
     print("Converting found structures...")
     for s in bf.declarations:
-        n, k, v = convert_structure(s)
+        n, k, v = convert_structure(s, simplify=simplify)
         if n not in nodes:
             nodes[n] = prog.Properties(default_env)
         if n not in constants:

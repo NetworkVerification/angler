@@ -93,6 +93,12 @@ def main():
         help="Request local diagnostics when initializing pybatfish session",
     )
     parser.add_argument(
+        "-b",
+        "--simplify-bools",
+        action="store_true",
+        help="Simplify AST expressions according to rules of boolean logic.",
+    )
+    parser.add_argument(
         "-q",
         "--query",
         type=QueryType,
@@ -153,7 +159,7 @@ def main():
             )
             bf_ast = bast.json.BatfishJson.from_dict(json_data)
             print("Successfully parsed Batfish AST!")
-            a_ast = convert_batfish(bf_ast)
+            a_ast = convert_batfish(bf_ast, args.simplify_bools)
         query = args.query
         if query:
             add_query(a_ast, query, args.destination, args.timepiece)
