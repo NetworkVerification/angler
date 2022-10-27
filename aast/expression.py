@@ -6,7 +6,7 @@ from ipaddress import IPv4Address, IPv4Interface, IPv4Network
 from dataclasses import InitVar, dataclass, field
 from typing import Generic, TypeVar
 from serialize import Serialize, Field
-from aast.types import TypeAnnotation
+from aast.types import TypeAnnotation, RouteType, ResultType, EnvironmentType
 from util import Variant, ASTNode
 
 T = TypeVar("T")
@@ -179,6 +179,60 @@ class Expression(
         in the expression.
         """
         return self
+
+
+def default_value(ty: TypeAnnotation) -> Expression:
+    """
+    Return the default value for the given type.
+    Note that not all types have default values.
+    """
+    match ty:
+        case TypeAnnotation.BOOL:
+            return LiteralBool(False)
+        case TypeAnnotation.INT2:
+            return LiteralInt(0, width=2)
+        case TypeAnnotation.INT32:
+            return LiteralInt(0, width=32)
+        case TypeAnnotation.UINT2:
+            return LiteralUInt(0, width=2)
+        case TypeAnnotation.UINT32:
+            return LiteralUInt(0, width=32)
+        case TypeAnnotation.BIG_INT:
+            return LiteralBigInt(0)
+        case TypeAnnotation.SET:
+            return LiteralSet([])
+        case TypeAnnotation.STRING:
+            return LiteralString("")
+        case TypeAnnotation.IP_ADDRESS:
+            return IpAddress(IPv4Address(0))
+        case TypeAnnotation.IP_PREFIX:
+            return IpPrefix(IPv4Network(0))
+        case TypeAnnotation.ROUTE:
+            return CreateRecord(
+                {
+                    field_name: default_value(field_ty)
+                    for field_name, field_ty in RouteType.fields().items()
+                },
+                TypeAnnotation.ROUTE,
+            )
+        case TypeAnnotation.RESULT:
+            return CreateRecord(
+                {
+                    field_name: default_value(field_ty)
+                    for field_name, field_ty in ResultType.fields().items()
+                },
+                TypeAnnotation.RESULT,
+            )
+        case TypeAnnotation.ENVIRONMENT:
+            return CreateRecord(
+                {
+                    field_name: default_value(field_ty)
+                    for field_name, field_ty in EnvironmentType.fields().items()
+                },
+                TypeAnnotation.ENVIRONMENT,
+            )
+        case _:
+            raise ValueError(f"Cannot produce a default value for type {ty}")
 
 
 @dataclass

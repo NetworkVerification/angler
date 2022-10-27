@@ -1,18 +1,20 @@
 #!/usr/bin/env python3
 # Export Batfish JSON snapshots
 
+import argparse
 from ipaddress import IPv4Address, IPv4Interface, IPv4Network
 import json
 import os
-import sys
+import pathlib
 from typing import Any
 from pybatfish.client.session import Session
 from aast.types import TypeAnnotation
+from aast.program import Program
 import bast.json
 from pathlib import Path
 
 from convert import convert_batfish
-from query import QueryType
+from query import QueryType, add_query
 from serialize import Serialize
 
 
@@ -79,44 +81,84 @@ file        A JSON file to parse the AST of
 outfile     A location to save the output JSON to (defaults to dir.json or file.angler.json)
 """
 
-if __name__ == "__main__":
-    match sys.argv[1:]:
-        case ["-h" | "--help" | "-?"]:
-            print(USAGE)
-        case [p, *tl] if os.path.isdir(p):
-            bf = initialize_session(p, "-d" in tl)
-            output = bast.json.query_session(bf)
-            print("Completed Batfish JSON queries.")
-            match tl:
-                case [] | ["-d"]:
-                    # use Path to sanitize the string
-                    out_path = Path(p).with_suffix(".json").name
-                case ["-d", q]:
-                    out_path = q
-                case _:
-                    out_path = tl[0]
-            save_json(output, out_path)
-        case [p, *tl] if os.path.isfile(p):
-            with open(p) as fp:
-                output = json.load(fp)
-            bf_ast = bast.json.BatfishJson.from_dict(output)
-            dest_ip = None
-            with_time = "-t" in tl
+
+def main():
+    parser = argparse.ArgumentParser(
+        f"{os.path.basename(__file__)}", description="extracts Batfish AST components"
+    )
+    parser.add_argument(
+        "-D",
+        "--diagnostics",
+        action="store_true",
+        help="Request local diagnostics when initializing pybatfish session",
+    )
+    parser.add_argument(
+        "-q",
+        "--query",
+        type=QueryType,
+        help="Specify a verification query to instrument the network with.",
+    )
+    parser.add_argument(
+        "-d",
+        "--destination",
+        type=IPv4Address,
+        help="Specify the IP address of the routing destination.",
+    )
+    parser.add_argument(
+        "-t",
+        "--timepiece",
+        action="store_true",
+        help="Add temporal interfaces to query.",
+    )
+    parser.add_argument(
+        "path",
+        type=pathlib.Path,
+        help="A snapshot directory to pass to pybatfish, or a JSON file obtained after reading such a directory.",
+    )
+    parser.add_argument(
+        "-o",
+        "--output",
+        help="A location to save the output JSON to (defaults to [path].json or [path].angler.json)",
+    )
+    args = parser.parse_args()
+    if os.path.isdir(args.path):
+        bf = initialize_session(args.path, args.diagnostics)
+        json_data = bast.json.query_session(bf)
+        print("Completed Batfish JSON queries.")
+        out_path = (
+            Path(args.path).with_suffix(".json").name
+            if args.output is None
+            else args.output
+        )
+        save_json(json_data, out_path)
+    else:
+        with open(args.path) as fp:
+            json_data = json.load(fp)
+        if ".angler" in args.path.suffixes:
+            if not args.query:
+                # if no query is provided, this will do nothing, so exit
+                print("No query given for an existing .angler file. Exiting...")
+                return
+            a_ast = Program.from_dict(json_data)
+            out_path = (
+                args.path.with_stem(f"{args.path.stem}-{args.query}")
+                if args.output is None
+                else args.output
+            )
+        else:
+            out_path = (
+                args.path.with_stem(f"{args.path.stem}.angler")
+                if args.output is None
+                else args.output
+            )
+            bf_ast = bast.json.BatfishJson.from_dict(json_data)
             print("Successfully parsed Batfish AST!")
-            match tl:
-                case []:
-                    in_path = Path(p)
-                    out_path = in_path.with_stem(f"{in_path.stem}.angler")
-                    query = None
-                case ["-q", q, address, *tl]:
-                    in_path = Path(p)
-                    out_path = in_path.with_stem(f"{in_path.stem}.angler")
-                    dest_ip = IPv4Address(address)
-                    query = QueryType(q)
-                case _:
-                    out_path = tl[0]
-                    query = None
-            a_ast = convert_batfish(bf_ast, query, dest_ip, with_time)
-            save_json(a_ast, out_path)
-        case _:
-            print(USAGE)
+            a_ast = convert_batfish(bf_ast)
+        query = args.query
+        if query:
+            add_query(a_ast, query, args.destination, args.timepiece)
+        save_json(a_ast, out_path)
+
+
+if __name__ == "__main__":
+    main()

@@ -65,10 +65,10 @@ class Properties(
     stable="Stable",
     temporal="Temporal",
 ):
+    initial: expr.Expression
     asnum: Optional[int] = None
     prefixes: set[IPv4Network] = field(default_factory=set)
     policies: dict[str, Policies] = field(default_factory=dict)
-    initial: Optional[expr.Expression] = None
     declarations: dict[str, Func] = field(default_factory=dict)
     # asserts over a route
     stable: Optional[str] = None

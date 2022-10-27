@@ -3,10 +3,9 @@
 Conversion tools to transform Batfish AST terms to Angler AST terms.
 """
 from dataclasses import dataclass
-from ipaddress import IPv4Address, IPv4Network
+from ipaddress import IPv4Address
 from typing import Optional, TypeVar, cast
 
-import igraph
 from bast.base import OwnedIP
 import bast.json as json
 import bast.topology as topology
@@ -26,7 +25,6 @@ import aast.expression as aex
 import aast.statement as asm
 import aast.types as aty
 import aast.program as prog
-from query import QueryType
 
 # the transfer argument
 ARG = "env"
@@ -40,60 +38,6 @@ class AsnPeer:
     local_ip: IPv4Address
     remote_asn: Optional[int]
     remote_ip: IPv4Address
-
-
-def default_value(ty: aty.TypeAnnotation) -> aex.Expression:
-    """
-    Return the default value for the given type.
-    Note that not all types have default values.
-    """
-    match ty:
-        case aty.TypeAnnotation.BOOL:
-            return aex.LiteralBool(False)
-        case aty.TypeAnnotation.INT2:
-            return aex.LiteralInt(0, width=2)
-        case aty.TypeAnnotation.INT32:
-            return aex.LiteralInt(0, width=32)
-        case aty.TypeAnnotation.UINT2:
-            return aex.LiteralUInt(0, width=2)
-        case aty.TypeAnnotation.UINT32:
-            return aex.LiteralUInt(0, width=32)
-        case aty.TypeAnnotation.BIG_INT:
-            return aex.LiteralBigInt(0)
-        case aty.TypeAnnotation.SET:
-            return aex.LiteralSet([])
-        case aty.TypeAnnotation.STRING:
-            return aex.LiteralString("")
-        case aty.TypeAnnotation.IP_ADDRESS:
-            return aex.IpAddress(IPv4Address(0))
-        case aty.TypeAnnotation.IP_PREFIX:
-            return aex.IpPrefix(IPv4Network(0))
-        case aty.TypeAnnotation.ROUTE:
-            return aex.CreateRecord(
-                {
-                    field_name: default_value(field_ty)
-                    for field_name, field_ty in aty.EnvironmentType.fields().items()
-                },
-                aty.TypeAnnotation.ROUTE,
-            )
-        case aty.TypeAnnotation.RESULT:
-            return aex.CreateRecord(
-                {
-                    field_name: default_value(field_ty)
-                    for field_name, field_ty in aty.ResultType.fields().items()
-                },
-                aty.TypeAnnotation.RESULT,
-            )
-        case aty.TypeAnnotation.ENVIRONMENT:
-            return aex.CreateRecord(
-                {
-                    field_name: default_value(field_ty)
-                    for field_name, field_ty in aty.EnvironmentType.fields().items()
-                },
-                aty.TypeAnnotation.ENVIRONMENT,
-            )
-        case _:
-            raise ValueError(f"Cannot produce a default value for type {ty}")
 
 
 def update_arg(update: aex.Expression, ty: aty.EnvironmentType) -> asm.AssignStatement:
@@ -248,7 +192,7 @@ def create_result(
     ) -> aex.Expression:
         match v:
             case None:
-                return default_value(rt.field_type())
+                return aex.default_value(rt.field_type())
             case bool():
                 return aex.LiteralBool(v)
             case aex.Expression():
@@ -522,180 +466,6 @@ def get_ip_node_mapping(ips: list[OwnedIP]) -> dict[IPv4Address, str]:
     return {ip.ip: ip.node.nodename for ip in ips if ip.active}
 
 
-def get_node_distances(g: igraph.Graph, destinations: list[str]) -> dict[str, int]:
-    # compute shortest paths: produces a matrix with a row for each source
-    distances: list[list[int]] = g.shortest_paths(source=destinations, mode="all")
-    # we want the minimum distance to any source for each node
-    best_distances = [
-        min([distances[src][v.index] for src in range(len(distances))]) for v in g.vs
-    ]
-    return {g.vs[i]["name"]: d for i, d in enumerate(best_distances)}
-
-
-def convert_batfish(
-    bf: json.BatfishJson,
-    query: Optional[QueryType],
-    dest: Optional[IPv4Address],
-    with_time: bool,
-) -> prog.Program:
-    """
-    Convert the Batfish JSON object to an Angler program.
-    """
-    # generate a graph of the topology
-    g = topology.edges_to_graph(bf.topology)
-    ips = get_ip_node_mapping(bf.ips)
-    nodes: dict[str, prog.Properties] = {}
-    constants: dict[str, dict[str, aex.Expression]] = {}
-    external_nodes = set()
-    # add constants, declarations and prefixes for each of the nodes
-    print("Converting found structures...")
-    for s in bf.declarations:
-        n, k, v = convert_structure(s)
-        if n not in nodes:
-            nodes[n] = prog.Properties()
-        if n not in constants:
-            constants[n] = {}
-        match v:
-            case prog.Func():
-                nodes[n].declarations[k] = v
-            case aex.Expression():
-                constants[n][k] = v
-            case (address, peers_to_policies):
-                # add a /24 prefix based on the given address
-                # strict=False causes this to mask the last 8 bits
-                nodes[n].add_prefix_from_ip(address)
-                neighbor_policies = {}
-                for peering, policy_block in peers_to_policies.items():
-                    # add the local ASN to the node
-                    if nodes[n].asnum is None:
-                        nodes[n].asnum = peering.local_asn
-                    elif peering.local_asn != nodes[n].asnum:
-                        print(
-                            f"WARNING: multiple ASNs {nodes[n].asnum} and {peering.local_asn} for node {n}"
-                        )
-                    # look up the remote IP's owner
-                    node_owner = ips.get(peering.remote_ip)
-                    if node_owner is None:
-                        # IP belongs to an external neighbor
-                        # we first try and use the ASN as the name, then use the IP if there is no ASN
-                        external_node = str(peering.remote_asn) or str(
-                            peering.remote_ip
-                        )
-                        neighbor_policies[external_node] = policy_block
-                        if external_node not in g.vs:
-                            g.add_vertex(name=external_node)
-                            # identify the external neighbor as symbolic
-                            external_nodes.add(external_node)
-                        g.add_edge(
-                            n,
-                            external_node,
-                            ips=([peering.local_ip], [peering.remote_ip]),
-                        )
-                        # add a reverse connection from the external neighbor to this node
-                        if external_node not in nodes:
-                            nodes[external_node] = prog.Properties(
-                                asnum=peering.remote_asn
-                            )
-                        nodes[external_node].policies[n] = prog.Policies(
-                            peering.remote_asn, None, None
-                        )
-                    else:
-                        neighbor_policies[node_owner] = policy_block
-                # bind the policies to the node
-                nodes[n].policies = neighbor_policies
-            case None:
-                pass
-    # inline constants
-    print("Inlining constants for...")
-    for node, properties in nodes.items():
-        print(node)
-        for func in properties.declarations.values():
-            for stmt in func.body:
-                # NOTE: stmt substitution returns None, but expr substitution returns an expression
-                stmt.subst(constants[node])
-    print("Adding initial routes...")
-    # keep track of nodes which advertise the destination IP
-    destinations: list[str] = []
-    symbolics = {}
-    default_env = default_value(aty.TypeAnnotation.ENVIRONMENT)
-    for n, p in nodes.items():
-        if n in external_nodes:
-            # external node: starts with an arbitrary route
-            symbolic_name = f"external-route-{n}"
-            symbolics[symbolic_name] = None
-            p.initial = aex.Var(symbolic_name)
-        elif query and dest and any([dest in prefix for prefix in p.prefixes]):
-            # internal destination node: starts with route to itself
-            destinations.append(n)
-            # set the prefix
-            update_prefix = aex.WithField(
-                default_env,
-                aty.EnvironmentType.PREFIX.value,
-                aex.IpPrefix(IPv4Network(dest)),
-            )
-            # set the result's value as True
-            p.initial = aex.WithField(
-                update_prefix,
-                aty.EnvironmentType.RESULT.value,
-                aex.WithField(
-                    default_value(aty.TypeAnnotation.RESULT),
-                    aty.ResultType.VALUE.value,
-                    aex.LiteralBool(True),
-                ),
-            )
-        else:
-            # internal non-destination node: starts with no route
-            p.initial = default_env
-    print("Adding verification elements...")
-    # set up verification tooling
-    predicates = {}
-    ghost = None
-    converge_time = None
-    if query:
-        # determine what information we need for the node queries
-        match query:
-            case QueryType.SP if dest:
-                node_info = get_node_distances(g, destinations)
-                converge_time = max(node_info.values())
-                # add all query predicates
-                q = query.from_nodes(node_info)
-                predicates = q.predicates
-                # assign safety checks to nodes
-                for node, node_query in q.nodes.items():
-                    nodes[node].stable = node_query.safety_check
-                    if with_time:
-                        nodes[node].temporal = node_query.temporal_check
-            case QueryType.FAT if dest:
-                # TODO: get the comms
-                dist_node_info = get_node_distances(g, destinations)
-                converge_time = max(dist_node_info.values())
-            case QueryType.BTE if dest:
-                # update the external routes
-                for node in external_nodes:
-                    symbolics[f"external-route-{node}"] = "external-start"
-                node_info = {node: node in external_nodes for node in nodes.keys()}
-                converge_time = 5
-                q = query.from_nodes(node_info)
-                predicates = q.predicates
-                # assign safety checks to nodes
-                for node, node_query in q.nodes.items():
-                    nodes[node].stable = node_query.safety_check
-                    if with_time:
-                        nodes[node].temporal = node_query.temporal_check
-            case _:
-                raise NotImplementedError("Query not yet implemented")
-
-    print("Conversion complete!")
-    return prog.Program(
-        route=aty.EnvironmentType.fields(),
-        nodes=nodes,
-        ghost=ghost,
-        predicates=predicates,
-        symbolics=symbolics,
-        converge_time=converge_time,
-    )
-
-
 def convert_structure(
     b: bstruct.Structure,
 ) -> tuple[
@@ -791,6 +561,97 @@ def convert_structure(
         case _:
             raise NotImplementedError(f"No convert case for {b} found.")
     return node_name, struct_name, value
+
+
+def convert_batfish(bf: json.BatfishJson) -> prog.Program:
+    """
+    Convert the Batfish JSON object to an Angler program.
+    """
+    # generate a graph of the topology
+    g = topology.edges_to_graph(bf.topology)
+    ips = get_ip_node_mapping(bf.ips)
+    nodes: dict[str, prog.Properties] = {}
+    constants: dict[str, dict[str, aex.Expression]] = {}
+    external_nodes = set()
+    default_env = aex.default_value(aty.TypeAnnotation.ENVIRONMENT)
+    symbolics = {}
+    # add constants, declarations and prefixes for each of the nodes
+    print("Converting found structures...")
+    for s in bf.declarations:
+        n, k, v = convert_structure(s)
+        if n not in nodes:
+            nodes[n] = prog.Properties(default_env)
+        if n not in constants:
+            constants[n] = {}
+        match v:
+            case prog.Func():
+                nodes[n].declarations[k] = v
+            case aex.Expression():
+                constants[n][k] = v
+            case (address, peers_to_policies):
+                # add a /24 prefix based on the given address
+                # strict=False causes this to mask the last 8 bits
+                nodes[n].add_prefix_from_ip(address)
+                neighbor_policies = {}
+                for peering, policy_block in peers_to_policies.items():
+                    # add the local ASN to the node
+                    if nodes[n].asnum is None:
+                        nodes[n].asnum = peering.local_asn
+                    elif peering.local_asn != nodes[n].asnum:
+                        print(
+                            f"WARNING: multiple ASNs {nodes[n].asnum} and {peering.local_asn} for node {n}"
+                        )
+                    # look up the remote IP's owner
+                    node_owner = ips.get(peering.remote_ip)
+                    if node_owner is None:
+                        # IP belongs to an external neighbor
+                        # we first try and use the ASN as the name, then use the IP if there is no ASN
+                        external_node = str(peering.remote_asn) or str(
+                            peering.remote_ip
+                        )
+                        neighbor_policies[external_node] = policy_block
+                        if external_node not in g.vs:
+                            g.add_vertex(name=external_node)
+                            # identify the external neighbor as symbolic
+                            external_nodes.add(external_node)
+                        g.add_edge(
+                            n,
+                            external_node,
+                            ips=([peering.local_ip], [peering.remote_ip]),
+                        )
+                        # add a reverse connection from the external neighbor to this node
+                        if external_node not in nodes:
+                            # external nodes start with an arbitrary route
+                            symbolic_name = f"external-route-{n}"
+                            symbolics[symbolic_name] = None
+                            nodes[external_node] = prog.Properties(
+                                initial=aex.Var(symbolic_name), asnum=peering.remote_asn
+                            )
+                        nodes[external_node].policies[n] = prog.Policies(
+                            peering.remote_asn, None, None
+                        )
+                    else:
+                        neighbor_policies[node_owner] = policy_block
+                # bind the policies to the node
+                nodes[n].policies = neighbor_policies
+            case None:
+                pass
+    # inline constants
+    print("Inlining constants...")
+    for node, properties in nodes.items():
+        for func in properties.declarations.values():
+            for stmt in func.body:
+                # NOTE: stmt substitution returns None, but expr substitution returns an expression
+                stmt.subst(constants[node])
+    print("Conversion complete!")
+    return prog.Program(
+        route=aty.EnvironmentType.fields(),
+        nodes=nodes,
+        ghost=None,
+        predicates={},
+        symbolics=symbolics,
+        converge_time=None,
+    )
 
 
 class ConvertException(Exception):
