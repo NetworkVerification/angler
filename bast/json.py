@@ -26,7 +26,7 @@ def query_session(session: session.Session) -> dict[str, list[dict]]:
     policy = collect_rows(session.q.nodeProperties().answer())
     # we need to set ignoreGenerated to False to get the auto-generated structures
     structures = collect_rows(session.q.namedStructures(ignoreGenerated=False).answer())
-    bgp_peers = collect_rows(session.q.bgpPeerConfiguration().answer())
+    # bgp_peers = collect_rows(session.q.bgpPeerConfiguration().answer())
     issues = collect_rows(session.q.initIssues().answer())
     # TODO: include static and connected routes
     # static_routes = collect_rows(session.q.routes(protocols="static").answer())
@@ -36,7 +36,7 @@ def query_session(session: session.Session) -> dict[str, list[dict]]:
         "ips": ips,
         "policy": policy,
         "declarations": structures,
-        "bgp": bgp_peers,
+        # "bgp": bgp_peers,
         "issues": issues,
     }
 
@@ -48,14 +48,14 @@ class BatfishJson(
     topology=Field("topology", list[topology.Edge]),
     ips=Field("ips", list[base.OwnedIP]),
     policy=Field("policy", list[dict]),
-    bgp=Field("bgp", list[base.BgpPeerConfig]),
+    # bgp=Field("bgp", list[base.BgpPeerConfig]),
     declarations=Field("declarations", list[struct.Structure]),
     issues=Field("issues", list[dict]),
 ):
     topology: list[topology.Edge]
     ips: list[base.OwnedIP]
     policy: list[dict]
-    bgp: list[base.BgpPeerConfig]
+    # bgp: list[base.BgpPeerConfig]
     declarations: list[struct.Structure]
     issues: list[dict]
 
