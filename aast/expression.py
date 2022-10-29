@@ -18,11 +18,13 @@ B = TypeVar("B")
 class ExprType(Variant):
     """A type of expression."""
 
-    CALL_EXPR = "CallExpr"
-    VAR = "Variable"
+    CALL_EXPR = "Call"
+    VAR = "Var"
     STR = "String"
+    REGEX = "Regex"
     # Boolean expressions
     BOOL = "Bool"
+    CALL_EXPR_CONTEXT = "CallExprContext"
     HAVOC = "Havoc"
     CONJUNCTION = "Conjunction"
     DISJUNCTION = "Disjunction"
@@ -74,9 +76,13 @@ class ExprType(Variant):
                 return Var
             case ExprType.STR:
                 return LiteralString
+            case ExprType.REGEX:
+                return Regex
             # booleans
             case ExprType.BOOL:
                 return LiteralBool
+            case ExprType.CALL_EXPR_CONTEXT:
+                return CallExprContext
             case ExprType.HAVOC:
                 return Havoc
             case ExprType.CONJUNCTION:
@@ -248,6 +254,13 @@ class CallExpr(
 
     policy: str
     ty: str = field(default="Call", init=False)
+
+
+@dataclass
+class CallExprContext(
+    Expression[bool], Serialize, ty=Field("$type", str, "CallExprContext")
+):
+    ty: str = field(default="CallExprContext", init=False)
 
 
 @dataclass
@@ -588,6 +601,12 @@ class LiteralString(
 ):
     value: str
     ty: str = field(default="String", init=False)
+
+
+@dataclass
+class Regex(Expression[str], Serialize, regex="Regex", ty=Field("$type", str, "Regex")):
+    regex: str
+    ty: str = field(default="Regex", init=False)
 
 
 @dataclass

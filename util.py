@@ -16,14 +16,18 @@ def parse_qualified_class(name: str) -> str:
     - Qualified class name: "namespaces.name" -> "name"
     - Qualified class name with named subclass: "namespaces.class$name" -> "name"
     - Unqualified name: "name" -> "name"
+    Has the following behavior mimicking Angler:
+    - Class name with inner types: "name(inner_name;...)" -> "name"
     """
     try:
         _, name = name.rsplit(sep=".", maxsplit=1)
         # if a $ is found, name will contain the string following it
         # if $ is not found, name will contain the original string
-        return name[name.rindex("$") + 1 :]
-    except ValueError:
-        return name
+        name = name[name.rfind("$") + 1 :]
+    finally:
+        # drop anything that follows an open parenthesis
+        front_index = name.find("(")
+        return name if front_index == -1 else name[:front_index]
 
 
 class Variant(Enum):

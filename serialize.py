@@ -172,6 +172,7 @@ class Serialize:
         Raise a KeyError if the dictionary is missing an expected field.
         """
         # if a delegate is assigned, delegate to it
+        del_field_name = None
         if cls.delegate:
             del_field_name, del_func = cls.delegate
             try:
@@ -186,6 +187,9 @@ class Serialize:
         for field in cls.fields:
             fieldty = cls.fields[field].ty
             fieldname = cls.fields[field].json_name
+            if fieldname == del_field_name:
+                # skip the field if it's the delegate field
+                continue
             v = d.get(fieldname, cls.fields[field].default)
             # exit early if v is None
             if v is None:

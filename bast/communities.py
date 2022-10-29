@@ -200,7 +200,10 @@ class CommunityIs(CommunityMatchExpr, Serialize, community="community"):
 
 @dataclass
 class CommunityMatchRegex(
-    CommunityMatchExpr, Serialize, rendering="communityRendering", regex="regex"
+    CommunityMatchExpr,
+    Serialize,
+    rendering=Field("communityRendering", CommunityRendering),
+    regex="regex",
 ):
     rendering: CommunityRendering
     # TODO parse

@@ -40,6 +40,14 @@ class AsnPeer:
     remote_ip: IPv4Address
 
 
+def route_filter_list_var(s: str) -> str:
+    return f"route-filter-list-{s}"
+
+
+def community_set_match_expr_var(s: str) -> str:
+    return f"community-set-match-expr-{s}"
+
+
 def update_arg(update: aex.Expression, ty: aty.EnvironmentType) -> asm.AssignStatement:
     """Construct an Assign statement for the given update to the ARG_VAR at the given field."""
     wf = aex.WithField(
@@ -72,9 +80,7 @@ def convert_expr(b: bex.Expression, simplify: bool = False) -> aex.Expression:
         case bools.StaticBooleanExpr(ty=bools.StaticBooleanExprType.FALSE):
             return aex.LiteralBool(False)
         case bools.StaticBooleanExpr(ty=bools.StaticBooleanExprType.CALLCONTEXT):
-            # NOTE: not supported
-            # TODO(tim): maybe it should be? would be easy enough to add
-            return aex.Havoc()
+            return aex.CallExprContext()
         case bools.Conjunction(conjuncts):
             if simplify:
                 conj = []
@@ -132,29 +138,33 @@ def convert_expr(b: bex.Expression, simplify: bool = False) -> aex.Expression:
             return aex.LiteralSet([])
         case bcomms.CommunitySetDifference(initial, to_remove):
             # remove a single community from the set
-            return aex.SetRemove(convert_expr(to_remove), convert_expr(initial))
+            return aex.SetDifference(convert_expr(to_remove), convert_expr(initial))
         case bools.MatchCommunities(_comms, bcomms.HasCommunity(expr)):
             # check if community is in _comms
             return aex.SetContains(convert_expr(expr), convert_expr(_comms))
         case bools.MatchCommunities(
             _comms, bcomms.CommunitySetMatchExprReference(_name)
         ):
-            cvar = aex.Var(_name)
-            return aex.SetContains(cvar, convert_expr(_comms))
+            cvar = aex.Var(community_set_match_expr_var(_name))
+            return aex.Subset(cvar, convert_expr(_comms))
         case bcomms.InputCommunities():
             return get_arg(aty.EnvironmentType.COMMS)
         case bcomms.CommunitySetReference(_name):
-            return aex.Var(_name)
+            return aex.Var(community_set_match_expr_var(_name))
         case bcomms.CommunitySetMatchExprReference(
             _name
         ) | bcomms.CommunityMatchExprReference(_name):
-            return aex.Var(_name)
+            return aex.Var(community_set_match_expr_var(_name))
         case bcomms.HasCommunity(e):
             # extract the underlying community
-            return convert_expr(e)
-        case bcomms.CommunityMatchRegex(_):
-            # NOTE: for now, we treat regexes as havoc
-            return aex.Havoc()
+            return aex.LiteralSet([convert_expr(e)])
+        case bcomms.CommunitySetMatchAll(es):
+            # return a set combining all the match expressions
+            return aex.SetUnion([convert_expr(e) for e in es])
+        case bcomms.CommunityMatchRegex(
+            rendering=bcomms.ColonSeparatedRendering(), regex=regex
+        ):
+            return aex.Regex(regex)
         case ints.LiteralInt(value):
             # TODO: should this be signed or unsigned?
             return aex.LiteralUInt(value)
@@ -170,7 +180,7 @@ def convert_expr(b: bex.Expression, simplify: bool = False) -> aex.Expression:
         case prefix.DestinationNetwork():
             return get_arg(aty.EnvironmentType.PREFIX)
         case prefix.NamedPrefixSet(_name):
-            return aex.Var(_name)
+            return aex.Var(route_filter_list_var(_name))
         case prefix.ExplicitPrefixSet(prefix_space):
             return aex.PrefixSet(prefix_space)
         case borigin.LiteralOrigin(origin_type):
@@ -254,9 +264,16 @@ def update_arg_result(
             case None:
                 return e
             case bool():
-                return aex.WithField(e, rt.value, aex.LiteralBool(v))
+                return aex.WithField(
+                    e,
+                    rt.value,
+                    aex.LiteralBool(v),
+                    ty_args=(aty.TypeAnnotation.RESULT, rt.field_type()),
+                )
             case aex.Expression():
-                return aex.WithField(e, rt.value, v)
+                return aex.WithField(
+                    e, rt.value, v, ty_args=(aty.TypeAnnotation.RESULT, rt.field_type())
+                )
             case _:
                 raise Exception("unreachable")
 
@@ -368,23 +385,27 @@ def convert_stmt(b: bsm.Statement, simplify: bool = False) -> list[asm.Statement
                     update = create_result(_value=value_expr)
                 case bsm.StaticStatementType.SET_ACCEPT | bsm.StaticStatementType.SET_LOCAL_ACCEPT:
                     # TODO: distinguish local default action and default action?
-                    update = aex.WithField(
-                        ARG_VAR,
-                        aty.EnvironmentType.LOCAL_DEFAULT_ACTION.value,
-                        aex.LiteralBool(True),
-                    )
+                    # NOTE(tim): return directly since this statement updates the default action instead of the result
+                    return [
+                        update_arg(
+                            aex.LiteralBool(True),
+                            aty.EnvironmentType.LOCAL_DEFAULT_ACTION,
+                        )
+                    ]
                 case bsm.StaticStatementType.SET_REJECT | bsm.StaticStatementType.SET_LOCAL_REJECT:
                     # TODO: distinguish local default action and default action?
-                    update = aex.WithField(
-                        ARG_VAR,
-                        aty.EnvironmentType.LOCAL_DEFAULT_ACTION.value,
-                        aex.LiteralBool(False),
-                    )
+                    # NOTE(tim): return directly since this statement updates the default action instead of the result
+                    return [
+                        update_arg(
+                            aex.LiteralBool(False),
+                            aty.EnvironmentType.LOCAL_DEFAULT_ACTION,
+                        )
+                    ]
                 case _:
                     raise NotImplementedError(
                         f"No convert case for static statement {ty} found."
                     )
-            return [asm.AssignStatement(ARG, update)]
+            return [update_arg(update, aty.EnvironmentType.RESULT)]
         case bsm.PrependAsPath():
             # NOTE: ignored
             return []
@@ -539,11 +560,9 @@ def convert_structure(
     value = None
     match b.definition.value:
         case bstruct.RoutingPolicy(policyname=name, statements=stmts):
-            print(f"Routing policy {b.struct_name}")
             struct_name = name
             value = convert_routing_policy(stmts, simplify=simplify)
         case bacl.RouteFilterList(_name=name, lines=lines):
-            print(f"Route filter list {b.struct_name}")
             permit_disjuncts = []
             deny_disjuncts = []
             prev_conds = []
@@ -564,7 +583,7 @@ def convert_structure(
 
                 prev_conds.append(cond)
 
-            struct_name = name
+            struct_name = route_filter_list_var(name)
             # if the disjuncts are empty, simply use False
             value = aex.MatchSet(
                 permit=aex.Disjunction(permit_disjuncts)
@@ -577,15 +596,9 @@ def convert_structure(
 
             # TODO: What is the default action if no rule matches?
 
-        case bcomms.CommunitySetMatchAll(es):
-            # convert the internal CommunityMatchExprs
-            # into a literal set to match against
-            print(f"CommunitySetMatchAll {b.struct_name}")
-            value = aex.LiteralSet([convert_expr(e) for e in es])
-        case bcomms.HasCommunity(e):
-            # convert the internal CommunityMatchExpr
-            print(f"HasCommunity {b.struct_name}")
-            value = convert_expr(e)
+        case bcomms.CommunitySetMatchExpr():
+            struct_name = community_set_match_expr_var(struct_name)
+            value = convert_expr(b.definition.value)
         case bacl.Acl(name=name):
             # TODO
             struct_name = name
@@ -672,7 +685,7 @@ def convert_batfish(bf: json.BatfishJson, simplify=False) -> prog.Program:
                         # add a reverse connection from the external neighbor to this node
                         if external_node not in nodes:
                             # external nodes start with an arbitrary route
-                            symbolic_name = f"external-route-{n}"
+                            symbolic_name = f"external-route-{external_node}"
                             symbolics[symbolic_name] = None
                             nodes[external_node] = prog.Properties(
                                 initial=aex.Var(symbolic_name), asnum=peering.remote_asn
