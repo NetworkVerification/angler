@@ -66,22 +66,6 @@ def save_json(output: Any, path: Path | str):
         json.dump(output, jsonout, cls=AstEncoder, sort_keys=True, indent=2)
 
 
-USAGE = f"""
-{os.path.basename(__file__)} : wrapper around pybatfish to extract ast components
-
-Usage: {os.path.basename(__file__)} [-h] [dir|file] [-d] [-q query ipaddr] [-t] [outfile]
-
--h          Print usage
--d          Request local diagnostics when initializing pybatfish session
--q query    Add query information based on the given query ("reachable", "valleyfree", "hijack")
-            and the given ip address of the destination.
--t          Add temporal interfaces
-dir         A snapshot directory to provide to pybatfish
-file        A JSON file to parse the AST of
-outfile     A location to save the output JSON to (defaults to dir.json or file.angler.json)
-"""
-
-
 def main():
     parser = argparse.ArgumentParser(
         f"{os.path.basename(__file__)}", description="extracts Batfish AST components"
@@ -97,6 +81,12 @@ def main():
         "--simplify-bools",
         action="store_true",
         help="Simplify AST expressions according to rules of boolean logic.",
+    )
+    parser.add_argument(
+        "-a",
+        "--no-merge-asns",
+        action="store_false",
+        help="Treat every external IP as a separate external neighbor, even if two external IPs share an AS number.",
     )
     parser.add_argument(
         "-q",
@@ -159,7 +149,9 @@ def main():
             )
             bf_ast = bast.json.BatfishJson.from_dict(json_data)
             print("Successfully parsed Batfish AST!")
-            a_ast = convert_batfish(bf_ast, args.simplify_bools)
+            a_ast = convert_batfish(
+                bf_ast, simplify=args.simplify_bools, merge_asns=args.no_merge_asns
+            )
         query = args.query
         if query:
             add_query(a_ast, query, args.destination, args.timepiece)

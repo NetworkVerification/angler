@@ -626,7 +626,9 @@ def convert_structure(
     return node_name, struct_name, value
 
 
-def convert_batfish(bf: json.BatfishJson, simplify=False) -> prog.Program:
+def convert_batfish(
+    bf: json.BatfishJson, simplify=False, merge_asns=True
+) -> prog.Program:
     """
     Convert the Batfish JSON object to an Angler program.
     """
@@ -668,10 +670,16 @@ def convert_batfish(bf: json.BatfishJson, simplify=False) -> prog.Program:
                     node_owner = ips.get(peering.remote_ip)
                     if node_owner is None:
                         # IP belongs to an external neighbor
-                        # we first try and use the ASN as the name, then use the IP if there is no ASN
-                        external_node = str(peering.remote_asn) or str(
-                            peering.remote_ip
-                        )
+                        if merge_asns:
+                            # when merge_asns is true,
+                            # we first try and use the ASN as the name,
+                            # then use the IP if there is no ASN
+                            external_node = str(peering.remote_asn) or str(
+                                peering.remote_ip
+                            )
+                        else:
+                            # otherwise, we just treat each distinct IP as a different neighbor
+                            external_node = str(peering.remote_ip)
                         neighbor_policies[external_node] = policy_block
                         if external_node not in g.vs:
                             g.add_vertex(name=external_node)
