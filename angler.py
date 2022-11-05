@@ -18,7 +18,7 @@ from query import QueryType, add_query
 from serialize import Serialize
 
 
-def initialize_session(snapshot_dir: str, diagnostics: bool = False) -> Session:
+def initialize_session(snapshot_dir: Path, diagnostics: bool = False) -> Session:
     """
     Perform initial Session setup with the given example network
     and the provided snapshot directory and snapshot name.
@@ -26,7 +26,9 @@ def initialize_session(snapshot_dir: str, diagnostics: bool = False) -> Session:
     """
     bf = Session(host="localhost")
     bf.set_network("example-net")
-    bf.init_snapshot(snapshot_dir, "example-snapshot", overwrite=True)
+    # convert the path to a string so that it's correctly identified by batfish
+    # for whatever reason, passing in a pathlib.Path causes a problem
+    bf.init_snapshot(str(snapshot_dir), "example-snapshot", overwrite=True)
     if diagnostics:
         print("Saving diagnostics for input files...")
         bf.upload_diagnostics(dry_run=True)
