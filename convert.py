@@ -122,6 +122,9 @@ def convert_expr(b: bex.Expression, simplify: bool = False) -> aex.Expression:
         case bools.MatchIpv6() | bools.MatchPrefix6Set():
             # NOTE: not supported (for now, we assume ipv4)
             return aex.LiteralBool(False)
+        case bools.MatchAsPath():
+            # NOTE: not supported
+            return aex.Havoc()
         case bools.LegacyMatchAsPath():
             # NOTE: not supported
             return aex.Havoc()
@@ -618,6 +621,9 @@ def convert_structure(
                     for neighbor, config in bgp.neighbors.items()
                 },
             )
+        case bvrf.Vrf(vrfname=name):
+            # TODO
+            print(f"Skipping VRF with unexpected name {name}...")
         case bacl.Route6FilterList(_name=name):
             # TODO
             struct_name = name

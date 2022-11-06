@@ -32,6 +32,7 @@ class BooleanExprType(util.Variant):
     MATCH_PREFIXES = "MatchPrefixSet"
     MATCH_PREFIXES6 = "MatchPrefix6Set"
     LEGACY_MATCH_AS_PATH = "LegacyMatchAsPath"
+    MATCH_AS_PATH = "MatchAsPath"
     MATCH_TAG = "MatchTag"
     MATCH_COMMUNITIES = "MatchCommunities"
     FIRST_MATCH_CHAIN = "FirstMatchChain"
@@ -51,6 +52,8 @@ class BooleanExprType(util.Variant):
                 return Not
             case BooleanExprType.LEGACY_MATCH_AS_PATH:
                 return LegacyMatchAsPath
+            case BooleanExprType.MATCH_AS_PATH:
+                return MatchAsPath
             case BooleanExprType.MATCH_TAG:
                 return MatchTag
             case BooleanExprType.MATCH_COMMUNITIES:
@@ -144,6 +147,17 @@ class LegacyMatchAsPath(
     expr=Field("expr", ases.AsPathSetExpr),
 ):
     expr: ases.AsPathSetExpr
+
+
+@dataclass
+class MatchAsPath(
+    BooleanExpr,
+    Serialize,
+    path_expr=Field("asPathExpr", ases.AsPathExpr),
+    match_expr=Field("asPathMatchExpr", ases.AsPathMatchExpr),
+):
+    path_expr: ases.AsPathExpr
+    match_expr: ases.AsPathSetExpr
 
 
 @dataclass
