@@ -85,12 +85,6 @@ def main():
         help="Simplify AST expressions according to rules of boolean logic.",
     )
     parser.add_argument(
-        "-a",
-        "--no-merge-asns",
-        action="store_false",
-        help="Treat every external IP as a separate external neighbor, even if two external IPs share an AS number.",
-    )
-    parser.add_argument(
         "-q",
         "--query",
         type=QueryType,
@@ -151,9 +145,7 @@ def main():
             )
             bf_ast = bast.json.BatfishJson.from_dict(json_data)
             print("Successfully parsed Batfish AST!")
-            a_ast = convert_batfish(
-                bf_ast, simplify=args.simplify_bools, merge_asns=args.no_merge_asns
-            )
+            a_ast = convert_batfish(bf_ast, simplify=args.simplify_bools)
         query = args.query
         if query:
             add_query(a_ast, query, args.destination, args.timepiece)
