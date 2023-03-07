@@ -24,7 +24,7 @@ def initialize_session(snapshot_dir: Path, diagnostics: bool = False) -> Session
     and the provided snapshot directory and snapshot name.
     :param network: the name of the example network
     """
-    bf = Session(host="localhost")
+    bf = Session(host="batfish")
     bf.set_network("example-net")
     # convert the path to a string so that it's correctly identified by batfish
     # for whatever reason, passing in a pathlib.Path causes a problem
@@ -122,6 +122,7 @@ def main():
             if args.output is None
             else args.output
         )
+        print(f"Saving result to {out_path}.")
         save_json(json_data, out_path)
     else:
         with open(args.path) as fp:
