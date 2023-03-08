@@ -108,49 +108,63 @@ def main():
         help="A snapshot directory to pass to pybatfish, or a JSON file obtained after reading such a directory.",
     )
     parser.add_argument(
+        "-f",
+        "--full-run",
+        action="store_true",
+        help="Also generate the .angler.json file if given a snapshot directory.",
+    )
+    parser.add_argument(
         "-o",
         "--output",
         help="A location to save the output JSON to (defaults to [path].json or [path].angler.json)",
     )
     args = parser.parse_args()
-    if os.path.isdir(args.path):
-        bf = initialize_session(args.path, args.diagnostics)
+    current_path: pathlib.Path = args.path
+    if current_path.is_dir():
+        bf = initialize_session(current_path, args.diagnostics)
         json_data = bast.json.query_session(bf)
         print("Completed Batfish JSON queries.")
-        out_path = (
-            Path(args.path).with_suffix(".json").name
+        current_path = (
+            Path(current_path.with_suffix(".json").name)
             if args.output is None
             else args.output
         )
-        print(f"Saving result to {out_path}.")
-        save_json(json_data, out_path)
-    else:
-        with open(args.path) as fp:
+        print(f"Saving result to {current_path}.")
+        save_json(json_data, current_path)
+        if not args.full_run:
+            return
+    # else:
+    elif not args.full_run:
+        with open(current_path) as fp:
             json_data = json.load(fp)
-        if ".angler" in args.path.suffixes:
-            if not args.query:
-                # if no query is provided, this will do nothing, so exit
-                print("No query given for an existing .angler file. Exiting...")
-                return
-            a_ast = Program.from_dict(json_data)
-            out_path = (
-                args.path.with_stem(f"{args.path.stem}-{args.query}")
-                if args.output is None
-                else args.output
-            )
-        else:
-            out_path = (
-                args.path.with_stem(f"{args.path.stem}.angler")
-                if args.output is None
-                else args.output
-            )
-            bf_ast = bast.json.BatfishJson.from_dict(json_data)
-            print("Successfully parsed Batfish AST!")
-            a_ast = convert_batfish(bf_ast, simplify=args.simplify_bools)
-        query = args.query
-        if query:
-            add_query(a_ast, query, args.destination, args.timepiece)
-        save_json(a_ast, out_path)
+    else:
+        raise Exception("--full-run option should be used with a directory.")
+    # Add a query to an existing .angler.json file
+    if ".angler" in current_path.suffixes:
+        if not args.query:
+            # if no query is provided, this will do nothing, so exit
+            print("No query given for an existing .angler file. Exiting...")
+            return
+        a_ast = Program.from_dict(json_data)
+        current_path = (
+            current_path.with_stem(f"{current_path.stem}-{args.query}")
+            if args.output is None
+            else args.output
+        )
+    # Convert to an .angler.json file
+    else:
+        current_path = (
+            current_path.with_stem(f"{current_path.stem}.angler")
+            if args.output is None
+            else args.output
+        )
+        bf_ast = bast.json.BatfishJson.from_dict(json_data)
+        print("Successfully parsed Batfish AST!")
+        a_ast = convert_batfish(bf_ast, simplify=args.simplify_bools)
+    query = args.query
+    if query:
+        add_query(a_ast, query, args.destination, args.timepiece)
+    save_json(a_ast, current_path)
 
 
 if __name__ == "__main__":

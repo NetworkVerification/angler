@@ -12,17 +12,5 @@ services:
     image: angler
     depends_on:
       - batfish
-    # command: ["examples/CAMPUS1", "-o", "/app/campus1.json"]
-    # volumes:
-    #   - angler-json:/app/
-  # angler-internet2:
-  #   image: angler
-  #   depends_on:
-  #     angler-internet2-batfish:
-  #       condition: service_completed_successfully
-  #   command: ["/app/campus1.json -b -t -q bte"]
-  #   volumes:
-      # - angler-json:/app/
 volumes:
   batfish-data:
-  # angler-json:
