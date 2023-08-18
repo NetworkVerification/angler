@@ -6,15 +6,15 @@ The AST can then be consumed by a separate tool which defines the semantics.
 Operates in two passes:
 1. Using Batfish's [pybatfish](https://batfish.readthedocs.io/en/latest/index.html) API,
    given a directory of configurations CONFIGS,
-   extract all relevant routing information as statements in Batfish's AST,
+   extract all relevant routing information as statements in [Batfish's AST](`bast`),
    and save it in a JSON file "CONFIGS.json".
 2. Convert the "CONFIGS.json" file to use Angler's [alternative representation](`aast`).
    This representation, while also in JSON, replaces some of Batfish's highly-specific structures
    with simpler, more generic imperative commands, via an AST traversal.
    Save the resulting Angler AST as a JSON file "CONFIGS.angler.json".
 
-Given a directory of configurations, **angler** will perform both passes together,
-unless the "--batfish-only" flag is given, in which case only pass 1 is performed.
+Given a directory of configurations, **angler** will perform both passes together if
+the "--full-run" flag is given, and otherwise only pass 1 is performed.
 Given a "CONFIGS.json" file, **angler** will perform pass 2.
 """
 
@@ -38,7 +38,7 @@ def initialize_session(snapshot_dir: Path, diagnostics: bool = False) -> Session
     and the provided snapshot directory and snapshot name.
     :param network: the name of the example network
     """
-    bf = Session(host="localhost")
+    bf = Session(host="batfish")
     bf.set_network("example-net")
     # convert the path to a string so that it's correctly identified by batfish
     # for whatever reason, passing in a pathlib.Path causes a problem
@@ -105,15 +105,15 @@ def main():
         help="Simplify AST expressions according to rules of boolean logic",
     )
     parser.add_argument(
-        "-B",
-        "--batfish-only",
-        action="store_true",
-        help="Only extract the Batfish AST; do not convert to Angler representation",
-    )
-    parser.add_argument(
         "path",
         type=pathlib.Path,
         help="A snapshot directory to pass to pybatfish, or a JSON file obtained after reading such a directory",
+    )
+    parser.add_argument(
+        "-f",
+        "--full-run",
+        action="store_true",
+        help="Also generate the .angler.json file if given a snapshot directory.",
     )
     parser.add_argument(
         "-o",
@@ -121,30 +121,35 @@ def main():
         help="A location to save the output JSON to (defaults to [path].json or [path].angler.json)",
     )
     args = parser.parse_args()
-    if os.path.isdir(args.path):
-        bf = initialize_session(args.path, args.diagnostics)
+    current_path: pathlib.Path = args.path
+    if current_path.is_dir():
+        bf = initialize_session(current_path, args.diagnostics)
         json_data = bast.json.query_session(bf)
         print("Completed Batfish JSON queries.")
-        out_path = (
-            Path(args.path).with_suffix(".json").name
+        current_path = (
+            Path(current_path.with_suffix(".json").name)
             if args.output is None
             else args.output
         )
-        _save_json(json_data, out_path)
-    else:
-        with open(args.path) as fp:
+        print(f"Saving result to {current_path}.")
+        _save_json(json_data, current_path)
+        if not args.full_run:
+            return
+    # else:
+    elif not args.full_run:
+        with open(current_path) as fp:
             json_data = json.load(fp)
-        out_path = (
-            args.path.with_stem(f"{args.path.stem}.angler")
-            if args.output is None
-            else args.output
-        )
-    # if we were given a file and the --batfish-only flag is not set, then convert
-    if os.path.isfile(args.path) or not args.batfish_only:
-        bf_ast = bast.json.BatfishJson.from_dict(json_data)
-        print("Successfully parsed Batfish AST!")
-        a_ast = convert.convert_batfish(bf_ast, simplify=args.simplify_bools)
-        _save_json(a_ast, out_path)
+    else:
+        raise Exception("--full-run option should be used with a directory.")
+    current_path = (
+        current_path.with_stem(f"{current_path.stem}.angler")
+        if args.output is None
+        else args.output
+    )
+    bf_ast = bast.json.BatfishJson.from_dict(json_data)
+    print("Successfully parsed Batfish AST!")
+    a_ast = convert.convert_batfish(bf_ast, simplify=args.simplify_bools)
+    _save_json(a_ast, current_path)
 
 
 if __name__ == "__main__":

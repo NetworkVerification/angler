@@ -1,0 +1,16 @@
+services:
+  batfish:
+    container_name: batfish
+    image: batfish/allinone
+    ports:
+      - "8888:8888"
+      - "9997:9997"
+      - "9996:9996"
+    volumes:
+      - batfish-data:/data
+  angler:
+    image: angler
+    depends_on:
+      - batfish
+volumes:
+  batfish-data:
