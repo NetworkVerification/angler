@@ -1,3 +1,28 @@
 [tool.black]
 line-length = 88
 target-version = ['py310']
+
+[tool.poetry]
+name = "angler"
+version = "0.1.0"
+description = "Batfish AST simplifier"
+authors = ["Tim Alberdingk Thijm <tim.thijm@gmail.com>", "Divya Raghunathan"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pybatfish = "^2023.5.12.784"
+igraph = "^0.10.6"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.7.0"
+
+[tool.poetry.group.doc.dependencies]
+pdoc = "^14.0.0"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^7.4.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

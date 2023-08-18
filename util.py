@@ -50,13 +50,15 @@ class Variant(Enum):
         """
         Return the type associated with a given string parsed into this variant.
         Qualified names (names which include Java-like dot-notation to indicate namespaces)
-        are parsed according to
+        are parsed according to `parse_qualified_class`.
         """
         return cls(parse_qualified_class(s)).as_class()
 
 
 @dataclass
 class ASTNode(Serialize):
+    """The base class for AST nodes."""
+
     def visit(self, f: Callable) -> None:
         # recursively descend through the fields of the ASTNodes
         if is_dataclass(self):

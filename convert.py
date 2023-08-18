@@ -24,7 +24,7 @@ import bast.structure as bstruct
 import aast.expression as aex
 import aast.statement as asm
 import aast.types as aty
-import aast.program as prog
+import aast.network as net
 
 # the transfer argument
 ARG = "env"
@@ -49,7 +49,7 @@ def community_set_match_expr_var(s: str) -> str:
 
 
 def update_arg(update: aex.Expression, ty: aty.EnvironmentType) -> asm.AssignStatement:
-    """Construct an Assign statement for the given update to the ARG_VAR at the given field."""
+    """Construct an `aast.statement.AssignStatement` statement for the given update to the ARG_VAR at the given field."""
     wf = aex.WithField(
         ARG_VAR,
         ty.value,
@@ -60,7 +60,7 @@ def update_arg(update: aex.Expression, ty: aty.EnvironmentType) -> asm.AssignSta
 
 
 def get_arg(ty: aty.EnvironmentType) -> aex.Expression:
-    """Construct a GetField expression for accessing the given field of the ARG_VAR."""
+    """Construct a `aast.expression.GetField` expression for accessing the given field of the ARG_VAR."""
     return aex.GetField(
         ARG_VAR, ty.value, ty_args=(aty.TypeAnnotation.ENVIRONMENT, ty.field_type())
     )
@@ -454,7 +454,7 @@ def unreachable() -> aex.Expression[bool]:
 
 def convert_routing_policy(
     body: list[bsm.Statement], simplify: bool = False
-) -> prog.Func:
+) -> net.Func:
     """
     Convert a Batfish routing policy into an Angler function.
     We insert cases around each statement to handle possibly returning early depending on
@@ -523,7 +523,7 @@ def convert_routing_policy(
     )
     # add the end statement to new_body
     new_body.append(check_returned)
-    return prog.Func(ARG, new_body)
+    return net.Func(ARG, new_body)
 
 
 TResult = TypeVar("TResult")
@@ -545,10 +545,7 @@ def convert_structure(
 ) -> tuple[
     str,
     str,
-    prog.Func
-    | aex.Expression
-    | tuple[IPv4Address, dict[AsnPeer, prog.Policies]]
-    | None,
+    net.Func | aex.Expression | tuple[IPv4Address, dict[AsnPeer, net.Policies]] | None,
 ]:
     """
     Convert a Batfish structure definition into an Angler node component.
@@ -613,7 +610,7 @@ def convert_structure(
                 {
                     AsnPeer(
                         config.local_as, config.local_ip, config.remote_as, neighbor
-                    ): prog.Policies(
+                    ): net.Policies(
                         asn=config.remote_as,
                         imp=config.address_family.import_policy,
                         exp=config.address_family.export_policy,
@@ -632,28 +629,28 @@ def convert_structure(
     return node_name, struct_name, value
 
 
-def convert_batfish(bf: json.BatfishJson, simplify=False) -> prog.Program:
+def convert_batfish(bf: json.BatfishJson, simplify=False) -> net.Network:
     """
-    Convert the Batfish JSON object to an Angler program.
+    Convert the Batfish JSON object to an Angler `net.Network`.
+    If `simplify` is True, simplify boolean expressions found when possible.
     """
     # generate a graph of the topology
     g = topology.edges_to_graph(bf.topology)
     ips = get_ip_node_mapping(bf.ips)
-    nodes: dict[str, prog.Properties] = {}
+    nodes: dict[str, net.Properties] = {}
     constants: dict[str, dict[str, aex.Expression]] = {}
     external_nodes = set()
-    default_env = aex.default_value(aty.TypeAnnotation.ENVIRONMENT)
     symbolics = {}
     # add constants, declarations and prefixes for each of the nodes
     print("Converting found structures...")
     for s in bf.declarations:
         n, k, v = convert_structure(s, simplify=simplify)
         if n not in nodes:
-            nodes[n] = prog.Properties(default_env)
+            nodes[n] = net.Properties()
         if n not in constants:
             constants[n] = {}
         match v:
-            case prog.Func():
+            case net.Func():
                 nodes[n].declarations[k] = v
             case aex.Expression():
                 constants[n][k] = v
@@ -697,10 +694,8 @@ def convert_batfish(bf: json.BatfishJson, simplify=False) -> prog.Program:
                             else:
                                 symbolic_name = f"internal-route-{neighbor}"
                             symbolics[symbolic_name] = None
-                            nodes[neighbor] = prog.Properties(
-                                initial=aex.Var(symbolic_name), asnum=peering.remote_asn
-                            )
-                        nodes[neighbor].policies[n] = prog.Policies(
+                            nodes[neighbor] = net.Properties(asnum=peering.remote_asn)
+                        nodes[neighbor].policies[n] = net.Policies(
                             peering.remote_asn, None, None
                         )
                     else:
@@ -717,13 +712,10 @@ def convert_batfish(bf: json.BatfishJson, simplify=False) -> prog.Program:
                 # NOTE: stmt substitution returns None, but expr substitution returns an expression
                 stmt.subst(constants[node])
     print("Conversion complete!")
-    return prog.Program(
+    return net.Network(
         route=aty.EnvironmentType.fields(),
         nodes=nodes,
-        ghost=None,
-        predicates={},
         symbolics=symbolics,
-        converge_time=None,
     )
 
 

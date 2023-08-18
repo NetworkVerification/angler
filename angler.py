@@ -1,5 +1,22 @@
 #!/usr/bin/env python3
-# Export Batfish JSON snapshots
+"""
+A tool for exporting [Batfish](https://www.batfish.org/)'s internal AST to a simpler format.
+The AST can then be consumed by a separate tool which defines the semantics.
+
+Operates in two passes:
+1. Using Batfish's [pybatfish](https://batfish.readthedocs.io/en/latest/index.html) API,
+   given a directory of configurations CONFIGS,
+   extract all relevant routing information as statements in Batfish's AST,
+   and save it in a JSON file "CONFIGS.json".
+2. Convert the "CONFIGS.json" file to use Angler's [alternative representation](`aast`).
+   This representation, while also in JSON, replaces some of Batfish's highly-specific structures
+   with simpler, more generic imperative commands, via an AST traversal.
+   Save the resulting Angler AST as a JSON file "CONFIGS.angler.json".
+
+Given a directory of configurations, **angler** will perform both passes together,
+unless the "--batfish-only" flag is given, in which case only pass 1 is performed.
+Given a "CONFIGS.json" file, **angler** will perform pass 2.
+"""
 
 import argparse
 from ipaddress import IPv4Address, IPv4Interface, IPv4Network
@@ -9,12 +26,9 @@ import pathlib
 from typing import Any
 from pybatfish.client.session import Session
 from aast.types import TypeAnnotation
-from aast.program import Program
 import bast.json
+import convert
 from pathlib import Path
-
-from convert import convert_batfish
-from query import QueryType, add_query
 from serialize import Serialize
 
 
@@ -36,6 +50,12 @@ def initialize_session(snapshot_dir: Path, diagnostics: bool = False) -> Session
 
 
 class AstEncoder(json.JSONEncoder):
+    """
+    An extension of the `json.JSONEncoder` for angler.
+    Adds support for `ipaddress` expressions, `Serialize`-able objects
+    and `TypeAnnotation`s.
+    """
+
     def default(self, obj):
         match obj:
             case set():
@@ -63,7 +83,7 @@ class AstEncoder(json.JSONEncoder):
                 return json.JSONEncoder.default(self, obj)
 
 
-def save_json(output: Any, path: Path | str):
+def _save_json(output: Any, path: Path | str):
     with open(path, "w") as jsonout:
         json.dump(output, jsonout, cls=AstEncoder, sort_keys=True, indent=2)
 
@@ -82,30 +102,18 @@ def main():
         "-b",
         "--simplify-bools",
         action="store_true",
-        help="Simplify AST expressions according to rules of boolean logic.",
+        help="Simplify AST expressions according to rules of boolean logic",
     )
     parser.add_argument(
-        "-q",
-        "--query",
-        type=QueryType,
-        help="Specify a verification query to instrument the network with.",
-    )
-    parser.add_argument(
-        "-d",
-        "--destination",
-        type=IPv4Address,
-        help="Specify the IP address of the routing destination.",
-    )
-    parser.add_argument(
-        "-t",
-        "--timepiece",
+        "-B",
+        "--batfish-only",
         action="store_true",
-        help="Add temporal interfaces to query.",
+        help="Only extract the Batfish AST; do not convert to Angler representation",
     )
     parser.add_argument(
         "path",
         type=pathlib.Path,
-        help="A snapshot directory to pass to pybatfish, or a JSON file obtained after reading such a directory.",
+        help="A snapshot directory to pass to pybatfish, or a JSON file obtained after reading such a directory",
     )
     parser.add_argument(
         "-o",
@@ -122,34 +130,21 @@ def main():
             if args.output is None
             else args.output
         )
-        save_json(json_data, out_path)
+        _save_json(json_data, out_path)
     else:
         with open(args.path) as fp:
             json_data = json.load(fp)
-        if ".angler" in args.path.suffixes:
-            if not args.query:
-                # if no query is provided, this will do nothing, so exit
-                print("No query given for an existing .angler file. Exiting...")
-                return
-            a_ast = Program.from_dict(json_data)
-            out_path = (
-                args.path.with_stem(f"{args.path.stem}-{args.query}")
-                if args.output is None
-                else args.output
-            )
-        else:
-            out_path = (
-                args.path.with_stem(f"{args.path.stem}.angler")
-                if args.output is None
-                else args.output
-            )
-            bf_ast = bast.json.BatfishJson.from_dict(json_data)
-            print("Successfully parsed Batfish AST!")
-            a_ast = convert_batfish(bf_ast, simplify=args.simplify_bools)
-        query = args.query
-        if query:
-            add_query(a_ast, query, args.destination, args.timepiece)
-        save_json(a_ast, out_path)
+        out_path = (
+            args.path.with_stem(f"{args.path.stem}.angler")
+            if args.output is None
+            else args.output
+        )
+    # if we were given a file and the --batfish-only flag is not set, then convert
+    if os.path.isfile(args.path) or not args.batfish_only:
+        bf_ast = bast.json.BatfishJson.from_dict(json_data)
+        print("Successfully parsed Batfish AST!")
+        a_ast = convert.convert_batfish(bf_ast, simplify=args.simplify_bools)
+        _save_json(a_ast, out_path)
 
 
 if __name__ == "__main__":

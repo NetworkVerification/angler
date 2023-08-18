@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from types import NoneType
 from typing import Generic, TypeVar
 from serialize import Serialize, Field
-from aast.types import TypeAnnotation
+from aast.types import TypeAnnotation, TYPE_FIELD
 import aast.expression as expr
 from util import Variant, ASTNode
 
@@ -45,8 +45,8 @@ class Statement(
     ASTNode,
     Generic[T],
     Serialize,
-    delegate=("$type", StatementType.parse_class),
-    ty=Field("$type", str, "Statement"),
+    delegate=(TYPE_FIELD, StatementType.parse_class),
+    ty=Field(TYPE_FIELD, str, "Statement"),
 ):
     """
     The base class for statements.
@@ -69,7 +69,7 @@ class Statement(
 
 
 @dataclass
-class SkipStatement(Statement[NoneType], Serialize, ty=Field("$type", str, "Skip")):
+class SkipStatement(Statement[NoneType], Serialize, ty=Field(TYPE_FIELD, str, "Skip")):
     """No-op statement."""
 
     ty: str = field(default="Skip", init=False)
@@ -85,7 +85,7 @@ class SeqStatement(
     Serialize,
     first=Field("S1", Statement[NoneType]),
     second=Field("S2", Statement[T]),
-    ty=Field("$type", str, "Seq"),
+    ty=Field(TYPE_FIELD, str, "Seq"),
 ):
     """Two statements in sequence (cf. semi-colon operator in C)."""
 
@@ -114,7 +114,7 @@ class IfStatement(
     guard=Field("Guard", expr.Expression[bool]),
     true_stmt=Field("ThenCase", list[Statement]),
     false_stmt=Field("ElseCase", list[Statement]),
-    ty=Field("$type", str, "If"),
+    ty=Field(TYPE_FIELD, str, "If"),
 ):
     """If statement allowing branching control flow."""
 
@@ -154,7 +154,7 @@ class AssignStatement(
     Serialize,
     lhs=Field("Var", str),
     rhs=Field("Expr", expr.Expression[E]),
-    ty=Field("$type", str, "Assign"),
+    ty=Field(TYPE_FIELD, str, "Assign"),
 ):
     """Assignment binding an expression to a variable."""
 
@@ -179,7 +179,7 @@ class ReturnStatement(
     Generic[E],
     Serialize,
     return_value=Field("Expr", expr.Expression[E]),
-    ty=Field("$type", str, "Return"),
+    ty=Field(TYPE_FIELD, str, "Return"),
 ):
     return_value: expr.Expression[E]
     ty: str = field(default="Return", init=False)
@@ -200,7 +200,7 @@ class SetDefaultPolicy(
     Statement[NoneType],
     Serialize,
     policy_name="PolicyName",
-    ty=Field("$type", str, "SetDefaultPolicy"),
+    ty=Field(TYPE_FIELD, str, "SetDefaultPolicy"),
 ):
     policy_name: str
     ty: str = field(default="SetDefaultPolicy", init=False)
