@@ -62,9 +62,18 @@ class TypeEnum(Enum):
 
 
 class ResultType(TypeEnum):
+    """
+    `TypeEnum` representing the result of evaluating a policy or boolean.
+    See https://github.com/batfish/batfish/blob/37dc6cfd2c62a667e5288b747c49def21428079b/projects/batfish-common-protocol/src/main/java/org/batfish/datamodel/routing_policy/Result.java#L10
+    """
+
+    # Boolean value of the result
     VALUE = "Value"
+    # Represents reaching a terminal accept/reject, stopping evaluation of callers.
     EXIT = "Exit"
+    # Represents a fall-through case where no policy matched, or no statement led to an exit or return
     FALLTHROUGH = "Fallthrough"
+    # Represents terminating the current policy/statement evaluation, returning back to the caller.
     RETURN = "Returned"
 
     def field_type(self) -> TypeAnnotation:

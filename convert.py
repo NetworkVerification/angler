@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """
 Conversion tools to transform Batfish AST terms to Angler AST terms.
+Current TODOs:
+- No support for protocols other than BGP
+- No support for matching on the AS path
+- No support for IPv6
+- No support for ACLs
+- No support for VRFs other than the default
 """
 from dataclasses import dataclass
 from ipaddress import IPv4Address
@@ -34,6 +40,10 @@ ARG_VAR = aex.Var(ARG)
 # frozen=True means the class is immutable (and therefore also suitable for hashing)
 @dataclass(frozen=True)
 class AsnPeer:
+    """
+    A representation of a peer AS. Used when determining the network topology.
+    """
+
     local_asn: Optional[int]
     local_ip: IPv4Address
     remote_asn: Optional[int]
@@ -49,7 +59,10 @@ def community_set_match_expr_var(s: str) -> str:
 
 
 def update_arg(update: aex.Expression, ty: aty.EnvironmentType) -> asm.AssignStatement:
-    """Construct an `aast.statement.AssignStatement` statement for the given update to the ARG_VAR at the given field."""
+    """
+    Construct an `aast.statement.AssignStatement` statement for the given
+    update to the ARG_VAR at the given field.
+    """
     wf = aex.WithField(
         ARG_VAR,
         ty.value,
@@ -388,7 +401,8 @@ def convert_stmt(b: bsm.Statement, simplify: bool = False) -> list[asm.Statement
                     update = create_result(_value=value_expr)
                 case bsm.StaticStatementType.SET_ACCEPT | bsm.StaticStatementType.SET_LOCAL_ACCEPT:
                     # TODO: distinguish local default action and default action?
-                    # NOTE(tim): return directly since this statement updates the default action instead of the result
+                    # NOTE(tim): return directly since this statement updates the default action
+                    # instead of the result
                     return [
                         update_arg(
                             aex.LiteralBool(True),
@@ -397,7 +411,8 @@ def convert_stmt(b: bsm.Statement, simplify: bool = False) -> list[asm.Statement
                     ]
                 case bsm.StaticStatementType.SET_REJECT | bsm.StaticStatementType.SET_LOCAL_REJECT:
                     # TODO: distinguish local default action and default action?
-                    # NOTE(tim): return directly since this statement updates the default action instead of the result
+                    # NOTE(tim): return directly since this statement updates the default action
+                    # instead of the result
                     return [
                         update_arg(
                             aex.LiteralBool(False),
@@ -539,6 +554,40 @@ def get_ip_node_mapping(ips: list[OwnedIP]) -> dict[IPv4Address, str]:
     return {ip.ip: ip.node.nodename for ip in ips if ip.active}
 
 
+def convert_route_filter_list(lines: list[bacl.RouteFilterLine]) -> aex.Expression:
+    permit_disjuncts = []
+    deny_disjuncts = []
+    prev_conds = []
+    for l in lines:
+        cond = aex.PrefixMatches(l.ip_wildcard, l.length_range)
+
+        not_prev: list[aex.Expression[bool]] = [aex.Not(c) for c in prev_conds]
+
+        if len(not_prev) > 0:
+            curr_matches = aex.Conjunction(not_prev + [cond])
+        else:
+            curr_matches = cond
+
+        if l.action == Action.PERMIT:
+            permit_disjuncts.append(curr_matches)
+        else:
+            deny_disjuncts.append(curr_matches)
+
+        prev_conds.append(cond)
+
+    # if the disjuncts are empty, simply use False
+    return aex.MatchSet(
+        permit=aex.Disjunction(permit_disjuncts)
+        if len(permit_disjuncts) > 0
+        else aex.LiteralBool(False),
+        deny=aex.Disjunction(deny_disjuncts)
+        if len(deny_disjuncts) > 0
+        else aex.LiteralBool(False),
+    )
+
+    # TODO: What is the default action if no rule matches?
+
+
 def convert_structure(
     b: bstruct.Structure,
     simplify: bool = False,
@@ -563,39 +612,8 @@ def convert_structure(
             struct_name = name
             value = convert_routing_policy(stmts, simplify=simplify)
         case bacl.RouteFilterList(_name=name, lines=lines):
-            permit_disjuncts = []
-            deny_disjuncts = []
-            prev_conds = []
-            for l in lines:
-                cond = aex.PrefixMatches(l.ip_wildcard, l.length_range)
-
-                not_prev: list[aex.Expression[bool]] = [aex.Not(c) for c in prev_conds]
-
-                if len(not_prev) > 0:
-                    curr_matches = aex.Conjunction(not_prev + [cond])
-                else:
-                    curr_matches = cond
-
-                if l.action == Action.PERMIT:
-                    permit_disjuncts.append(curr_matches)
-                else:
-                    deny_disjuncts.append(curr_matches)
-
-                prev_conds.append(cond)
-
             struct_name = route_filter_list_var(name)
-            # if the disjuncts are empty, simply use False
-            value = aex.MatchSet(
-                permit=aex.Disjunction(permit_disjuncts)
-                if len(permit_disjuncts) > 0
-                else aex.LiteralBool(False),
-                deny=aex.Disjunction(deny_disjuncts)
-                if len(deny_disjuncts) > 0
-                else aex.LiteralBool(False),
-            )
-
-            # TODO: What is the default action if no rule matches?
-
+            value = convert_route_filter_list(lines)
         case bcomms.CommunitySetMatchExpr():
             struct_name = community_set_match_expr_var(struct_name)
             value = convert_expr(b.definition.value)
