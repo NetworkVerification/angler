@@ -2,7 +2,7 @@
 """
 Angler expressions.
 """
-from ipaddress import IPv4Address, IPv4Interface, IPv4Network
+from ipaddress import IPv4Address, IPv4Network
 from dataclasses import InitVar, dataclass, field
 from typing import Generic, TypeVar
 from serialize import Serialize, Field
@@ -71,8 +71,8 @@ class ExprType(Variant):
     IP_PREFIX = "IpPrefix"  # tuple (ipaddress, prefix width)
     PREFIX_CONTAINS = "PrefixContains"
     PREFIX_SET = "PrefixSet"
-    MATCH_SET = "MatchSet"
-    MATCH = "Match"
+    MATCH_PREFIX_SET = "MatchPrefixSet"
+    ROUTE_FILTER_LIST = "RouteFilterList"
 
     def as_class(self) -> type:
         """Return the class associated with this ExprType."""
@@ -164,10 +164,10 @@ class ExprType(Variant):
                 return PrefixContains
             case ExprType.PREFIX_SET:
                 return PrefixSet
-            case ExprType.MATCH_SET:
-                return MatchSet
-            case ExprType.MATCH:
-                return Match
+            case ExprType.MATCH_PREFIX_SET:
+                return MatchPrefixSet
+            case ExprType.ROUTE_FILTER_LIST:
+                return RouteFilterListExpr
             case _:
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
@@ -947,6 +947,8 @@ class PrefixContains(
     prefix=Field("Prefix", Expression[IPv4Network]),
     ty=Field(TYPE_FIELD, str, "PrefixContains"),
 ):
+    """An expression that evaluates to true if the given prefix contains the given address."""
+
     addr: Expression[IPv4Address]
     prefix: Expression[IPv4Network]
     ty: str = field(default="PrefixContains", init=False)
@@ -958,27 +960,47 @@ class PrefixContains(
 
 
 @dataclass
-class PrefixMatches(
-    Expression[bool],
+class PrefixSet(
+    Expression[set[IPv4Network]],
     Serialize,
-    ip_wildcard=Field("IpWildcard", IPv4Interface),
-    prefix_length_range="PrefixLengthRange",
-    ty=Field(TYPE_FIELD, str, "PrefixMatches"),
+    prefix_space=Field("PrefixSpace", list[IPv4Network]),
+    ty=Field(TYPE_FIELD, str, "PrefixSet"),
 ):
-    ip_wildcard: IPv4Interface
-    prefix_length_range: str
-    ty: str = field(default="PrefixMatches", init=False)
+    """A set of IPv4 prefixes."""
+
+    prefix_space: list[IPv4Network]
+    ty: str = field(default="PrefixSet", init=False)
 
 
 @dataclass
-class PrefixSet(
-    Expression[set[IPv4Interface]],
+class RouteFilterLine(
+    ASTNode,
     Serialize,
-    prefix_space=Field("PrefixSpace", list[IPv4Interface]),
-    ty=Field(TYPE_FIELD, str, "PrefixSet"),
+    action=Field("Action", bool),
+    ip_wildcard=Field("Wildcard", IPv4Network),
+    min_len=Field("MinLength", int),
+    max_len=Field("MaxLength", int),
 ):
-    prefix_space: list[IPv4Interface]
-    ty: str = field(default="PrefixSet", init=False)
+    """A line of the route filter list."""
+
+    action: bool
+    ip_wildcard: IPv4Network
+    # the permitted prefix length range
+    min_len: int
+    max_len: int
+
+
+@dataclass
+class RouteFilterListExpr(
+    Expression[set[IPv4Network]],
+    Serialize,
+    lines=Field("Lines", list[RouteFilterLine]),
+    ty=Field(TYPE_FIELD, str, "RouteFilterList"),
+):
+    """A representation of a route filter list."""
+
+    lines: list[RouteFilterLine]
+    ty: str = field(default="RouteFilterList", init=False)
 
 
 @dataclass
@@ -993,34 +1015,20 @@ class CommunityMatches(
 
 
 @dataclass
-class MatchSet(
+class MatchPrefixSet(
     Expression[bool],
     Serialize,
-    permit=Field("Permit", Expression[bool]),
-    deny=Field("Deny", Expression[bool]),
-    ty=Field(TYPE_FIELD, str, "MatchSet"),
+    prefix=Field("Prefix", Expression[IPv4Network]),
+    prefix_set=Field("FilterList", Expression[set[IPv4Network]]),
+    ty=Field(TYPE_FIELD, str, "PrefixMatchSet"),
 ):
-    permit: Expression[bool]
-    deny: Expression[bool]
-    ty: str = field(default="MatchSet", init=False)
+    """An expression that evaluates to true if the given prefix matches the given collection of prefixes."""
+
+    prefix: Expression[IPv4Network]
+    prefix_set: Expression[set[IPv4Network]]
+    ty: str = field(default="PrefixMatchSet", init=False)
 
     def subst(self, environment: dict[str, Expression]) -> Expression:
-        self.permit = self.permit.subst(environment)
-        self.deny = self.deny.subst(environment)
-        return self
-
-
-@dataclass
-class Match(
-    Expression[bool],
-    Serialize,
-    match_key=Field("MatchKey", Expression),
-    match_set=Field("MatchSet", Expression[bool]),
-):
-    match_key: Expression[bool]
-    match_set: Expression[bool]
-
-    def subst(self, environment: dict[str, Expression]) -> Expression:
-        self.match_key = self.match_key.subst(environment)
-        self.match_set = self.match_set.subst(environment)
+        self.prefix = self.prefix.subst(environment)
+        self.prefix_set = self.prefix_set.subst(environment)
         return self

@@ -25,7 +25,7 @@ import bast.prefix as prefix
 import bast.acl as bacl
 import bast.vrf as bvrf
 import bast.origin as borigin
-from bast.btypes import Comparator, Protocol, Action
+from bast.btypes import Action, Comparator, Protocol
 import bast.structure as bstruct
 import aast.expression as aex
 import aast.statement as asm
@@ -202,7 +202,7 @@ def convert_expr(b: bex.Expression, simplify: bool = False) -> aex.Expression:
         case borigin.LiteralOrigin(origin_type):
             return aex.LiteralUInt(origin_type.to_int(), width=2)
         case bools.MatchPrefixSet(_prefix, _prefixes):
-            return aex.PrefixContains(convert_expr(_prefix), convert_expr(_prefixes))
+            return aex.MatchPrefixSet(convert_expr(_prefix), convert_expr(_prefixes))
         case bools.MatchTag(cmp, tag):
             route_tag = get_arg(aty.EnvironmentType.TAG)
             match cmp:
@@ -554,40 +554,6 @@ def get_ip_node_mapping(ips: list[OwnedIP]) -> dict[IPv4Address, str]:
     return {ip.ip: ip.node.nodename for ip in ips if ip.active}
 
 
-def convert_route_filter_list(lines: list[bacl.RouteFilterLine]) -> aex.Expression:
-    permit_disjuncts = []
-    deny_disjuncts = []
-    prev_conds = []
-    for l in lines:
-        cond = aex.PrefixMatches(l.ip_wildcard, l.length_range)
-
-        not_prev: list[aex.Expression[bool]] = [aex.Not(c) for c in prev_conds]
-
-        if len(not_prev) > 0:
-            curr_matches = aex.Conjunction(not_prev + [cond])
-        else:
-            curr_matches = cond
-
-        if l.action == Action.PERMIT:
-            permit_disjuncts.append(curr_matches)
-        else:
-            deny_disjuncts.append(curr_matches)
-
-        prev_conds.append(cond)
-
-    # if the disjuncts are empty, simply use False
-    return aex.MatchSet(
-        permit=aex.Disjunction(permit_disjuncts)
-        if len(permit_disjuncts) > 0
-        else aex.LiteralBool(False),
-        deny=aex.Disjunction(deny_disjuncts)
-        if len(deny_disjuncts) > 0
-        else aex.LiteralBool(False),
-    )
-
-    # TODO: What is the default action if no rule matches?
-
-
 def convert_structure(
     b: bstruct.Structure,
     simplify: bool = False,
@@ -611,9 +577,19 @@ def convert_structure(
         case bstruct.RoutingPolicy(policyname=name, statements=stmts):
             struct_name = name
             value = convert_routing_policy(stmts, simplify=simplify)
-        case bacl.RouteFilterList(_name=name, lines=lines):
+        case bacl.RouteFilterList(_name=name, lines=_lines):
             struct_name = route_filter_list_var(name)
-            value = convert_route_filter_list(lines)
+            # convert the batfish line to an angler line
+            # (almost the same, just written out a bit differently)
+            lines = []
+            for l in _lines:
+                action = l.action == Action.PERMIT
+                # split the range into two ints
+                low, high = l.length_range.split("-")
+                lines.append(
+                    aex.RouteFilterLine(action, l.ip_wildcard, int(low), int(high))
+                )
+            value = aex.RouteFilterListExpr(lines)
         case bcomms.CommunitySetMatchExpr():
             struct_name = community_set_match_expr_var(struct_name)
             value = convert_expr(b.definition.value)

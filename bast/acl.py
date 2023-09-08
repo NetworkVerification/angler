@@ -2,7 +2,7 @@
 """
 Expressions for filtering routes and using access lists in Batfish.
 """
-from ipaddress import IPv4Interface, IPv6Interface
+from ipaddress import IPv4Network, IPv6Network
 from dataclasses import dataclass, field
 from serialize import Serialize, Field
 import bast.btypes as types
@@ -14,12 +14,13 @@ class RouteFilterLine(
     util.ASTNode,
     Serialize,
     action=Field("action", types.Action),
-    ip_wildcard=Field("ipWildcard", IPv4Interface),
-    length_range="lengthRange",
+    ip_wildcard=Field("ipWildcard", IPv4Network),
+    length_range=Field("lengthRange", str),
 ):
+    # the action to perform (permit or deny)
     action: types.Action
-    ip_wildcard: IPv4Interface
-    # TODO: parse string into a range
+    ip_wildcard: IPv4Network
+    # the permitted prefix length range
     length_range: str
 
 
@@ -28,12 +29,11 @@ class Route6FilterLine(
     util.ASTNode,
     Serialize,
     action=Field("action", types.Action),
-    ip_wildcard=Field("ipWildcard", IPv6Interface),
-    length_range="lengthRange",
+    ip_wildcard=Field("ipWildcard", IPv6Network),
+    length_range=Field("lengthRange", str),
 ):
     action: types.Action
-    ip_wildcard: IPv6Interface
-    # TODO: parse string into a range
+    ip_wildcard: IPv6Network
     length_range: str
 
 
