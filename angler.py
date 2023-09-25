@@ -96,7 +96,7 @@ def main():
     parser = argparse.ArgumentParser(
         f"{os.path.basename(__file__)}", description="extracts Batfish AST components"
     )
-    parse.add_argument(
+    parser.add_argument(
         "-H",
         "--hostname",
         default="localhost",

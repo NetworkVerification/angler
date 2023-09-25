@@ -1019,7 +1019,7 @@ class MatchPrefixSet(
     Expression[bool],
     Serialize,
     prefix=Field("Prefix", Expression[IPv4Network]),
-    prefix_set=Field("FilterList", Expression[set[IPv4Network]]),
+    prefix_set=Field("PrefixSet", Expression[set[IPv4Network]]),
     ty=Field(TYPE_FIELD, str, "PrefixMatchSet"),
 ):
     """An expression that evaluates to true if the given prefix matches the given collection of prefixes."""
