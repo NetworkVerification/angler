@@ -32,13 +32,15 @@ from pathlib import Path
 from serialize import Serialize
 
 
-def initialize_session(snapshot_dir: Path, diagnostics: bool = False) -> Session:
+def initialize_session(
+    hostname: str, snapshot_dir: Path, diagnostics: bool = False
+) -> Session:
     """
     Perform initial Session setup with the given example network
     and the provided snapshot directory and snapshot name.
     :param network: the name of the example network
     """
-    bf = Session(host="batfish")
+    bf = Session(host=hostname)
     bf.set_network("example-net")
     # convert the path to a string so that it's correctly identified by batfish
     # for whatever reason, passing in a pathlib.Path causes a problem
@@ -94,6 +96,12 @@ def main():
     parser = argparse.ArgumentParser(
         f"{os.path.basename(__file__)}", description="extracts Batfish AST components"
     )
+    parse.add_argument(
+        "-H",
+        "--hostname",
+        default="localhost",
+        help="The name of the host of the batfish session to query (default: %(default)s)",
+    )
     parser.add_argument(
         "-D",
         "--diagnostics",
@@ -125,7 +133,7 @@ def main():
     args = parser.parse_args()
     current_path: pathlib.Path = args.path
     if current_path.is_dir():
-        bf = initialize_session(current_path, args.diagnostics)
+        bf = initialize_session(args.hostname, current_path, args.diagnostics)
         json_data = bast.json.query_session(bf)
         print("Completed Batfish JSON queries.")
         current_path = (
