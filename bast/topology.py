@@ -42,6 +42,7 @@ class Edge(
     remote_ips: list[IPv4Address]
 
 
+# TODO: unused -- remove?
 def edges_to_graph(edges: list[Edge]) -> igraph.Graph:
     """
     Return a directed graph constructed from a list of Edges.

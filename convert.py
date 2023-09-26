@@ -14,7 +14,6 @@ from typing import Optional, TypeVar, cast
 
 from bast.base import OwnedIP
 import bast.json as json
-import bast.topology as topology
 import bast.expression as bex
 import bast.statement as bsm
 import bast.boolexprs as bools
@@ -631,13 +630,10 @@ def convert_batfish(bf: json.BatfishJson, simplify=False) -> net.Network:
     Convert the Batfish JSON object to an Angler `net.Network`.
     If `simplify` is True, simplify boolean expressions found when possible.
     """
-    # generate a graph of the topology
-    g = topology.edges_to_graph(bf.topology)
     ips = get_ip_node_mapping(bf.ips)
     nodes: dict[str, net.Properties] = {}
     constants: dict[str, dict[str, aex.Expression]] = {}
-    external_nodes = set()
-    symbolics = {}
+    externals = []
     # add constants, declarations and prefixes for each of the nodes
     print("Converting found structures...")
     for s in bf.declarations:
@@ -653,7 +649,6 @@ def convert_batfish(bf: json.BatfishJson, simplify=False) -> net.Network:
                 constants[n][k] = v
             case (address, peers_to_policies):
                 # add a /24 prefix based on the given address
-                # strict=False causes this to mask the last 8 bits
                 nodes[n].add_prefix_from_ip(address)
                 neighbor_policies = {}
                 for peering, policy_block in peers_to_policies.items():
@@ -667,34 +662,28 @@ def convert_batfish(bf: json.BatfishJson, simplify=False) -> net.Network:
                     # look up the remote IP's owner
                     node_owner = ips.get(peering.remote_ip)
                     if node_owner is None:
-                        # IP belongs to an external neighbor if the ASes differ
-                        is_external = (
-                            peering.local_asn is None
-                            or peering.local_asn != peering.remote_asn
-                        )
                         neighbor = str(peering.remote_ip)
                         neighbor_policies[neighbor] = policy_block
-                        if neighbor not in g.vs:
-                            g.add_vertex(name=neighbor)
-                            # identify the external neighbor as symbolic
-                            external_nodes.add(neighbor)
-                        g.add_edge(
-                            n,
-                            neighbor,
-                            ips=([peering.local_ip], [peering.remote_ip]),
-                        )
-                        # add a reverse connection from the external neighbor to this node
+                        # if we've not previously matched to this node, check if it's external
                         if neighbor not in nodes:
-                            # external nodes start with an arbitrary route
-                            if is_external:
-                                symbolic_name = f"external-route-{neighbor}"
+                            # IP belongs to an external neighbor if the ASes differ
+                            if (
+                                peering.local_asn is None
+                                or peering.local_asn != peering.remote_asn
+                            ):
+                                # node is external, add to externals
+                                extpeer = net.ExternalPeer(
+                                    ip=peering.remote_ip, asnum=peering.remote_asn
+                                )
+                                externals.append(extpeer)
                             else:
-                                symbolic_name = f"internal-route-{neighbor}"
-                            symbolics[symbolic_name] = None
-                            nodes[neighbor] = net.Properties(asnum=peering.remote_asn)
-                        nodes[neighbor].policies[n] = net.Policies(
-                            peering.remote_asn, None, None
-                        )
+                                # internal node
+                                nodes[neighbor] = net.Properties(
+                                    asnum=peering.remote_asn
+                                )
+                                nodes[neighbor].policies[n] = net.Policies(
+                                    peering.remote_asn, None, None
+                                )
                     else:
                         neighbor_policies[node_owner] = policy_block
                 # bind the policies to the node
@@ -712,7 +701,7 @@ def convert_batfish(bf: json.BatfishJson, simplify=False) -> net.Network:
     return net.Network(
         route=aty.EnvironmentType.fields(),
         nodes=nodes,
-        symbolics=symbolics,
+        externals=externals,
     )
 
 
