@@ -577,9 +577,6 @@ def convert_structure(
             struct_name = name
             value = convert_routing_policy(stmts, simplify=simplify)
         case bacl.RouteFilterList(_name=name, lines=_lines):
-            # TODO: if it's an empty route filter list, should we preemptively add ~ORLONGER~ and other
-            # such variations?
-            # see https://www.juniper.net/documentation/us/en/software/junos/routing-policy/topics/concept/routing-policy-security-route-based-match-condition-understanding.html
             struct_name = route_filter_list_var(name)
             # convert the batfish line to an angler line
             # (almost the same, just written out a bit differently)
