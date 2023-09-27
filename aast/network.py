@@ -35,7 +35,7 @@ class Policies(Serialize, asn=Field("Asn", int), imp="Import", exp="Export"):
     exp: Optional[str]
 
 
-@dataclass
+@dataclass(frozen=True)
 class ExternalPeer(
     Serialize, ip=Field("Ip", IPv4Address), asnum=Field("ASNumber", int, None)
 ):
@@ -88,4 +88,4 @@ class Network(
 
     route: dict[str, ty.TypeAnnotation]
     nodes: dict[str, Properties]
-    externals: list[ExternalPeer]
+    externals: set[ExternalPeer]

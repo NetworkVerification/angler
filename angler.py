@@ -25,6 +25,7 @@ import os
 import pathlib
 from typing import Any
 from pybatfish.client.session import Session
+from aast.expression import IPv4Wildcard
 from aast.types import TypeAnnotation
 import bast.json
 import convert
@@ -62,21 +63,21 @@ class AstEncoder(json.JSONEncoder):
         match obj:
             case set():
                 return list(obj)
+            case IPv4Wildcard(net):
+                # return the starting address and the host mask (aka wildcard mask)
+                return {
+                    "Begin": str(net[0]),
+                    "HostMask": net.hostmask,
+                }
             case IPv4Address():
                 return str(obj)
-                # return {
-                #     "Begin": str(obj),
-                #     "End": str(obj),
-                # }
             case IPv4Interface():
                 # drop down to the IPv4Address case
                 return obj.ip
             case IPv4Network():
-                # return the starting address and the host mask (aka wildcard mask)
                 return {
                     "Begin": str(obj[0]),
-                    # "End": str(obj[-1]),
-                    "HostMask": obj.hostmask,
+                    "End": str(obj[-1]),
                 }
             case Serialize():
                 return obj.to_dict()

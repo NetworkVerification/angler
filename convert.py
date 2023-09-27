@@ -585,10 +585,10 @@ def convert_structure(
                 action = l.action == Action.PERMIT
                 # split the range into two ints
                 low, high = l.length_range.split("-")
-                lines.append(
-                    aex.RouteFilterLine(action, l.ip_wildcard, int(low), int(high))
-                )
-            value = aex.RouteFilterListExpr(lines)
+                wildcard = aex.IPv4Wildcard(l.ip_wildcard)
+                lines.append(aex.RouteFilterLine(action, wildcard, int(low), int(high)))
+            rfl = aex.RouteFilterList(lines)
+            value = aex.RouteFilterListExpr(rfl)
         case bcomms.CommunitySetMatchExpr():
             struct_name = community_set_match_expr_var(struct_name)
             value = convert_expr(b.definition.value)
@@ -630,7 +630,7 @@ def convert_batfish(bf: json.BatfishJson, simplify=False) -> net.Network:
     ips = get_ip_node_mapping(bf.ips)
     nodes: dict[str, net.Properties] = {}
     constants: dict[str, dict[str, aex.Expression]] = {}
-    externals = []
+    externals = set()
     # add constants, declarations and prefixes for each of the nodes
     print("Converting found structures...")
     for s in bf.declarations:
@@ -668,11 +668,11 @@ def convert_batfish(bf: json.BatfishJson, simplify=False) -> net.Network:
                                 peering.local_asn is None
                                 or peering.local_asn != peering.remote_asn
                             ):
-                                # node is external, add to externals
+                                # node is external, add to externals (if not already present)
                                 extpeer = net.ExternalPeer(
                                     ip=peering.remote_ip, asnum=peering.remote_asn
                                 )
-                                externals.append(extpeer)
+                                externals.add(extpeer)
                             else:
                                 # internal node
                                 nodes[neighbor] = net.Properties(

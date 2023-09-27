@@ -21,6 +21,13 @@ A = TypeVar("A")
 B = TypeVar("B")
 
 
+@dataclass
+class IPv4Wildcard:
+    """Helper class for distinguishing networks we want to serialize as prefixes vs. wildcards."""
+
+    net: IPv4Network
+
+
 class ExprType(Variant):
     """A type of expression."""
 
@@ -219,6 +226,8 @@ def default_value(ty: TypeAnnotation) -> Expression:
         case TypeAnnotation.IP_ADDRESS:
             return IpAddress(IPv4Address(0))
         case TypeAnnotation.IP_PREFIX:
+            return IpPrefix(IPv4Network(0))
+        case TypeAnnotation.IP_WILDCARD:
             return IpPrefix(IPv4Network(0))
         case TypeAnnotation.ROUTE:
             return CreateRecord(
@@ -977,22 +986,22 @@ class RouteFilterLine(
     ASTNode,
     Serialize,
     action=Field("Action", bool),
-    ip_wildcard=Field("Wildcard", IPv4Network),
+    ip_wildcard=Field("Wildcard", IPv4Wildcard),
     min_len=Field("MinLength", int),
     max_len=Field("MaxLength", int),
 ):
     """A line of the route filter list."""
 
     action: bool
-    ip_wildcard: IPv4Network
+    ip_wildcard: IPv4Wildcard
     # the permitted prefix length range
     min_len: int
     max_len: int
 
 
 @dataclass
-class RouteFilterListExpr(
-    Expression[set[IPv4Network]],
+class RouteFilterList(
+    ASTNode,
     Serialize,
     lines=Field("Lines", list[RouteFilterLine]),
     ty=Field(TYPE_FIELD, str, "RouteFilterList"),
@@ -1001,6 +1010,19 @@ class RouteFilterListExpr(
 
     lines: list[RouteFilterLine]
     ty: str = field(default="RouteFilterList", init=False)
+
+
+@dataclass
+class RouteFilterListExpr(
+    Expression[set[IPv4Network]],
+    Serialize,
+    list=Field("List", RouteFilterList),
+    ty=Field(TYPE_FIELD, str, "RouteFilterListExpr"),
+):
+    """An expression wrapping a route filter list."""
+
+    list: RouteFilterList
+    ty: str = field(default="RouteFilterListExpr", init=False)
 
 
 @dataclass

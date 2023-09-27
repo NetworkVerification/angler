@@ -21,8 +21,10 @@ class TypeAnnotation(Enum):
     # numeric type for an unbounded integer
     BIG_INT = "TBigInt"
     STRING = "TString"
+    # ip address and prefix types
     IP_ADDRESS = "TIpAddress"
     IP_PREFIX = "TIpPrefix"
+    IP_WILDCARD = "TIpWildcard"
     PREFIX_SET = "TPrefixSet"
     SET = "TSet"
     RESULT = "TResult"
