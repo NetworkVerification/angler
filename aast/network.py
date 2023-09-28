@@ -23,7 +23,7 @@ class Func(Serialize, arg="arg", body=Field("body", list[stmt.Statement])):
     body: list[stmt.Statement]
 
 
-@dataclass
+@dataclass(order=True)
 class Policies(Serialize, asn=Field("Asn", int), imp="Import", exp="Export"):
     """
     Representation of a node in the network with a particular defined import and export policy.
@@ -35,9 +35,12 @@ class Policies(Serialize, asn=Field("Asn", int), imp="Import", exp="Export"):
     exp: Optional[str]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, order=True)
 class ExternalPeer(
-    Serialize, ip=Field("Ip", IPv4Address), asnum=Field("ASNumber", int, None)
+    Serialize,
+    ip=Field("Ip", IPv4Address),
+    asnum=Field("ASNumber", int, None),
+    peering=Field("Peering", list[str], []),
 ):
     """
     Representation of an external peer connection.
@@ -45,6 +48,7 @@ class ExternalPeer(
 
     ip: IPv4Address
     asnum: Optional[int] = None
+    peering: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -88,4 +92,5 @@ class Network(
 
     route: dict[str, ty.TypeAnnotation]
     nodes: dict[str, Properties]
-    externals: set[ExternalPeer]
+    # External peers and the nodes they connect to
+    externals: list[ExternalPeer]

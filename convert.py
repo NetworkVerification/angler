@@ -630,7 +630,7 @@ def convert_batfish(bf: json.BatfishJson, simplify=False) -> net.Network:
     ips = get_ip_node_mapping(bf.ips)
     nodes: dict[str, net.Properties] = {}
     constants: dict[str, dict[str, aex.Expression]] = {}
-    externals = set()
+    externals: dict[tuple[IPv4Address, Optional[int]], set[str]] = {}
     # add constants, declarations and prefixes for each of the nodes
     print("Converting found structures...")
     for s in bf.declarations:
@@ -669,10 +669,11 @@ def convert_batfish(bf: json.BatfishJson, simplify=False) -> net.Network:
                                 or peering.local_asn != peering.remote_asn
                             ):
                                 # node is external, add to externals (if not already present)
-                                extpeer = net.ExternalPeer(
-                                    ip=peering.remote_ip, asnum=peering.remote_asn
-                                )
-                                externals.add(extpeer)
+                                extpeer = (peering.remote_ip, peering.remote_asn)
+                                if extpeer not in externals:
+                                    externals[extpeer] = set()
+                                # add this node to the peer's connections
+                                externals[extpeer].add(n)
                             else:
                                 # internal node
                                 nodes[neighbor] = net.Properties(
@@ -695,10 +696,15 @@ def convert_batfish(bf: json.BatfishJson, simplify=False) -> net.Network:
                 # NOTE: stmt substitution returns None, but expr substitution returns an expression
                 stmt.subst(constants[node])
     print("Conversion complete!")
+    # construct external peers so that they can be encoded to JSON
+    external_peers = [
+        net.ExternalPeer(ip, asn, list(peers))
+        for ((ip, asn), peers) in externals.items()
+    ]
     return net.Network(
         route=aty.EnvironmentType.fields(),
         nodes=nodes,
-        externals=externals,
+        externals=external_peers,
     )
 
 
