@@ -659,29 +659,30 @@ def convert_batfish(bf: json.BatfishJson, simplify=False) -> net.Network:
                     # look up the remote IP's owner
                     node_owner = ips.get(peering.remote_ip)
                     if node_owner is None:
+                        # name the node after its remote IP
                         neighbor = str(peering.remote_ip)
                         neighbor_policies[neighbor] = policy_block
-                        # if we've not previously matched to this node, check if it's external
-                        if neighbor not in nodes:
-                            # IP belongs to an external neighbor if the ASes differ
-                            if (
-                                peering.local_asn is None
-                                or peering.local_asn != peering.remote_asn
-                            ):
-                                # node is external, add to externals (if not already present)
-                                extpeer = (peering.remote_ip, peering.remote_asn)
-                                if extpeer not in externals:
-                                    externals[extpeer] = set()
-                                # add this node to the peer's connections
-                                externals[extpeer].add(n)
-                            else:
-                                # internal node
+                        # IP belongs to an external neighbor if the ASes differ
+                        if (
+                            peering.local_asn is None
+                            or peering.local_asn != peering.remote_asn
+                        ):
+                            # node is external, add to externals (if not already present)
+                            extpeer = (peering.remote_ip, peering.remote_asn)
+                            if extpeer not in externals:
+                                externals[extpeer] = set()
+                            # add this node to the peer's connections
+                            externals[extpeer].add(n)
+                        else:
+                            # internal node
+                            if neighbor not in nodes:
                                 nodes[neighbor] = net.Properties(
                                     asnum=peering.remote_asn
                                 )
-                                nodes[neighbor].policies[n] = net.Policies(
-                                    peering.remote_asn, None, None
-                                )
+                            # add a policy for this internal node
+                            nodes[neighbor].policies[n] = net.Policies(
+                                peering.remote_asn, None, None
+                            )
                     else:
                         neighbor_policies[node_owner] = policy_block
                 # bind the policies to the node
