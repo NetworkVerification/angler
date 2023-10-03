@@ -41,6 +41,7 @@ def initialize_session(
     and the provided snapshot directory and snapshot name.
     :param network: the name of the example network
     """
+    # default ports are 8888, 9996 and 9997
     bf = Session(host=hostname)
     bf.set_network("example-net")
     # convert the path to a string so that it's correctly identified by batfish

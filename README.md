@@ -32,6 +32,7 @@ pip install -r requirements.txt
 ```sh
 # start the batfish service (e.g. with a container manager of your choice)
 docker start batfish
+# or: docker run --name batfish -v batfish-data:/data -p 8888:8888 -p 9997:9997 -p 9996:9996 batfish/allinone
 # then dump an example network config to JSON
 python angler.py examples/BDD1
 # this creates a BDD1.json file for you to inspect at your leisure,
