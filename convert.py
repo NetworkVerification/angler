@@ -22,6 +22,7 @@ import bast.longexprs as longs
 import bast.intexprs as ints
 import bast.prefix as prefix
 import bast.acl as bacl
+from bast.topology import edges_to_graph
 import bast.vrf as bvrf
 import bast.origin as borigin
 from bast.btypes import Action, Comparator, Protocol
@@ -628,7 +629,8 @@ def convert_batfish(bf: json.BatfishJson, simplify=False) -> net.Network:
     If `simplify` is True, simplify boolean expressions found when possible.
     """
     ips = get_ip_node_mapping(bf.ips)
-    nodes: dict[str, net.Properties] = {}
+    g = edges_to_graph(bf.topology)
+    nodes: dict[str, net.Properties] = {v["name"]: net.Properties() for v in g.vs}
     constants: dict[str, dict[str, aex.Expression]] = {}
     externals: dict[tuple[IPv4Address, Optional[int]], set[str]] = {}
     # add constants, declarations and prefixes for each of the nodes
@@ -679,7 +681,7 @@ def convert_batfish(bf: json.BatfishJson, simplify=False) -> net.Network:
                                 nodes[neighbor] = net.Properties(
                                     asnum=peering.remote_asn
                                 )
-                            # add a policy for this internal node
+                            # add default policies from this internal node back to our node
                             nodes[neighbor].policies[n] = net.Policies(
                                 peering.remote_asn, None, None
                             )
