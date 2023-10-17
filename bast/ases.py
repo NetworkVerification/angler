@@ -7,6 +7,7 @@ from serialize import Serialize, Field
 import util
 import bast.expression as expr
 import bast.intexprs as ints
+import bast.predicates as preds
 
 
 class AsExprType(util.Variant):
@@ -55,6 +56,20 @@ class AsPathExprType(util.Variant):
         match self:
             case AsPathExprType.INPUT_AS_PATH:
                 return InputAsPath
+            case _:
+                raise NotImplementedError(f"{self} conversion not implemented.")
+
+
+class AsPathMatchExprType(util.Variant):
+    AS_PATH_MATCH_REGEX = "AsPathMatchRegex"
+    HAS_AS_PATH_LENGTH = "HasAsPathLength"
+
+    def as_class(self) -> type:
+        match self:
+            case AsPathMatchExprType.AS_PATH_MATCH_REGEX:
+                return AsPathMatchRegex
+            case AsPathMatchExprType.HAS_AS_PATH_LENGTH:
+                return HasAsPathLength
             case _:
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
@@ -133,5 +148,21 @@ class InputAsPath(AsPathExpr, Serialize):
 
 
 @dataclass
-class AsPathMatchExpr(expr.Expression, Serialize):
+class AsPathMatchExpr(
+    expr.Expression, Serialize, delegate=("class", AsPathMatchExprType.parse_class)
+):
     ...
+
+
+@dataclass
+class AsPathMatchRegex(AsPathMatchExpr, Serialize, regex=Field("regex", str)):
+    regex: str
+
+
+@dataclass
+class HasAsPathLength(
+    AsPathMatchExpr, Serialize, comparison=Field("comparison", preds.IntComparison)
+):
+    """Represents a test that the given AS path's length matches some comparison predicate."""
+
+    comparison: preds.IntComparison

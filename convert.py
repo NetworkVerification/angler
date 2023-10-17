@@ -25,6 +25,7 @@ import bast.acl as bacl
 from bast.topology import edges_to_graph
 import bast.vrf as bvrf
 import bast.origin as borigin
+import bast.ases as bas
 from bast.btypes import Action, Comparator, Protocol
 import bast.structure as bstruct
 import aast.expression as aex
@@ -135,9 +136,15 @@ def convert_expr(b: bex.Expression, simplify: bool = False) -> aex.Expression:
         case bools.MatchIpv6() | bools.MatchPrefix6Set():
             # NOTE: not supported (for now, we assume ipv4)
             return aex.LiteralBool(False)
-        case bools.MatchAsPath():
-            # NOTE: not supported
-            return aex.Havoc()
+        case bools.MatchAsPath(path_expr, bas.HasAsPathLength(cmp)):
+            # convert the expression into a comparison on the path length field
+            path_len = get_arg(aty.EnvironmentType.AS_PATH_LENGTH)
+            return convert_cmp_expr(cmp.comparator, path_len, convert_expr(cmp.expr))
+        case bools.MatchAsPath(path_expr, bas.AsPathMatchRegex(regex)):
+            # represent the AS path as a set and a length
+            # check that the regex is in the set
+            r = aex.Regex(regex)
+            return aex.SetContains(r, convert_expr(path_expr))
         case bools.LegacyMatchAsPath():
             # NOTE: not supported
             return aex.Havoc()
@@ -181,6 +188,8 @@ def convert_expr(b: bex.Expression, simplify: bool = False) -> aex.Expression:
             rendering=bcomms.ColonSeparatedRendering(), regex=regex
         ):
             return aex.Regex(regex)
+        case bas.InputAsPath():
+            return get_arg(aty.EnvironmentType.AS_PATH)
         case ints.LiteralInt(value):
             # TODO: should this be signed or unsigned?
             return aex.LiteralUInt(value)
@@ -205,17 +214,7 @@ def convert_expr(b: bex.Expression, simplify: bool = False) -> aex.Expression:
             return aex.MatchPrefixSet(convert_expr(_prefix), convert_expr(_prefixes))
         case bools.MatchTag(cmp, tag):
             route_tag = get_arg(aty.EnvironmentType.TAG)
-            match cmp:
-                case Comparator.EQ:
-                    return aex.Equal(route_tag, convert_expr(tag))
-                case Comparator.LE:
-                    return aex.LessThanEqual(route_tag, convert_expr(tag))
-                case Comparator.LT:
-                    return aex.LessThan(route_tag, convert_expr(tag))
-                case Comparator.GE:
-                    return aex.GreaterThanEqual(route_tag, convert_expr(tag))
-                case Comparator.GT:
-                    return aex.GreaterThan(route_tag, convert_expr(tag))
+            return convert_cmp_expr(cmp, route_tag, convert_expr(tag))
         case bools.MatchProtocol(protocols):
             # TODO: for now, return true if Protocol.BGP is in protocols, and false otherwise
             if Protocol.BGP in protocols:
@@ -224,6 +223,21 @@ def convert_expr(b: bex.Expression, simplify: bool = False) -> aex.Expression:
                 return aex.LiteralBool(False)
         case _:
             raise NotImplementedError(f"No convert case for {b} found.")
+
+
+def convert_cmp_expr(cmp: Comparator, expr1: aex.Expression, expr2: aex.Expression):
+    """Convert a Comparator into an Angler comparison expression."""
+    match cmp:
+        case Comparator.EQ:
+            return aex.Equal(expr1, expr2)
+        case Comparator.LE:
+            return aex.LessThanEqual(expr1, expr2)
+        case Comparator.LT:
+            return aex.LessThan(expr1, expr2)
+        case Comparator.GE:
+            return aex.GreaterThanEqual(expr1, expr2)
+        case Comparator.GT:
+            return aex.GreaterThan(expr1, expr2)
 
 
 def create_result(

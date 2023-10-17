@@ -742,6 +742,8 @@ class SetContains(
     operand2=Field("Operand2", Expression[set]),
     ty=Field(TYPE_FIELD, str, "SetContains"),
 ):
+    """Represents a check that operand1, a string, is contained in operand2, a set."""
+
     operand1: Expression[str]
     operand2: Expression[set]
     ty: str = field(default="SetContains", init=False)
