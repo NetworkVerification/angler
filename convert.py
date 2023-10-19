@@ -189,7 +189,7 @@ def convert_expr(b: bex.Expression, simplify: bool = False) -> aex.Expression:
         ):
             return aex.Regex(regex)
         case bas.InputAsPath():
-            return get_arg(aty.EnvironmentType.AS_PATH)
+            return get_arg(aty.EnvironmentType.AS_SET)
         case ints.LiteralInt(value):
             # TODO: should this be signed or unsigned?
             return aex.LiteralUInt(value)

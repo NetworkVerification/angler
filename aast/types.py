@@ -139,7 +139,7 @@ class EnvironmentType(TypeEnum):
     TAG = "Tag"
     WEIGHT = "Weight"
     LOCAL_DEFAULT_ACTION = "LocalDefaultAction"
-    AS_PATH = "AsPath"
+    AS_SET = "AsSet"
     AS_PATH_LENGTH = "AsPathLength"
 
     def field_type(self) -> TypeAnnotation:
@@ -162,7 +162,7 @@ class EnvironmentType(TypeEnum):
                 return TypeAnnotation.UINT32
             case EnvironmentType.LOCAL_DEFAULT_ACTION:
                 return TypeAnnotation.BOOL
-            case EnvironmentType.AS_PATH:
+            case EnvironmentType.AS_SET:
                 return TypeAnnotation.SET
             case EnvironmentType.AS_PATH_LENGTH:
                 return TypeAnnotation.BIG_INT
