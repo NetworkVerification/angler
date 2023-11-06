@@ -90,7 +90,12 @@ class Structure(
             if cls == comms.CommunitySetMatchExpr:
                 cls = _infer_community_set_match_expr_class(self.definition.value)
             self.definition.value = cast(
-                type(cls), cls.from_dict(self.definition.value)
+                vrf.Vrf
+                | acl.RouteFilterList
+                | RoutingPolicy
+                | acl.Acl
+                | comms.CommunitySetMatchExpr,
+                cls.from_dict(self.definition.value),
             )
 
 
