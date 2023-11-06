@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Batfish AST simplifier"
 authors = ["Tim Alberdingk Thijm <tim.thijm@gmail.com>", "Divya Raghunathan"]
 readme = "README.md"
+packages = [{include = "angler"}]
 
 [tool.poetry.dependencies]
 python = "^3.11"

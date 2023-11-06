@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from bast import statement as bsm
+from bast import boolexprs as bbe
 from bast import longexprs as ble
 from aast import statement as asm
 from aast import expression as aex
@@ -12,6 +13,18 @@ from convert import (
     update_arg,
     update_arg_result,
     create_result,
+)
+
+reset_return = asm.IfStatement(
+    "reset_return",
+    unreachable(),
+    [update_arg_result(_return=False)],
+    [
+        update_arg_result(
+            _fallthrough=True,
+            _value=get_arg(aty.EnvironmentType.LOCAL_DEFAULT_ACTION),
+        )
+    ],
 )
 
 
@@ -34,19 +47,7 @@ def test_convert_exit_reject_statement():
 def test_convert_routing_policy_empty():
     old = []
     new = convert_routing_policy(old)
-    assert new.body == [
-        asm.IfStatement(
-            "reset_return",
-            unreachable(),
-            [update_arg_result(_return=False)],
-            [
-                update_arg_result(
-                    _fallthrough=True,
-                    _value=get_arg(aty.EnvironmentType.LOCAL_DEFAULT_ACTION),
-                )
-            ],
-        )
-    ]
+    assert new.body == [reset_return]
 
 
 def test_convert_routing_policy_single():
@@ -58,17 +59,7 @@ def test_convert_routing_policy_single():
         update_arg(
             create_result(_value=True, _return=True), aty.EnvironmentType.RESULT
         ),
-        asm.IfStatement(
-            "reset_return",
-            unreachable(),
-            [update_arg_result(_return=False)],
-            [
-                update_arg_result(
-                    _fallthrough=True,
-                    _value=get_arg(aty.EnvironmentType.LOCAL_DEFAULT_ACTION),
-                )
-            ],
-        ),
+        reset_return,
     ]
 
 
@@ -88,17 +79,7 @@ def test_convert_routing_policy_return_true_two():
             [],
             [update_arg(aex.LiteralUInt(200), aty.EnvironmentType.LP)],
         ),
-        asm.IfStatement(
-            "reset_return",
-            unreachable(),
-            [update_arg_result(_return=False)],
-            [
-                update_arg_result(
-                    _fallthrough=True,
-                    _value=get_arg(aty.EnvironmentType.LOCAL_DEFAULT_ACTION),
-                )
-            ],
-        ),
+        reset_return,
     ]
 
 
@@ -128,15 +109,32 @@ def test_convert_routing_policy_three():
                 ),
             ],
         ),
+        reset_return,
+    ]
+
+
+def test_convert_routing_policy_branching():
+    old: list[bsm.Statement] = [
+        bsm.IfStatement(
+            "reject",
+            # use CALLCONTEXT so that it doesn't get simplified out
+            bbe.StaticBooleanExpr(bbe.StaticBooleanExprType.CALLCONTEXT),
+            [bsm.StaticStatement(bsm.StaticStatementType.RETURN_FALSE)],
+            [],
+        )
+    ]
+    new = convert_routing_policy(old)
+    assert new.body == [
         asm.IfStatement(
-            "reset_return",
-            unreachable(),
-            [update_arg_result(_return=False)],
+            "reject",
+            aex.CallExprContext(),
             [
-                update_arg_result(
-                    _fallthrough=True,
-                    _value=get_arg(aty.EnvironmentType.LOCAL_DEFAULT_ACTION),
-                )
+                update_arg(
+                    create_result(_value=False, _return=True),
+                    aty.EnvironmentType.RESULT,
+                ),
             ],
+            [],
         ),
+        reset_return,
     ]
