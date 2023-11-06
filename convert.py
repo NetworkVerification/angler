@@ -492,10 +492,10 @@ def convert_routing_policy(
     Statement return logic:
     When Batfish executes an environment, it executes each statement in sequence
     and checks the result of the statement.
-    If Exited is true, we return immediately from execution with this result.
-    If Returned is true, we return immediately from execution and set Returned to false.
-    If all statements have been executed without a return, we return a Result with
-    FallThrough = true and Value per DefaultAction.
+    - If Exited is true, we return immediately from execution with this result.
+    - If Returned is true, we return immediately from execution and set Returned to false.
+    - If all statements have been executed without a return, we return a Result with
+      FallThrough = true and Value per DefaultAction.
     See https://github.com/batfish/batfish/blob/master/projects/batfish-common-protocol/src/main/java/org/batfish/datamodel/routing_policy/RoutingPolicy.java#L120
     """
 
