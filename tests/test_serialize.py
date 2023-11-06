@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from serialize import *
+from angler.serialize import *
 from dataclasses import dataclass
 import pytest
 
