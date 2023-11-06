@@ -5,15 +5,15 @@ Angler expressions.
 from ipaddress import IPv4Address, IPv4Network
 from dataclasses import InitVar, dataclass, field
 from typing import Generic, TypeVar
-from serialize import Serialize, Field
-from aast.types import (
+from angler.serialize import Serialize, Field
+from angler.aast.types import (
     TypeAnnotation,
     RouteType,
     ResultType,
     EnvironmentType,
     TYPE_FIELD,
 )
-from util import Variant, ASTNode
+from angler.util import Variant, ASTNode
 
 T = TypeVar("T")
 X = TypeVar("X")

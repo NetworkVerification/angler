@@ -4,12 +4,12 @@ Prefix expressions in the Batfish AST.
 """
 from dataclasses import dataclass
 from ipaddress import IPv4Network
-from serialize import Serialize, Field
-import bast.expression as expr
-import util
+from angler.serialize import Serialize, Field
+import angler.bast.expression as expr
+import angler.util
 
 
-class PrefixExprType(util.Variant):
+class PrefixExprType(angler.util.Variant):
     DESTINATION = "DestinationNetwork"  # variable
     DESTINATION6 = "DestinationNetwork6"  # variable
 
@@ -23,7 +23,7 @@ class PrefixExprType(util.Variant):
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
 
-class PrefixSetExprType(util.Variant):
+class PrefixSetExprType(angler.util.Variant):
     NAMED_PREFIX_SET = "NamedPrefixSet"
     NAMED_PREFIX6_SET = "NamedPrefix6Set"
     EXPLICIT_PREFIX_SET = "ExplicitPrefixSet"

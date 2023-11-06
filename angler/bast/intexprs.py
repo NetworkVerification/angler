@@ -3,12 +3,12 @@
 Integer expressions in the Batfish AST.
 """
 from dataclasses import dataclass
-from serialize import Serialize, Field
-import bast.expression as expr
-import util
+from angler.serialize import Serialize, Field
+import angler.bast.expression as expr
+import angler.util
 
 
-class IntExprType(util.Variant):
+class IntExprType(angler.util.Variant):
     LITERAL_INT = "LiteralInt"
 
     def as_class(self) -> type:

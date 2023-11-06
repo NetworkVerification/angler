@@ -4,18 +4,18 @@ Statements in the Batfish AST.
 """
 from enum import Enum
 from dataclasses import dataclass
-from serialize import Serialize, Field
-import bast.boolexprs as bools
-import bast.communities as comms
-import bast.nexthop as hop
-import bast.ases as ases
-import bast.longexprs as longs
-import bast.intexprs as ints
-import bast.origin as origin
-import util
+from angler.serialize import Serialize, Field
+import angler.bast.boolexprs as bools
+import angler.bast.communities as comms
+import angler.bast.nexthop as hop
+import angler.bast.ases as ases
+import angler.bast.longexprs as longs
+import angler.bast.intexprs as ints
+import angler.bast.origin as origin
+import angler.util
 
 
-class StatementType(util.Variant):
+class StatementType(angler.util.Variant):
     IF = "If"
     PREPEND_AS = "PrependAsPath"
     SET_COMMS = "SetCommunities"
@@ -72,7 +72,7 @@ class StaticStatementType(Enum):
 
 @dataclass
 class Statement(
-    util.ASTNode,
+    angler.util.ASTNode,
     Serialize,
     delegate=("class", StatementType.parse_class),
 ):

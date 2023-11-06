@@ -3,12 +3,12 @@
 Long expressions in the Batfish AST.
 """
 from dataclasses import dataclass
-from serialize import Serialize, Field
-import bast.expression as expr
-import util
+from angler.serialize import Serialize, Field
+import angler.bast.expression as expr
+import angler.util
 
 
-class LongExprType(util.Variant):
+class LongExprType(angler.util.Variant):
     LITERAL_LONG = "LiteralLong"
     DECREMENT_LOCAL_PREF = "DecrementLocalPreference"
     INCREMENT_LOCAL_PREF = "IncrementLocalPreference"

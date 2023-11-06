@@ -5,8 +5,8 @@ Utilities for manipulating ASTs.
 from enum import Enum
 from typing import Callable
 from dataclasses import dataclass, fields, is_dataclass
-from serialize import Serialize
 from collections.abc import Iterable
+from angler.serialize import Serialize
 
 
 def parse_qualified_class(name: str) -> str:

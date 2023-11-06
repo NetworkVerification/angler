@@ -3,13 +3,13 @@
 Route origin in the Batfish AST.
 """
 from dataclasses import dataclass
-from serialize import Serialize, Field
-import bast.expression as expr
-import bast.btypes as types
-import util
+from angler.serialize import Serialize, Field
+import angler.bast.expression as expr
+import angler.bast.btypes as types
+import angler.util
 
 
-class OriginExprType(util.Variant):
+class OriginExprType(angler.util.Variant):
     LITERAL_ORIGIN = "LiteralOrigin"
 
     def as_class(self):

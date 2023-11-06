@@ -4,14 +4,14 @@ Boolean expressions in the Batfish AST.
 """
 from dataclasses import dataclass, field
 from enum import Enum
-from serialize import Serialize, Field
-import bast.expression as expr
-import bast.communities as comms
-import bast.btypes as types
-import bast.ases as ases
-import bast.prefix as prefix
-import bast.longexprs as longs
-import util
+from angler.serialize import Serialize, Field
+import angler.bast.expression as expr
+import angler.bast.communities as comms
+import angler.bast.btypes as types
+import angler.bast.ases as ases
+import angler.bast.prefix as prefix
+import angler.bast.longexprs as longs
+import angler.util
 
 
 class StaticBooleanExprType(Enum):
@@ -20,7 +20,7 @@ class StaticBooleanExprType(Enum):
     TRUE = "True"
 
 
-class BooleanExprType(util.Variant):
+class BooleanExprType(angler.util.Variant):
     STATIC = "StaticBooleanExpr"
     CONJUNCTION = "Conjunction"
     CONJUNCTION_CHAIN = "ConjunctionChain"

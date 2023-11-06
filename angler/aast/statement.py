@@ -5,10 +5,10 @@ Angler statements.
 from dataclasses import dataclass, field
 from types import NoneType
 from typing import Generic, TypeVar
-from serialize import Serialize, Field
-from aast.types import TypeAnnotation, TYPE_FIELD
-import aast.expression as expr
-from util import Variant, ASTNode
+from angler.serialize import Serialize, Field
+from angler.aast.types import TypeAnnotation, TYPE_FIELD
+import angler.aast.expression as expr
+from angler.util import Variant, ASTNode
 
 T = TypeVar("T")
 E = TypeVar("E")

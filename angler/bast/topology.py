@@ -4,7 +4,7 @@ Topology information in the Batfish AST.
 """
 import igraph
 from dataclasses import dataclass
-from serialize import Serialize, Field
+from angler.serialize import Serialize, Field
 from ipaddress import IPv4Address
 
 

@@ -6,10 +6,10 @@ The top-level representation of a network in Angler.
 from dataclasses import dataclass, field
 from ipaddress import IPv4Address, IPv4Network
 from typing import Optional
-import aast.statement as stmt
-import aast.types as ty
+import angler.aast.statement as stmt
+import angler.aast.types as ty
 
-from serialize import Field, Serialize
+from angler.serialize import Field, Serialize
 
 
 @dataclass

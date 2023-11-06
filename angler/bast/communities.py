@@ -12,12 +12,12 @@ Batfish distinguishes at least three classes representing communities.
 - CommunitySetMatchExpr: represents a matching condition (predicate)  over a community set.
 """
 from dataclasses import dataclass
-from serialize import Serialize, Field
-import bast.expression as expr
-import util
+from angler.serialize import Serialize, Field
+import angler.bast.expression as expr
+import angler.util
 
 
-class CommunitySetExprType(util.Variant):
+class CommunitySetExprType(angler.util.Variant):
     INPUT_COMMUNITIES = "InputCommunities"  # variable
     LITERAL_COMMUNITIES = "LiteralCommunitySet"
     COMMUNITY_UNION = "CommunitySetUnion"
@@ -40,7 +40,7 @@ class CommunitySetExprType(util.Variant):
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
 
-class CommunityMatchExprType(util.Variant):
+class CommunityMatchExprType(angler.util.Variant):
     COMMUNITY_MATCH_REF = "CommunityMatchExprReference"
     COMMUNITY_IS = "CommunityIs"
     COMMUNITY_MATCH_REGEX = "CommunityMatchRegex"
@@ -60,7 +60,7 @@ class CommunityMatchExprType(util.Variant):
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
 
-class CommunitySetMatchExprType(util.Variant):
+class CommunitySetMatchExprType(angler.util.Variant):
     COMMUNITIES_MATCH_REF = "CommunitySetMatchExprReference"
     COMMUNITY_SET_MATCH_ALL = "CommunitySetMatchAll"
     HAS_COMMUNITY = "HasCommunity"
@@ -77,7 +77,7 @@ class CommunitySetMatchExprType(util.Variant):
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
 
-class RenderingType(util.Variant):
+class RenderingType(angler.util.Variant):
     COLONSEP = "ColonSeparatedRendering"
     INTVAL = "IntegerValueRendering"
 
@@ -93,7 +93,7 @@ class RenderingType(util.Variant):
 
 @dataclass
 class CommunityRendering(
-    util.ASTNode,
+    angler.util.ASTNode,
     Serialize,
     delegate=(
         "class",

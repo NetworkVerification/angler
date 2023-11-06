@@ -4,13 +4,13 @@ The top-level JSON AST obtained from Batfish.
 """
 from dataclasses import dataclass
 from typing import Any
-from serialize import Serialize, Field
-import bast.base as base
-import bast.topology as topology
-import bast.structure as struct
+from angler.serialize import Serialize, Field
+import angler.bast.base as base
+import angler.bast.topology as topology
+import angler.bast.structure as struct
 import pybatfish.client.session as session
 import pybatfish.datamodel.answer as answer
-import util
+import angler.util
 
 
 def collect_rows(answer: answer.TableAnswer) -> list[dict[str, Any]]:
@@ -43,7 +43,7 @@ def query_session(session: session.Session) -> dict[str, list[dict]]:
 
 @dataclass
 class BatfishJson(
-    util.ASTNode,
+    angler.util.ASTNode,
     Serialize,
     topology=Field("topology", list[topology.Edge]),
     ips=Field("ips", list[base.OwnedIP]),

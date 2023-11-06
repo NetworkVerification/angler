@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Base utilities for parsing the Batfish AST.
+Base angler.utilities for parsing the Batfish AST.
 """
 from enum import Enum
 from ipaddress import IPv4Address
 from dataclasses import dataclass
-from serialize import Serialize, Field
-import bast.topology as topology
-import util
+from angler.serialize import Serialize, Field
+import angler.bast.topology as topology
+import angler.util
 
 
 class RemoteIpType(Enum):
@@ -24,7 +24,7 @@ class RemoteIpAddress(
 
 @dataclass
 class BgpPeerConfig(
-    util.ASTNode,
+    angler.util.ASTNode,
     Serialize,
     desc=Field("Description", str),
     node=Field("Node", topology.Node),
@@ -47,7 +47,7 @@ class BgpPeerConfig(
 
 @dataclass
 class OwnedIP(
-    util.ASTNode,
+    angler.util.ASTNode,
     Serialize,
     active=Field("Active", bool),
     ip=Field("IP", IPv4Address),

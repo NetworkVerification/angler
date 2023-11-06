@@ -25,12 +25,12 @@ import os
 import pathlib
 from typing import Any
 from pybatfish.client.session import Session
-from aast.expression import IPv4Wildcard
-from aast.types import TypeAnnotation
-import bast.json
-import convert
+from angler.aast.expression import IPv4Wildcard
+from angler.aast.types import TypeAnnotation
+import angler.bast.json
+import angler.convert
 from pathlib import Path
-from serialize import Serialize
+from angler.serialize import Serialize
 
 
 def initialize_session(
@@ -136,7 +136,7 @@ def main():
     current_path: pathlib.Path = args.path
     if current_path.is_dir():
         bf = initialize_session(args.hostname, current_path, args.diagnostics)
-        json_data = bast.json.query_session(bf)
+        json_data = angler.bast.json.query_session(bf)
         print("Completed Batfish JSON queries.")
         current_path = (
             Path(current_path.with_suffix(".json").name)
@@ -158,9 +158,9 @@ def main():
         if args.output is None
         else args.output
     )
-    bf_ast = bast.json.BatfishJson.from_dict(json_data)
+    bf_ast = angler.bast.json.BatfishJson.from_dict(json_data)
     print("Successfully parsed Batfish AST!")
-    a_ast = convert.convert_batfish(bf_ast, simplify=args.simplify_bools)
+    a_ast = angler.convert.convert_batfish(bf_ast, simplify=args.simplify_bools)
     _save_json(a_ast, current_path)
 
 

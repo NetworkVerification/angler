@@ -3,14 +3,14 @@
 AS expressions in the Batfish AST.
 """
 from dataclasses import dataclass
-from serialize import Serialize, Field
-import util
-import bast.expression as expr
-import bast.intexprs as ints
-import bast.predicates as preds
+from angler.serialize import Serialize, Field
+import angler.util
+import angler.bast.expression as expr
+import angler.bast.intexprs as ints
+import angler.bast.predicates as preds
 
 
-class AsExprType(util.Variant):
+class AsExprType(angler.util.Variant):
     EXPLICIT_AS = "ExplicitAs"
     LAST_AS = "LastAs"
 
@@ -24,7 +24,7 @@ class AsExprType(util.Variant):
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
 
-class AsPathListExprType(util.Variant):
+class AsPathListExprType(angler.util.Variant):
     LITERAL_AS_LIST = "LiteralAsList"
     MULTIPLIED_AS = "MultipliedAs"
 
@@ -38,7 +38,7 @@ class AsPathListExprType(util.Variant):
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
 
-class AsPathSetExprType(util.Variant):
+class AsPathSetExprType(angler.util.Variant):
     EXPLICIT_AS_PATH_SET = "ExplicitAsPathSet"
 
     def as_class(self) -> type:
@@ -49,7 +49,7 @@ class AsPathSetExprType(util.Variant):
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
 
-class AsPathExprType(util.Variant):
+class AsPathExprType(angler.util.Variant):
     INPUT_AS_PATH = "InputAsPath"
 
     def as_class(self) -> type:
@@ -60,7 +60,7 @@ class AsPathExprType(util.Variant):
                 raise NotImplementedError(f"{self} conversion not implemented.")
 
 
-class AsPathMatchExprType(util.Variant):
+class AsPathMatchExprType(angler.util.Variant):
     AS_PATH_MATCH_REGEX = "AsPathMatchRegex"
     HAS_AS_PATH_LENGTH = "HasAsPathLength"
 

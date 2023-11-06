@@ -5,13 +5,16 @@ VRFs in the Batfish AST.
 from typing import Optional
 from ipaddress import IPv4Address
 from dataclasses import dataclass
-from serialize import Serialize, Field
-import util
+from angler.serialize import Serialize, Field
+import angler.util
 
 
 @dataclass
 class Ipv4UnicastAddressFamily(
-    util.ASTNode, Serialize, export_policy="exportPolicy", import_policy="importPolicy"
+    angler.util.ASTNode,
+    Serialize,
+    export_policy="exportPolicy",
+    import_policy="importPolicy",
 ):
     export_policy: Optional[str]
     import_policy: Optional[str]
@@ -19,7 +22,7 @@ class Ipv4UnicastAddressFamily(
 
 @dataclass
 class BgpActivePeerConfig(
-    util.ASTNode,
+    angler.util.ASTNode,
     Serialize,
     default_metric=Field("defaultMetric", int),
     address_family=Field("ipv4UnicastAddressFamily", Ipv4UnicastAddressFamily),
@@ -45,7 +48,7 @@ class BgpActivePeerConfig(
 
 @dataclass
 class BgpProcess(
-    util.ASTNode,
+    angler.util.ASTNode,
     Serialize,
     neighbors=Field("neighbors", dict[IPv4Address, BgpActivePeerConfig]),
     router=Field("routerId", IPv4Address),
@@ -56,7 +59,7 @@ class BgpProcess(
 
 @dataclass
 class OspfProcess(
-    util.ASTNode,
+    angler.util.ASTNode,
     Serialize,
     admin_costs="adminCosts",
     areas="areas",
@@ -68,7 +71,7 @@ class OspfProcess(
 
 @dataclass
 class Vrf(
-    util.ASTNode,
+    angler.util.ASTNode,
     Serialize,
     vrfname="name",
     bgp=Field("bgpProcess", BgpProcess, None),

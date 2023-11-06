@@ -4,12 +4,12 @@ Next hop in the Batfish AST.
 """
 from dataclasses import dataclass
 from ipaddress import IPv4Address
-from serialize import Serialize, Field
-import bast.expression as expr
-import util
+from angler.serialize import Serialize, Field
+import angler.bast.expression as expr
+import angler.util
 
 
-class NextHopExprType(util.Variant):
+class NextHopExprType(angler.util.Variant):
     SELF_NEXT_HOP = "SelfNextHop"
     DISCARD_NEXT_HOP = "DiscardNextHop"
     IP_NEXT_HOP = "IpNextHop"

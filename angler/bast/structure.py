@@ -3,19 +3,19 @@
 Structure definitions in the Batfish AST.
 """
 from dataclasses import dataclass
-from serialize import Serialize, Field
+from angler.serialize import Serialize, Field
 from typing import cast
-import bast.statement as stmt
-import bast.communities as comms
-import bast.topology as topology
-import bast.acl as acl
-import bast.vrf as vrf
-import util
+import angler.bast.statement as stmt
+import angler.bast.communities as comms
+import angler.bast.topology as topology
+import angler.bast.acl as acl
+import angler.bast.vrf as vrf
+import angler.util
 
 
 @dataclass
 class RoutingPolicy(
-    util.ASTNode,
+    angler.util.ASTNode,
     Serialize,
     policyname="name",
     statements=Field("statements", list[stmt.Statement]),
@@ -25,7 +25,7 @@ class RoutingPolicy(
 
 
 @dataclass
-class StructureDef(util.ASTNode, Serialize, value=Field("value", dict)):
+class StructureDef(angler.util.ASTNode, Serialize, value=Field("value", dict)):
     """
     A structure definition of some particular value, based on the
     StructureType of the enclosing Structure.
@@ -35,7 +35,7 @@ class StructureDef(util.ASTNode, Serialize, value=Field("value", dict)):
     value: vrf.Vrf | acl.RouteFilterList | RoutingPolicy | acl.Acl | comms.CommunitySetMatchExpr
 
 
-class StructureType(util.Variant):
+class StructureType(angler.util.Variant):
     COMMS_MATCH = "Community_Set_Match_Expr"
     IP_ACCESS_LIST = "IP_Access_List"
     ROUTE_FILTER_LIST = "Route_Filter_List"
@@ -63,7 +63,7 @@ class StructureType(util.Variant):
 
 @dataclass
 class Structure(
-    util.ASTNode,
+    angler.util.ASTNode,
     Serialize,
     node=Field("Node", topology.Node),
     ty=Field("Structure_Type", StructureType),
