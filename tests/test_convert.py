@@ -138,3 +138,55 @@ def test_convert_routing_policy_branching():
         ),
         reset_return,
     ]
+
+
+def test_convert_routing_policy_branching_twice():
+    old: list[bsm.Statement] = [
+        bsm.IfStatement(
+            "reject1",
+            # use CALLCONTEXT so that it doesn't get simplified out
+            bbe.StaticBooleanExpr(bbe.StaticBooleanExprType.CALLCONTEXT),
+            [bsm.StaticStatement(bsm.StaticStatementType.RETURN_FALSE)],
+            [],
+        ),
+        bsm.IfStatement(
+            "reject2",
+            # use CALLCONTEXT so that it doesn't get simplified out
+            bbe.StaticBooleanExpr(bbe.StaticBooleanExprType.CALLCONTEXT),
+            [bsm.StaticStatement(bsm.StaticStatementType.RETURN_TRUE)],
+            [],
+        ),
+    ]
+    new = convert_routing_policy(old)
+    assert new.body == [
+        asm.IfStatement(
+            "reject1",
+            aex.CallExprContext(),
+            [
+                update_arg(
+                    create_result(_value=False, _return=True),
+                    aty.EnvironmentType.RESULT,
+                ),
+            ],
+            [],
+        ),
+        asm.IfStatement(
+            "early_return",
+            unreachable(),
+            [],
+            [
+                asm.IfStatement(
+                    "reject2",
+                    aex.CallExprContext(),
+                    [
+                        update_arg(
+                            create_result(_value=True, _return=True),
+                            aty.EnvironmentType.RESULT,
+                        )
+                    ],
+                    [],
+                )
+            ],
+        ),
+        reset_return,
+    ]
