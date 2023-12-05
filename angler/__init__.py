@@ -132,6 +132,13 @@ def main():
         "--output",
         help="A location to save the output JSON to (defaults to [path].json or [path].angler.json)",
     )
+    parser.add_argument(
+        "-S",
+        "--scaling",
+        metavar="NODE",
+        nargs="*",
+        help="A list of nodes to use to construct scaling subnetworks. Each subnetwork contains a subset of the given list of nodes.",
+    )
     args = parser.parse_args()
     current_path: pathlib.Path = args.path
     if current_path.is_dir():
@@ -161,6 +168,13 @@ def main():
     bf_ast = angler.bast.json.BatfishJson.from_dict(json_data)
     print("Successfully parsed Batfish AST!")
     a_ast = angler.convert.convert_batfish(bf_ast, simplify=args.simplify_bools)
+    # if scaling is specified, generate scaling subnets
+    if len(args.scaling) > 0:
+        print(f"Generating scaling subnets for nodes: {args.scaling}")
+        for i, sub_ast in enumerate(a_ast.scaling_subnets(args.scaling)):
+            _save_json(
+                sub_ast, current_path.with_stem(current_path.stem + f".sub{i+1}")
+            )
     _save_json(a_ast, current_path)
 
 
