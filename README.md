@@ -20,7 +20,7 @@ for other tools to parse and use.
 
 ### installation
 
-the easiest way to use angler is via [poetry](python-poetry.org): simply run `poetry install` from the base directory
+the easiest way to use angler is via [poetry](https://python-poetry.org): simply run `poetry install` from the base directory
 to set up a virtual environment you can use for running angler.
 
 ### running
