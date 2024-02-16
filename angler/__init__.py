@@ -169,7 +169,7 @@ def main():
     print("Successfully parsed Batfish AST!")
     a_ast = angler.convert.convert_batfish(bf_ast, simplify=args.simplify_bools)
     # if scaling is specified, generate scaling subnets
-    if len(args.scaling) > 0:
+    if args.scaling and len(args.scaling) > 0:
         print(f"Generating scaling subnets for nodes: {args.scaling}")
         for i, sub_ast in enumerate(a_ast.scaling_subnets(args.scaling)):
             _save_json(
