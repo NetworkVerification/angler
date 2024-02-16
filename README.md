@@ -20,30 +20,21 @@ for other tools to parse and use.
 
 ### installation
 
-you can get all the necessary dependencies via the provided `requirements.txt` file.
-
-```sh
-# ... set up your virtualenv ...
-pip install -r requirements.txt
-```
+the easiest way to use angler is via [poetry](python-poetry.org): simply run `poetry install` from the base directory
+to set up a virtual environment you can use for running angler.
 
 ### running
+
+once the poetry environment has been set up, you can just use `poetry run` to run angler.
+note that to read configurations with batfish, you must run the batfish docker service.
 
 ```sh
 # start the batfish service (e.g. with a container manager of your choice)
 docker start batfish
 # or: docker run --name batfish -v batfish-data:/data -p 8888:8888 -p 9997:9997 -p 9996:9996 batfish/allinone
 # then dump an example network config to JSON
-python angler.py examples/BDD1
+poetry run python -m angler examples/BDD1
 # this creates a BDD1.json file for you to inspect at your leisure,
 # or convert to the internal angler IR
-python angler.py bdd.json
+poetry run python -m angler BDD1.json
 ```
-
-## to-dos
-
-- [ ] ensure that we export all relevant batfish information for general examples
-- [x] implement AST nodes for all basic batfish expressions
-- [x] define a simplified angler JSON specification
-- [ ] write interpreter from batfish expressions into angler JSON
-- [ ] export angler JSON; write parsers for it in other verification tools
