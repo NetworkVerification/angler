@@ -10,3 +10,7 @@ htmlcov
 
 # ignore the venv
 .venv
+
+# ignore output angler files
+*.angler.json
+*.json
